@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.24)
+project(iiSocietyHelperConsumer LANGUAGES CXX)
+enable_testing()
+find_package(iiSocietyHelper 0.1.0 CONFIG REQUIRED)
+add_executable(iiSocietyHelper_consumer ../hello_world.cpp)
+target_link_libraries(iiSocietyHelper_consumer PRIVATE iiSocietyHelper::iiSocietyHelper)
+set_target_properties(iiSocietyHelper_consumer PROPERTIES CXX_EXTENSIONS OFF)
+add_test(NAME iiSocietyHelper.installed_consumer COMMAND iiSocietyHelper_consumer)
