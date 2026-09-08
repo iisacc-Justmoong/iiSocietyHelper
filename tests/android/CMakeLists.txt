@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.24)
+project(SocietyStoragePeer VERSION 1.0 LANGUAGES CXX)
+find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Gui)
+find_package(iiSocietyHelper 0.5.0 CONFIG REQUIRED)
+qt_standard_project_setup()
+qt_add_executable(SocietyStoragePeer main.cpp)
+target_link_libraries(SocietyStoragePeer PRIVATE Qt6::Gui iiSocietyHelper::iiSocietyHelper)
+set_target_properties(SocietyStoragePeer PROPERTIES QT_ANDROID_PACKAGE_NAME "com.iisacc.society.storage.peer"
+    QT_ANDROID_MIN_SDK_VERSION 28 QT_ANDROID_TARGET_SDK_VERSION 35)
+iiSocietyContainer_configure_android_client(SocietyStoragePeer)
