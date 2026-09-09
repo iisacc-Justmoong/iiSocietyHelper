@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiSocietyHelperConsumer LANGUAGES CXX)
 enable_testing()
-find_package(iiSocietyHelper 0.4.0 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.7.0 CONFIG REQUIRED)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test Qml)
 set(CMAKE_AUTOMOC ON)
 add_executable(iiSocietyHelper_consumer ../hello_world.cpp)
@@ -17,7 +17,24 @@ target_link_libraries(iiSocietyHelper_installed_delivery PRIVATE iiSocietyHelper
 target_compile_definitions(iiSocietyHelper_installed_delivery PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
 add_test(NAME iiSocietyHelper.installed_delivery COMMAND iiSocietyHelper_installed_delivery)
 
-# The application links only Helper; Container is resolved by its exported package.
+# The application links only Helper; its exported package resolves both SDKs.
+add_executable(iiSocietyHelper_installed_object_peer ../object_peer.cpp ../ObjectTestTypes.h)
+target_link_libraries(iiSocietyHelper_installed_object_peer PRIVATE iiSocietyHelper::iiSocietyHelper)
+add_executable(iiSocietyHelper_installed_objects ../objects.cpp ../ObjectTestTypes.h)
+target_link_libraries(iiSocietyHelper_installed_objects PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Qml)
+target_compile_definitions(iiSocietyHelper_installed_objects PRIVATE
+    HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}"
+    HELPER_OBJECT_PEER="$<TARGET_FILE:iiSocietyHelper_installed_object_peer>")
+add_dependencies(iiSocietyHelper_installed_objects iiSocietyHelper_installed_object_peer)
+add_test(NAME iiSocietyHelper.installed_objects COMMAND iiSocietyHelper_installed_objects)
+set_tests_properties(iiSocietyHelper.installed_objects PROPERTIES TIMEOUT 30)
+
+add_executable(iiSocietyHelper_installed_account ../account.cpp)
+target_link_libraries(iiSocietyHelper_installed_account PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Qml)
+target_compile_definitions(iiSocietyHelper_installed_account PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
+add_test(NAME iiSocietyHelper.installed_account COMMAND iiSocietyHelper_installed_account)
+set_tests_properties(iiSocietyHelper.installed_account PROPERTIES TIMEOUT 30)
+
 add_executable(iiSocietyHelper_installed_filesystem_peer ../filesystem_peer.cpp)
 target_link_libraries(iiSocietyHelper_installed_filesystem_peer PRIVATE iiSocietyHelper::iiSocietyHelper)
 add_executable(iiSocietyHelper_installed_filesystem ../filesystem.cpp)

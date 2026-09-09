@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QMap>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
@@ -113,6 +114,10 @@ public:
     QTimer *timer;
     QFileSystemWatcher *watcher;
     FileSystem *fileSystem;
+    QPointer<iisacc::accounts::AccountManager> accountManager;
+    QPointer<iisacc::accounts::Account> account;
+    QList<QMetaObject::Connection> accountConnections;
+    quint64 accountRevision = 0;
     QElapsedTimer clock;
     ObservationOptions options;
     QString root;
@@ -126,13 +131,15 @@ public:
 
     bool fail(const QString &message, QString *output = nullptr)
     {
-        if (output) *output = message;
-        if (error != message) {
-            error = message;
+        const QString copiedMessage = message;
+        const QPointer<Helper> guard(q);
+        if (output) *output = copiedMessage;
+        if (error != copiedMessage) {
+            error = copiedMessage;
             emit q->errorChanged();
         }
-        emit q->errorOccurred(message);
-        qCWarning(presenceLog).noquote() << message;
+        if (guard) emit guard->errorOccurred(copiedMessage);
+        qCWarning(presenceLog).noquote() << copiedMessage;
         return false;
     }
 
@@ -360,11 +367,75 @@ QString Helper::sendData(const QString &topic, const QVariantMap &payload)
     return id;
 }
 
+QString Helper::sendObject(const QString &topic, QObject *object)
+{
+    return sendObject(topic, static_cast<const QObject *>(object));
+}
+QString Helper::sendObject(const QString &topic, const QObject *object)
+{
+    return sendObjectImpl(topic, object, nullptr);
+}
+QString Helper::sendObject(const QString &topic, const QVariant &value)
+{
+    return sendObjectImpl(topic, nullptr, &value);
+}
+QString Helper::sendObjectImpl(const QString &topic, const QObject *object, const QVariant *value)
+{
+    if (QThread::currentThread() != thread()) {
+        qCWarning(presenceLog) << "Send objects on Society Helper's event-loop thread.";
+        return {};
+    }
+    if (!d->running) { d->fail(QStringLiteral("Start Society Helper before sending objects.")); return {}; }
+    const auto instance = d->local.instanceId;
+    const QPointer<Helper> guard(this);
+    QString error;
+    const auto payload = value ? ObjectCodec::encode(*value, &error) : ObjectCodec::encode(object, &error);
+    if (!guard) return {};
+    if (!d->running || d->local.instanceId != instance) {
+        d->fail(QStringLiteral("Society Helper changed sender while capturing the object."));
+        return {};
+    }
+    if (payload.isEmpty()) { d->fail(error); return {}; }
+    return sendData(topic, payload);
+}
+
 bool Helper::isRunning() const { return d->running; }
 Peer Helper::self() const { return d->local; }
 QString Helper::directory() const { return d->root; }
 QString Helper::errorString() const { return d->error; }
 FileSystem *Helper::fileSystem() const { return d->fileSystem; }
+iisacc::accounts::AccountManager *Helper::accountManager() const { return d->accountManager.data(); }
+iisacc::accounts::Account *Helper::account() const { return d->account.data(); }
+
+bool Helper::setAccountManager(iisacc::accounts::AccountManager *manager)
+{
+    if (QThread::currentThread() != thread() || (manager && manager->thread() != thread())) {
+        qCWarning(presenceLog) << "Reference AccountManager on the same event-loop thread as Society Helper.";
+        return false;
+    }
+    // A destroyed manager's QPointer is already null when its signal runs; its
+    // existing connections still distinguish destruction from a detached no-op.
+    if (manager == d->accountManager && (manager || d->accountConnections.isEmpty())) return true;
+    for (const auto &connection : d->accountConnections) QObject::disconnect(connection);
+    d->accountConnections.clear();
+    d->accountManager = manager;
+    d->account = manager ? manager->account() : nullptr;
+    if (manager) {
+        d->accountConnections.append(connect(manager, &QObject::destroyed, this, [this] {
+            setAccountManager(nullptr);
+        }));
+        d->accountConnections.append(connect(d->account, &iisacc::accounts::Account::changed,
+            this, &Helper::accountChanged));
+    }
+    const auto revision = ++d->accountRevision;
+    const QPointer<Helper> guard(this);
+    const auto current = [&] { return guard && guard->d->accountRevision == revision; };
+    emit accountManagerChanged();
+    if (!current()) return false;
+    emit accountChanged();
+    return current();
+}
+
 QList<Peer> Helper::peers() const
 {
     QList<Peer> peers;

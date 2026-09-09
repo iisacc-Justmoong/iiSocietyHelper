@@ -1,11 +1,11 @@
 # iiSocietyHelper
 
-C++20·Qt 6.8.3 기반 iisacc 앱 공통 라이브러리이다. 버전 0.5.0은 **Society 원본 파일 시스템 접근**, 같은 기기의 앱 관측, 영속 데이터 전달을 제공한다. 모든 참여자는 자기 생존 신호를 기록하면서 다른 참여자의 신호를 읽는다. Society 앱이나 별도 중앙 서버가 켜져 있을 필요가 없다.
+C++20·Qt 6.8.3 기반 iisacc 앱 공통 라이브러리이다. 버전 0.7.0은 **C++ 객체 전송**, iisacc 계정 객체 참조, Society 원본 파일 시스템 접근, 같은 기기의 앱 관측, 영속 데이터 전달을 제공한다. 모든 참여자는 자기 생존 신호를 기록하면서 다른 참여자의 신호를 읽는다. Society 앱이나 별도 중앙 서버가 켜져 있을 필요가 없다.
 
 ## 앱에서 사용하기
 
 ```cmake
-find_package(iiSocietyHelper 0.5.0 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.7.0 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -34,9 +34,60 @@ Helper는 `QCoreApplication` 생성 후 앱의 이벤트 루프 스레드에서 
 
 Society와 Dreamscapes의 LVRS `configureEngine`에서 이 수명을 연결한다. Qt Quick 앱은 `QGuiApplication::applicationStateChanged`를 `setActivity()`에 연결할 수 있다. `Activity`는 Unknown/Foreground/Background이며, 포커스를 잃었다는 이유만으로 죽은 앱으로 처리하지 않는다.
 
+## 계정 객체 참조 (0.6.0)
+
+앱에서 사용하는 `iisacc::accounts::AccountManager`를 `helper.setAccountManager(&accounts)`로 연결한다.
+실제 패키지·헤더 이름은 기존 저장소와 같은 `iiAcountManager`이다. Helper는 매니저와 계정을 복사하거나
+소유하지 않으며, 로그인은 연결된 매니저가 수행한다. 참조는 관측 `start()` 전부터 사용하고 `stop()` 후에도 유지한다.
+
+```cpp
+#include <iiSocietyHelper.h> // AccountManager와 Account의 공개 헤더도 포함한다.
+
+iisacc::accounts::AccountManager accounts;
+iiSocietyHelper::Helper helper;
+if (!helper.setAccountManager(&accounts)) return;
+QObject::connect(&helper, &iiSocietyHelper::Helper::accountChanged, &helper, [&] {
+    const auto *user = helper.account();
+    if (!user || !user->isPresent()) return;
+    const QString userId = user->userId();
+    const auto *author = user->authorDetails();
+    const QVariantMap allValues = user->toVariantMap();
+});
+accounts.loginWithPassword(email, password);
+// accounts.verificationRequired() 이후 accounts.verifyEmailCode(code)를 호출한다.
+```
+
+| API / Qt 속성 | 계약 |
+| --- | --- |
+| `setAccountManager(AccountManager*)` | 같은 스레드의 매니저를 연결한다. `nullptr`은 연결 해제이다. QML에서도 호출할 수 있다. |
+| `accountManager()` / `accountManager` | 연결한 매니저 객체 자체이다. 미연결·파괴 후에는 `nullptr`이다. |
+| `account()` / `account` | 매니저의 고정 `Account` 객체 자체이다. 미연결이면 `nullptr`, 연결 후 로그인 전에는 `present == false`이다. |
+| `accountManagerChanged()` | 연결·교체·연결 해제·매니저 파괴를 알린다. |
+| `accountChanged()` | 참조 교체와 계정·중첩 작성자 데이터 변경을 알린다. 변경된 전체 값이 반영된 뒤 보낸다. |
+
+`Account`의 신원·프로필·멤버십·동의 정보 10개 필드와 `AuthorDetails`의 20개 필드, 타입이 지정된 링크와
+식별자 컬렉션을 그대로 읽는다. QML에서는 `societyHelper.account.userId`,
+`societyHelper.account.authorDetails.organization`, `societyHelper.accountManager.state`를 사용할 수 있다.
+연결이 없을 때에는 `societyHelper.account`를 먼저 검사한다. 계정 변경 알림은 로그인 요청 상태 변경과
+구분하며, 로그인 상태는 매니저의 `state`·`stateChanged`를 사용한다.
+
+같은 매니저를 다시 설정하면 중복 알림이 없다. 교체하면 이전 매니저의 알림 연결을 끊고, 매니저 파괴 시
+두 참조를 자동으로 비운다. 여러 Helper가 같은 매니저를 참조할 수 있다. Helper 해제·파괴는 매니저의
+로그아웃이나 계정 초기화를 수행하지 않는다. `setAccountManager()`는 Helper의 이벤트 루프 스레드에서
+호출하며 매니저도 같은 스레드에 유지한다. 다른 스레드는 변경 없이 `false`를 반환한다. 변경 알림 처리 중
+다른 참조로 교체되거나 Helper가 파괴되어도 이전 참조의 후속 알림을 보내지 않고 `false`를 반환한다.
+
+이 연결은 같은 프로세스 안의 QObject 참조이다. 계정 데이터·인증 쿠키를 관측 기록이나 전달 큐에 자동으로
+저장·방송하지 않으며, 파일 시스템 접근 권한·저장 위치·원격 동기화 정책을 변경하지 않는다.
+
+의존성 방향은 `iiSocietyHelper → iiAcountManager → Qt Core/Network`이다. 기존 Workspace에서 관리하는
+계정 SDK 0.2.x의 공개 API를 재사용한다. 계정 모델·로그인 구현의 복제나 새 외부 패키지 도입은 없다.
+Helper의 CMake 타깃이 계정 SDK를 공개 링크하고 설치 설정도 `find_dependency`로 찾으므로 소비자는
+Helper만 링크하면 된다. 계정 SDK에서 Helper나 Container를 참조하지 않는다.
+
 ## Society 파일 시스템 접근 (0.4.0)
 
-`Helper`의 `fileSystem()`은 생성 시 Society 원본을 자동으로 열며 `start()` 이전과 `stop()` 이후에도 사용한다. Helper만 링크하면 iiSocietyContainer 0.8.0과 Qt도 연결된다. 기존 QML 컨텍스트에서는 `societyHelper.fileSystem`으로 사용한다.
+`Helper`의 `fileSystem()`은 생성 시 Society 원본을 자동으로 열며 `start()` 이전과 `stop()` 이후에도 사용한다. Helper만 링크하면 iiSocietyContainer 0.9.0과 Qt도 연결된다. 기존 QML 컨텍스트에서는 `societyHelper.fileSystem`으로 사용한다.
 
 ```cpp
 auto *storage = helper.fileSystem();
@@ -82,6 +133,101 @@ Helper → Container → Qt Core 방향으로 의존한다. 발견·UUID·영역
 
 이는 협력하는 앱들의 존재 확인이다. 설치된 모든 앱 검색, 화면·문서 내용 수집, 프로세스 제어, 앱 간 명령 전달, 기기 간 발견·동기화는 포함하지 않는다. 앱 ID는 참여자가 선언하므로 서명 검증이나 인증 수단으로 사용하지 않는다.
 
+## C++ 객체 전송 (0.7.0)
+
+`Helper::sendObject(topic, object)`가 객체의 현재 값을 동기적으로 직렬화하여 기존 영속 전달 큐에 넣는다.
+성공 시 메시지 UUID, 실패 시 빈 문자열과 `errorString()`을 반환한다. `dataQueued(id)`는 실제 큐 삽입
+성공 후 한 번 발생한다. 전송 성공 후 원본 값 수정·QObject 삭제·송신 앱 종료는 큐에 저장한 값을 바꾸지 않는다.
+먼저 `start()`로 송신 앱·관측 디렉터리를 구성한다. 호출 중 getter나 직렬화 연산자가 Helper를 중단·재시작하면
+다른 송신 인스턴스 이름으로 객체를 넣지 않고 실패하며, Helper가 파괴되어도 남은 객체 전송을 수행하지 않는다.
+
+| 전송 대상 | 송신 API | 복원 결과 |
+| --- | --- | --- |
+| `QObject*` / `const QObject*` / `const QObject&` | `sendObject(topic, object)` | `ObjectSnapshot { QString className; QVariantMap properties; }` |
+| Qt 값·등록한 C++ struct/class | `sendObject(topic, value)` | 원래 Qt 메타타입을 보존한 `QVariant`, `value<T>()`로 C++ 값 복원 |
+| 이미 보유한 `QVariant` | `sendObject(topic, variant)` | 담겨 있던 값의 타입과 내용 |
+| 기존 JSON 값 묶음 | `sendData(topic, map)` | 기존 `QVariantMap` 계약 |
+
+QObject는 `Q_INVOKABLE QVariantMap toVariantMap() const`가 있으면 그 명시적 저장 계약을 사용한다.
+그렇지 않으면 상속된 사용자 속성을 포함한 읽기 가능한 `STORED` Q_PROPERTY를 읽는다. QObject 기본
+`objectName`, 동적 속성, `STORED false` 속성은 자동 수집하지 않는다. 중첩 QObject 속성은 중첩
+`ObjectSnapshot`이 되고 null 참조는 null 값이 된다. 순환 참조는 거절한다. 객체는 자기 스레드에서 읽고,
+getter는 유효한 값·참조를 반환해야 한다. 원본 QObject와 실행 메서드·소유권·메모리 주소는 전송하지 않는다.
+원래 QObject 클래스의 인스턴스가 필요하면 수신 앱이 스냅샷과 해당 클래스의 생성·갱신 API를 사용한다.
+
+계정 모델은 기존 전체 저장 계약을 그대로 사용한다. 로그인 후 10개 계정 필드와 작성자 정보 20개를 담으며,
+계정 참조 연결만으로 자동 전송하지 않고 다음 호출에서 명시적으로 전송한다.
+
+```cpp
+// helper.start(...)와 로그인 완료 후, 같은 이벤트 루프 스레드에서 호출한다.
+helper.setAccountManager(&accounts);
+const QString id = helper.sendObject("account.profile", helper.account());
+
+// 수신 측: DeliveryStore 또는 SocietyInbox에서 얻은 해당 메시지이다.
+QString error;
+const QVariant decoded = iiSocietyHelper::ObjectCodec::decode(message["payload"].toMap(), &error);
+if (decoded.metaType() == QMetaType::fromType<iiSocietyHelper::ObjectSnapshot>()) {
+    const auto snapshot = decoded.value<iiSocietyHelper::ObjectSnapshot>();
+    iisacc::accounts::AccountManager reader;
+    if (snapshot.className == "iisacc::accounts::Account")
+        reader.readAccount(snapshot.properties);
+}
+```
+
+이렇게 복원한 계정은 전달받은 프로필 값이다. 로그인 세션과 서버 권한을 발급하지 않는다. QML에서도
+`societyHelper.sendObject("account.profile", societyHelper.account)`로 QObject를 직접 전달할 수 있다.
+
+일반 C++ 값 객체는 복사·기본 생성이 가능해야 하며, 송신·수신 앱이 같은 메타타입과 QDataStream 연산자를
+공유해야 한다. 다음 선언·연산자를 공통 헤더에 두고 수신 앱에서도 `qRegisterMetaType`을 호출한다.
+
+```cpp
+#include <QDataStream>
+#include <QMetaType>
+#include <QString>
+
+struct GenerationRequest { QString prompt; quint64 seed = 0; };
+inline QDataStream& operator<<(QDataStream& out, const GenerationRequest& value) {
+    return out << quint32(1) << value.prompt << value.seed;
+}
+inline QDataStream& operator>>(QDataStream& in, GenerationRequest& value) {
+    quint32 version = 0;
+    in >> version;
+    if (version != 1) { in.setStatus(QDataStream::ReadCorruptData); return in; }
+    return in >> value.prompt >> value.seed;
+}
+Q_DECLARE_METATYPE(GenerationRequest)
+
+// 앱 시작 시, 양쪽 프로세스에서 실행한다.
+qRegisterMetaType<GenerationRequest>();
+GenerationRequest request{"a forest", 18446744073709551615ULL};
+const QString id = helper.sendObject("generation.request", request);
+
+// 수신 앱에서 topic을 확인한 뒤 처리한다.
+QString error;
+const QVariant value = iiSocietyHelper::ObjectCodec::decode(message["payload"].toMap(), &error);
+if (value.metaType() == QMetaType::fromType<GenerationRequest>()) {
+    const auto restored = value.value<GenerationRequest>();
+}
+```
+
+Q_GADGET을 포함한 사용자 값 타입도 동일한 스트림 연산자 계약을 따른다. QObject 속성에 담긴 사용자
+값 타입도 수신 측에서 등록해야 한다. 메타타입 등록만으로 임의 C++
+멤버를 자동 직렬화하지 않는다. 사용자 연산자가 필드·스키마 버전·내부 컬렉션 제한을 정의한다.
+`ObjectCodec::encode()` / `decode()`는 전송과 별도로 사용할 수 있다. 등록되지 않은 수신 타입, 지원하지
+않는 스트림 연산자, QVariant 안의 원시·QObject 스마트 포인터, 잘린 데이터, 후행 바이트, 잘못된 Base64와
+지원하지 않는 프로토콜 버전은 명시적으로 거절한다. 실패한 객체는 부분 메시지로 큐에 남지 않는다.
+
+payload는 `format: "iisacc.qt-object"`, `version: 1`, `streamVersion: 22`, `typeName`, `data`의 다섯 필드이다.
+`data`는 Qt 6.8 QDataStream(BigEndian, DoublePrecision) 바이트의 Base64이다. 이 형식으로 QByteArray,
+64비트 부호·무부호 정수, QDateTime, QUrl과 사용자 값 타입을 보존한다. 원시 스트림 쓰기는 48 KiB로 제한하고,
+**메타데이터·Base64를 포함한 최종 payload는 기존 64 KiB 한도**를 따른다. 검사하는 QObject 스냅샷과
+QVariantMap/List/Hash에는 중첩 깊이 16·노드 4096 한도를 적용한다. 큰 객체는 저장소의 파일과 참조를 사용한다.
+
+기존 outbox/inbox·데몬 수신·재시도·확인 위치를 그대로 사용하며 DB 스키마를 바꾸지 않는다. 데몬은
+객체 payload를 운반하고 수신 앱이 `ObjectCodec::decode()`로 복원한다. 현재 설치된 Qt Core의
+QMetaObject·QMetaType·QDataStream을 재사용하여 새 외부 라이브러리·직렬화 엔진을 추가하지 않았다.
+별도 프로세스 검사와 설치 소비자가 같은 API와 공개 헤더로 송신 종료 이후 복원을 확인한다.
+
 ## Society 데몬으로 데이터 전달
 
 `Helper::sendData(topic, payload)`는 최대 64 KiB의 JSON 객체를 영속 발신 큐에 넣고 메시지 UUID를 반환한다. 빈 문자열이면 기록에 실패했으므로 `errorString()`을 확인한다. 반환 성공은 **디스크에 대기 데이터가 저장되었음**을 뜻하며 데몬 수신 완료와 구분한다. 큰 모델·이미지 자체 대신 Society에 저장된 에셋의 참조를 전달한다.
@@ -124,16 +270,16 @@ Android와 WebAssembly는 개인 앱 저장 공간을 공용 위치로 오인하
 
 기존 Qt Core의 `QSaveFile`로 각 실행의 `<UUID>.json`을 원자적으로 기록하고, `QFileSystemWatcher`와 타이머 폴링을 함께 사용한다. 감시 통지가 합쳐지거나 누락되어도 주기적으로 다시 읽는다. 데이터 전달에는 기존 Qt 배포본의 Qt Sql·QSQLITE 드라이버를 추가로 연결한다. 별도 메시지 브로커나 외부 서버 패키지는 설치하지 않는다. Qt 6.8.3의 유지 중인 SQL API와 SQLite 트랜잭션을 사용하여 직접 만든 파일 저널의 복구 부담을 줄인다. Qt의 사용·재배포는 해당 설치본의 라이선스를 따른다.
 
-공개 헤더는 루트의 `iiSocietyHelper.h`이며 구현은 같은 루트의 `Helper.cpp`, `FileSystem.cpp`, `iiSocietyHelper.cpp`에 둔다. Apple 경로 해석만 `platform/apple/ObservationDirectory.mm`에 있다. 이전 `helloWorld()` 심볼은 기존 소비자 호환성을 위해 유지한다.
+공개 헤더는 루트의 `iiSocietyHelper.h`이며 구현은 같은 루트의 `Helper.cpp`, `ObjectCodec.cpp`, `FileSystem.cpp`, `iiSocietyHelper.cpp`에 둔다. Apple 경로 해석만 `platform/apple/ObservationDirectory.mm`에 있다. 이전 `helloWorld()` 심볼은 기존 소비자 호환성을 위해 유지한다.
 
 근거: [Qt 공유 저장 위치](https://doc.qt.io/qt-6.8/qstandardpaths.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html), [QFileSystemWatcher](https://doc.qt.io/qt-6.8/qfilesystemwatcher.html), [단조 시계](https://doc.qt.io/qt-6.8/qelapsedtimer.html), [Apple App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups), [iOS 백그라운드 실행](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes).
 
 ## 빌드·검증·설치
 
-CMake 3.24 이상, C++20, iiSocietyContainer **0.8.0** 이상, Qt **6.8.3** Core·Sql과 QSQLITE 드라이버가 필요하다. 테스트에는 같은 버전의 Qt Test, Apple 빌드에는 Foundation과 Objective-C++ 컴파일러가 필요하다. 모든 산출물은 `build/`에 둔다.
+CMake 3.24 이상, C++20, iiSocietyContainer **0.9.0** 이상, iiAcountManager **0.2.x**, Qt **6.8.3** Core·Sql·Network와 QSQLITE 드라이버가 필요하다. 계정 SDK 자체를 빌드하려면 CMake 3.31 이상이 필요하다. 테스트에는 같은 버전의 Qt Test·Qml, Apple 빌드에는 Foundation과 Objective-C++ 컴파일러가 필요하다. 모든 산출물은 `build/`에 둔다.
 
 ```sh
-CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install" \
+CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAcountManager/build/install" \
   INSTALL_PREFIX="$PWD/build/install" ./install.sh
 ```
 
@@ -143,13 +289,33 @@ CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/insta
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH=/Volumes/Storage/Qt/6.8.3/macos \
   -DiiSocietyContainer_DIR=/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \
+  -DiiAcountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAcountManager/build/install/lib/cmake/iiAcountManager \
   -DCMAKE_INSTALL_PREFIX="$PWD/build/install" -DBUILD_TESTING=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 cmake --install build
 ```
 
-테스트는 세 Helper의 상호 발견, 같은 앱 복수 인스턴스, 상태 변경, 정상 종료, 강제 종료 후 남은 기록, 재시작, 프로세스 중단·복귀, 관측자 이벤트 루프 중단·복귀, 잘못된 설정, 디렉터리 경계와 격리를 검사한다. 별도 프로세스 테스트는 실제로 세 실행 파일을 가동한다.
+테스트는 세 Helper의 상호 발견, 같은 앱 복수 인스턴스, 상태 변경, 정상 종료, 강제 종료 후 남은 기록, 재시작, 프로세스 중단·복귀, 관측자 이벤트 루프 중단·복귀, 잘못된 설정, 디렉터리 경계와 격리를 검사한다. 별도 프로세스 테스트는 실제로 세 실행 파일을 가동한다. `iiSocietyHelper.account`와 `iiSocietyHelper.installed_account`는 실제 계정 SDK를 연결하여 객체 동일성·전체 모델 접근·갱신·초기화·교체·소멸·재진입·스레드 경계·QML 참조·관측 데이터 분리를 검사한다.
+
+2026-09-09 0.6.0 계정 참조 검증에서 Helper Release 빌드와 CTest **7/7**, `build/install` 설치본만 링크한
+`build/account-reference/consumer`의 CTest **5/5**가 통과했다. 계정 참조 검사는 각 실행에서 9개 사례를
+검증했다(초기화·정리 포함 11개 통과). 소비자의 CMake는 Helper만 찾고 링크하며, iiAcountManager 0.2.0을
+`SDK/iiAcountManager/build/install`에서 의존성으로 해석했다. 실행 시 `DYLD_LIBRARY_PATH`,
+`DYLD_FRAMEWORK_PATH`, `DYLD_FALLBACK_LIBRARY_PATH`를 제거했다. 결과 XML은
+`build/account-reference-tests.xml`과 `build/account-reference/consumer/account-reference-installed-tests.xml`이다.
+이번 참조 검증에는 실제 로그인 요청·운영 배포·Android/iOS 기기 실행을 포함하지 않는다.
+
+2026-09-09 0.7.0 객체 전송 검증에서 Helper 빌드와 CTest **8/8**, `build/install`의 공개 헤더와
+라이브러리로 새로 빌드한 `build/object-transfer/consumer`의 CTest **6/6**이 통과했다.
+객체 전송 검사는 각 실행에서 12개 사례를 검증했다(초기화·정리 포함 14개 통과).
+C++ 값 타입과 64비트 정수·바이너리·날짜·URL의 왕복, QObject 속성과 계정 전체 모델의 스냅샷,
+잘못된 형식·크기·순환·스레드의 거부, getter 실행 중 객체 소멸·Helper 재시작, QML 호출을 검사했다.
+서로 다른 프로세스로 송신자가 종료된 뒤에도 수신자가 영속 큐에서 객체를 복원하고, 재실행 시 같은
+메시지 값을 읽는 것을 확인했다. 소비자는 iiAcountManager 0.2.0을 Workspace의 설치본에서 해석했고,
+실행 시 위의 세 `DYLD_*` 변수를 제거했다. 결과 XML은 `build/object-transfer-tests.xml`과
+`build/object-transfer/consumer/object-transfer-installed-tests.xml`이다. 이번 검증 범위는 macOS 로컬
+프로세스 간 전달이며, 운영 배포·실제 로그인·Android/iOS 기기 실행은 포함하지 않는다.
 
 진단 실행 파일도 설치한다. 두 터미널에서 동일한 위치로 실행하면 양쪽에서 JSON Lines 형태의 발견·변경·이탈 이벤트를 확인할 수 있다. 진단 실행 파일도 하나의 참여자이다.
 
