@@ -30,7 +30,7 @@ public:
         pending.clear();
         events.clear();
         process.start(QStringLiteral(HELPER_OBSERVER_EXECUTABLE), {"--directory", directory,
-            "--application-id", id, "--heartbeat-ms", "50", "--timeout-ms", "400",
+            "--application-id", id, "--heartbeat-ms", "100", "--timeout-ms", "5000",
             "--exit-after-ms", QString::number(lifetime)});
         return process.waitForStarted(3000);
     }
@@ -90,17 +90,17 @@ private slots:
         b.process.kill();
         QVERIFY(b.process.waitForFinished(3000));
         QVERIFY(QFile::exists(QDir(directory.path()).filePath(bid + ".json")));
-        QTRY_VERIFY(a.departed(bid, "timed-out"));
-        QTRY_VERIFY(c.departed(bid, "timed-out"));
+        QTRY_VERIFY_WITH_TIMEOUT(a.departed(bid, "timed-out"), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(c.departed(bid, "timed-out"), 10000);
         QTRY_COMPARE(a.peers(), QSet<QString>({cid}));
-        QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes", 1800));
+        QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes", 10000));
         QTRY_VERIFY(!b.instance().isEmpty());
         const auto restarted = b.instance();
         QVERIFY(restarted != bid);
         QTRY_COMPARE(a.peers(), QSet<QString>({restarted, cid}));
         QTRY_COMPARE(b.peers(), QSet<QString>({aid, cid}));
-        QTRY_VERIFY(a.departed(restarted, "withdrawn"));
-        QTRY_VERIFY(c.departed(restarted, "withdrawn"));
+        QTRY_VERIFY_WITH_TIMEOUT(a.departed(restarted, "withdrawn"), 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(c.departed(restarted, "withdrawn"), 15000);
         QTRY_COMPARE(b.process.state(), QProcess::NotRunning);
         QCOMPARE(b.process.exitCode(), 0);
         QVERIFY(!QFile::exists(QDir(directory.path()).filePath(restarted + ".json")));
@@ -110,7 +110,7 @@ private slots:
 #ifdef Q_OS_UNIX
         QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/suspend-XXXXXX"));
         Helper observer;
-        QVERIFY(observer.start({"com.iisacc.observer", "Observer", "1"}, {directory.path(), 50, 400}));
+        QVERIFY(observer.start({"com.iisacc.observer", "Observer", "1"}, {directory.path(), 100, 5000}));
         QSignalSpy appeared(&observer, &Helper::peerAppeared);
         QSignalSpy departed(&observer, &Helper::peerDisappeared);
         Participant peer;
@@ -118,7 +118,7 @@ private slots:
         QTRY_COMPARE(observer.peers().size(), 1);
         const auto id = observer.peers().first().instanceId;
         QCOMPARE(::kill(pid_t(peer.process.processId()), SIGSTOP), 0);
-        QTRY_VERIFY(observer.peers().isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(observer.peers().isEmpty(), 10000);
         QCOMPARE(qvariant_cast<DepartureReason>(departed.last()[1]), DepartureReason::TimedOut);
         QCOMPARE(::kill(pid_t(peer.process.processId()), SIGCONT), 0);
         QTRY_COMPARE(observer.peers().size(), 1);

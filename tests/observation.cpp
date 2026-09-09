@@ -19,7 +19,8 @@ private slots:
     {
         QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-XXXXXX"));
         QVERIFY(directory.isValid());
-        const ObservationOptions options{directory.path(), 50, 400};
+        // Keep the production expiry window: shared-volume flushes can exceed 400 ms.
+        const ObservationOptions options{directory.path(), 100, 5000};
         Helper society, dreamscapes, secondDreamscapes;
         QSignalSpy appeared(&society, &Helper::peerAppeared);
         QSignalSpy updated(&society, &Helper::peerUpdated);
@@ -136,13 +137,14 @@ private slots:
     {
         QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/resume-XXXXXX"));
         Helper a, b;
-        QVERIFY(a.start({"com.iisacc.a", "A", "1"}, {directory.path(), 50, 400}));
-        QVERIFY(b.start({"com.iisacc.b", "B", "1"}, {directory.path(), 50, 400}));
+        const ObservationOptions options{directory.path(), 100, 5000};
+        QVERIFY(a.start({"com.iisacc.a", "A", "1"}, options));
+        QVERIFY(b.start({"com.iisacc.b", "B", "1"}, options));
         QTRY_COMPARE(a.peers().size(), 1);
         QSignalSpy departed(&a, &Helper::peerDisappeared);
         QSignalSpy appeared(&a, &Helper::peerAppeared);
         // Simulate a suspended app event loop; wall-clock timestamps are irrelevant.
-        QThread::msleep(550);
+        QThread::msleep(5500);
         QTRY_COMPARE(departed.size(), 1);
         QCOMPARE(qvariant_cast<DepartureReason>(departed.first()[1]), DepartureReason::TimedOut);
         QTRY_COMPARE(appeared.size(), 1);
