@@ -1,5 +1,6 @@
 #include "iiSocietyHelper.h"
 #include "DeliveryStore.h"
+#include "LocalDirectory.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -146,7 +147,8 @@ public:
     bool rootIntact() const
     {
         const QFileInfo info(root);
-        return info.isDir() && !info.isSymLink() && info.canonicalFilePath() == root;
+        return info.isDir() && !info.isSymLink() && info.canonicalFilePath() == root
+            && local::validateDirectory(root, nullptr);
     }
 
     QString recordPath() const { return QDir(root).filePath(local.instanceId + ".json"); }
@@ -304,6 +306,7 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
     if (root.isEmpty() || !QDir::isAbsolutePath(root) || QDir(root).isRoot())
         return d->fail(rootError.isEmpty() ? QStringLiteral("Provide an absolute shared observation directory.") : rootError, error);
     root = QDir::cleanPath(root);
+    if (!local::validateDirectory(root, &rootError)) return d->fail(rootError, error);
     const bool existed = QFileInfo::exists(root);
     if (QFileInfo(root).isSymLink() || !QDir().mkpath(root) || !QFileInfo(root).isDir())
         return d->fail(QStringLiteral("Cannot create the shared observation directory."), error);

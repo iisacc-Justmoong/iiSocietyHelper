@@ -47,6 +47,7 @@ struct IISOCIETYHELPER_EXPORT Peer {
 
 struct ObservationOptions {
     // Empty uses the device-local shared directory (or Society App Group on iOS).
+    // Replicated drives and network filesystems cannot hold local IPC state.
     QString directory;
     int heartbeatIntervalMs = 1000;
     int peerTimeoutMs = 5000;

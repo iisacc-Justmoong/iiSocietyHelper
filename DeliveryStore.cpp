@@ -1,4 +1,5 @@
 #include "DeliveryStore.h"
+#include "LocalDirectory.h"
 
 #include <QDir>
 #include <QFile>
@@ -39,6 +40,7 @@ public:
         const QFileInfo directory(root);
         if (!directory.isDir() || directory.isSymLink() || directory.canonicalFilePath() != root)
             return fail(QStringLiteral("The Society delivery directory disappeared or was redirected."));
+        if (!local::validateDirectory(root, &error)) return false;
         for (const auto *name : {"delivery.sqlite", "delivery.sqlite-wal", "delivery.sqlite-shm"})
             if (QFileInfo(QDir(root).filePath(QString::fromLatin1(name))).isSymLink())
                 return fail(QStringLiteral("Society delivery files cannot be symbolic links."));
@@ -75,6 +77,8 @@ bool DeliveryStore::open(const QString &observationDirectory, QString *error)
     if (!QDir::isAbsolutePath(observationDirectory) || QDir(observationDirectory).isRoot()
         || QFileInfo(observationDirectory).isSymLink())
         return fail(QStringLiteral("Provide a local absolute Society observation directory."));
+    QString boundaryError;
+    if (!local::validateDirectory(observationDirectory, &boundaryError)) return fail(boundaryError);
     const auto directory = QDir(observationDirectory).filePath("delivery");
     const bool existed = QFileInfo::exists(directory);
     if (QFileInfo(directory).isSymLink() || !QDir().mkpath(directory))

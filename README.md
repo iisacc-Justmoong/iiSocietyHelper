@@ -1,11 +1,15 @@
 # iiSocietyHelper
 
-C++20·Qt 6.8.3 기반 iisacc 앱 공통 라이브러리이다. 버전 0.7.0은 **C++ 객체 전송**, iisacc 계정 객체 참조, Society 원본 파일 시스템 접근, 같은 기기의 앱 관측, 영속 데이터 전달을 제공한다. 모든 참여자는 자기 생존 신호를 기록하면서 다른 참여자의 신호를 읽는다. Society 앱이나 별도 중앙 서버가 켜져 있을 필요가 없다.
+C++20·Qt 6.8.3 기반 **같은 디바이스 안의 앱과 Society 협업** 라이브러리이다. 버전 0.7.1은 C++ 객체 전달, 계정 객체 참조, 로컬 Society 파일 시스템 접근, 앱 관측과 영속 IPC를 제공한다. 다른 디바이스의 Society 통신과 컨테이너 복제는 iiSocietySync의 책임이다. Helper는 네트워크 탐색·페어링·원격 파일 전송·충돌 병합을 수행하지 않는다.
+
+로컬 앱은 Society가 중지된 동안에도 메시지를 큐에 넣고 파일을 사용할 수 있다. Society 또는 같은 기기의 daemon이 메시지를 수신한다. 계정 참조와 객체 스냅샷은 네트워크 인증 권한이 아니며 Sync로 자동 전달하지 않는다. Helper와 Sync는 서로를 의존하지 않고 iiSocietyContainer의 로컬 저장 계약을 각각 소비한다.
+
+생존 신호·전달 SQLite·ACK는 복제 대상이 아니다. 관측·메시지 디렉터리를 Society 컨테이너 안이나 알려진 네트워크 파일 시스템에 지정하면 파일 생성 전에 거절한다. `delivery` 회귀 검사는 이 경계와 기존 같은 기기 전달·재실행 동작을 검사한다.
 
 ## 앱에서 사용하기
 
 ```cmake
-find_package(iiSocietyHelper 0.7.0 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.7.1 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -329,6 +333,12 @@ build/install/bin/ii-society-helper --directory "$PWD/build/observe" \
 ```
 
 SDK의 `iisacc.society.helper` Qt 로그에는 관측 시작과 peer 발견·이탈·오류가 기록된다. UI 없이 실제 앱의 양방향 관측 여부를 확인할 수 있다.
+
+## 0.7.1 기기 내 협업 경계
+
+Helper와 DeliveryStore의 런타임 경로는 기기 로컬 위치여야 한다. 시작 전에 Society 매니페스트가 있는 모든 상위 경로와 알려진 SMB/NFS 등의 네트워크 파일 시스템을 검사하고, 해당 경로 안에서는 관측·메시지 디렉터리를 만들지 않는다. 실행 중에도 경계를 다시 확인하므로 이미 열린 큐의 위치가 동기화 컨테이너가 되면 다음 작업을 거부한다. App Group의 Helper 런타임은 Society 데이터 영역과 별도 위치를 유지한다.
+
+다른 기기와의 파일·변경 기록·충돌·이어받기는 [iiSocietySync](../iiSocietySync/README.md)의 책임이다. Helper의 SQLite outbox/inbox/ACK, 실행 인스턴스, 객체 스냅샷과 계정 참조는 네트워크 동기화 프로토콜이 아니다. Helper는 Sync나 ServerHost에 링크하지 않는다. 설치 소비자 검사도 이 의존 경계를 확인한다. `delivery` 검사는 기존 영속 전달·중복 방지에 더해 시작 전과 실행 중 컨테이너 경계 침범을 검사한다.
 
 ## License
 

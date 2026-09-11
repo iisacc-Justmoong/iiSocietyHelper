@@ -5,12 +5,26 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QUuid>
+#include <SocietyDrive.h>
+#include <QDir>
 
 using namespace iiSocietyHelper;
 
 class DeliveryTests : public QObject {
     Q_OBJECT
 private slots:
+    void localMessagesNeverLiveInsideAReplicatedDrive()
+    {
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/local-boundary-XXXXXX");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
+        for (const auto &path : {root.path(), root.filePath("Files/LocalMessages"), root.filePath("Models/LocalMessages")}) {
+            Helper helper;
+            QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {path, 50, 400}));
+            DeliveryStore store;
+            QVERIFY(!store.open(path));
+            QVERIFY(!QFileInfo::exists(QDir(path).filePath("delivery")));
+        }
+    }
     void queueSurvivesSenderAndReceiverRestarts()
     {
         QTemporaryDir root(HELPER_TEST_DIRECTORY "/delivery-XXXXXX");
@@ -40,6 +54,19 @@ private slots:
         QCOMPARE(receiver.readAfter(0).size(), messages.size()); // No duplicate receipt.
         QCOMPARE(receiver.acknowledged("com.iisacc.society"), cursor);
         QVERIFY(receiver.readAfter(cursor).isEmpty());
+    }
+
+    void runningLocalQueueStopsIfItsDirectoryBecomesReplicated()
+    {
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/late-boundary-XXXXXX");
+        Helper helper;
+        QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root.path(), 50, 400}));
+        DeliveryStore store;
+        QVERIFY(store.open(root.path()));
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
+        QVERIFY(helper.sendData("must.stay.local", {}).isEmpty());
+        QCOMPARE(store.receivePending(), -1);
+        QVERIFY(!store.errorString().isEmpty());
     }
 
     void acknowledgementsNeverSkipUnreceivedOrGoBackwards()
