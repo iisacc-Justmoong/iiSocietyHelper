@@ -105,7 +105,7 @@ if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !fi
     qWarning() << file.errorString();
 ```
 
-`path()`는 `QFile`, `QDir`, `std::filesystem` 및 외부 엔진이 읽고 쓸 수 있는 실제 절대 경로이다. `url()`은 공백·한글·`#`·`%`를 보존하는 로컬 파일 URL이다. QML 예시는 `societyHelper.fileSystem.url("models", "weights.safetensors")`이다. `sections`는 `{key, name, path}` 목록이며 키는 `asset-library`, `deleted`, `files`, `forked`, `generation-history`, `models`, `published`, `thinking-space`이다.
+`path()`는 `QFile`, `QDir`, `std::filesystem` 및 외부 엔진이 읽고 쓸 수 있는 실제 절대 경로이다. `url()`은 공백·한글·`#`·`%`를 보존하는 로컬 파일 URL이다. QML 예시는 `societyHelper.fileSystem.url("models", "weights.safetensors")`이다. `sections`는 `{key, name, path}` 목록이며 키는 `asset-library`, `deleted`, `files`, `forked`, `generation-history`, `models`, `photos`, `published`, `thinking-space`이다. iiSocietyContainer 0.13.0의 `photos`는 최상위 `Photos/` 경로를 사용한다. `filesystem` 회귀 검사는 이 경로와 독립 앱 사이의 9개 영역 읽기·쓰기를 검증한다.
 
 - `open()`의 우선순위는 명시 원본 경로, `SOCIETY_CONTAINER_PATH`, Society 공통 설정이다. iOS는 기존 Society App Group 원본을 사용한다. Helper는 컨테이너를 새로 만들거나 전역 기본 선택을 바꾸지 않는다.
 - 성공한 선택은 경로와 UUID에 고정된다. 기본 저장소가 바뀌어도 작업 중인 대상은 유지한다. `refresh()`는 현재 선택 방식을 다시 적용하고, `open(path)`는 명시 경로, 인자 없는 `open()`은 기본 선택으로 돌아간다. 선택 실패 시 이전 저장소로 쓰지 않는다.
@@ -113,7 +113,7 @@ if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !fi
 - `available`, `rootPath`, `containerId`, `sections`는 조회 시 유효성을 확인한다. `storageChanged`는 선택·재선택 및 접근 중 감지한 무효화를 알린다. 상시 디스크 감시는 없으므로 화면 복귀·새로 고침 시 `refresh()`를 호출한다. 파일 오류는 관측·전달의 `Helper.errorString`과 별도이며 관측을 중단하지 않는다.
 - `path(key)`는 영역 디렉터리이다. 상대 경로는 마지막 파일 이름만 없어도 반환하며 부모는 `ensureDirectory()`로 먼저 준비한다. 숨김 항목은 지원한다. 절대 경로, `..`, `.`, 빈 중간 요소, 역슬래시, 콜론, NUL, 심볼릭 링크·junction은 거부한다. 경로 조회는 파일을 만들지 않는다.
 
-앱들은 같은 원본 바이트를 공유한다. Finder·iOS 파일 앱에는 기존대로 `Files/`만 공개하고 Helper 앱은 8개 영역을 사용한다. 경로 반환은 파일 잠금이나 I/O 성공을 보장하지 않는다. 실제 오류는 파일 API에서 처리하며 동시 편집은 앱의 잠금·충돌 정책을 적용한다. 반환 뒤 파일 시스템이 바뀔 수 있으므로 작업 직전에 경로를 다시 구한다. 원격 동기화와 OS sandbox 권한 부여는 별도이다.
+앱들은 같은 원본 바이트를 공유한다. Finder·iOS 파일 앱에는 기존대로 `Files/`만 공개하고 Helper 앱은 9개 영역을 사용한다. 경로 반환은 파일 잠금이나 I/O 성공을 보장하지 않는다. 실제 오류는 파일 API에서 처리하며 동시 편집은 앱의 잠금·충돌 정책을 적용한다. 반환 뒤 파일 시스템이 바뀔 수 있으므로 작업 직전에 경로를 다시 구한다. 원격 동기화와 OS sandbox 권한 부여는 별도이다.
 
 iOS 소비 앱은 기존 `iiSocietyContainer_configure_ios_client()` 구성과 동일 App Group 서명이 필요하다. macOS sandbox 앱도 OS에서 허용한 원본을 사용해야 한다. Android·WebAssembly의 개인 앱 디렉터리는 공용 저장소가 아니며 호스트가 실제로 공유한 원본을 명시해야 한다. Android 앱 간 기본 공유 저장소·IPC는 제공하지 않는다. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)의 공유 컨테이너 계약을 따른다.
 

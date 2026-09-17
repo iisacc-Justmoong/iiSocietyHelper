@@ -47,7 +47,8 @@ private slots:
         QCOMPARE(storage->parent(), &helper);
         QVERIFY(storage->isAvailable());
         QCOMPARE(storage->rootPath(), root);
-        QCOMPARE(storage->sections().size(), 8);
+        QCOMPARE(storage->sections().size(), 9);
+        QCOMPARE(storage->path("photos"), root + "/Photos");
         for (const auto &mode : {"write", "verify"}) {
             QProcess peer;
             peer.start(QStringLiteral(HELPER_FILESYSTEM_PEER), {mode});
@@ -58,7 +59,7 @@ private slots:
             const auto result = QJsonDocument::fromJson(peer.readAllStandardOutput()).object();
             QCOMPARE(result.value("containerId").toString(), storage->containerId());
             QCOMPARE(result.value("rootPath").toString(), root);
-            QCOMPARE(result.value("sectionCount").toInt(), 8);
+            QCOMPARE(result.value("sectionCount").toInt(), 9);
             if (QString(mode) != "write") continue;
             for (const auto &value : storage->sections()) {
                 const auto section = value.toMap();
