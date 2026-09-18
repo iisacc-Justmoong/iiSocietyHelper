@@ -22,14 +22,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
 else()
     set(helper_library_type SHARED)
 endif()
-add_library(iiSocietyHelper ${helper_library_type} iiSocietyHelper.cpp iiSocietyHelper.h Helper.cpp FileSystem.cpp DeliveryStore.cpp DeliveryStore.h ObjectCodec.cpp LocalDirectory.cpp LocalDirectory.h)
+add_library(iiSocietyHelper ${helper_library_type} src/iiSocietyHelper.cpp src/iiSocietyHelper.h src/Helper.cpp src/FileSystem.cpp src/DeliveryStore.cpp src/DeliveryStore.h src/ObjectCodec.cpp src/LocalDirectory.cpp src/LocalDirectory.h)
 add_library(iiSocietyHelper::iiSocietyHelper ALIAS iiSocietyHelper)
 target_compile_features(iiSocietyHelper PUBLIC cxx_std_20)
 target_compile_definitions(iiSocietyHelper PRIVATE IISOCIETYHELPER_BUILDING_LIBRARY)
 target_link_libraries(iiSocietyHelper PUBLIC Qt6::Core Qt6::Sql
     iiSocietyContainer::iiSocietyContainer iiAcountManager::iiAcountManager)
 target_include_directories(iiSocietyHelper PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 set_target_properties(iiSocietyHelper PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -41,8 +41,8 @@ set_target_properties(iiSocietyHelper PROPERTIES
 
 if(APPLE)
     enable_language(OBJCXX)
-    target_sources(iiSocietyHelper PRIVATE platform/apple/ObservationDirectory.mm)
-    set_source_files_properties(platform/apple/ObservationDirectory.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    target_sources(iiSocietyHelper PRIVATE src/platform/apple/ObservationDirectory.mm)
+    set_source_files_properties(src/platform/apple/ObservationDirectory.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     target_link_libraries(iiSocietyHelper PRIVATE "-framework Foundation")
     set_target_properties(iiSocietyHelper PROPERTIES OBJCXX_STANDARD 20 OBJCXX_STANDARD_REQUIRED YES)
 endif()
@@ -131,7 +131,7 @@ install(TARGETS iiSocietyHelper EXPORT iiSocietyHelperTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES iiSocietyHelper.h DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES src/iiSocietyHelper.h src/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES README.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper)
 set(iiSocietyHelper_PACKAGE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper")
 configure_package_config_file(cmake/iiSocietyHelperConfig.cmake.in

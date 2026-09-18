@@ -117,7 +117,7 @@ if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !fi
 
 iOS 소비 앱은 기존 `iiSocietyContainer_configure_ios_client()` 구성과 동일 App Group 서명이 필요하다. macOS sandbox 앱도 OS에서 허용한 원본을 사용해야 한다. Android·WebAssembly의 개인 앱 디렉터리는 공용 저장소가 아니며 호스트가 실제로 공유한 원본을 명시해야 한다. Android 앱 간 기본 공유 저장소·IPC는 제공하지 않는다. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)의 공유 컨테이너 계약을 따른다.
 
-Helper → Container → Qt Core 방향으로 의존한다. 발견·UUID·영역·경로 검사는 같은 Workspace에서 관리하는 AGPL-3.0-only iiSocietyContainer를 재사용하고 추가 서버·드라이버·외부 라이브러리는 도입하지 않는다. 일반 I/O는 기존 [QFile](https://doc.qt.io/qt-6.8/qfile.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html)을 사용하며 Qt 라이선스는 설치본을 따른다. 구현은 루트의 `FileSystem.cpp`, 공개 API는 `iiSocietyHelper.h`에 있다.
+Helper → Container → Qt Core 방향으로 의존한다. 발견·UUID·영역·경로 검사는 같은 Workspace에서 관리하는 AGPL-3.0-only iiSocietyContainer를 재사용하고 추가 서버·드라이버·외부 라이브러리는 도입하지 않는다. 일반 I/O는 기존 [QFile](https://doc.qt.io/qt-6.8/qfile.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html)을 사용하며 Qt 라이선스는 설치본을 따른다. 구현은 루트의 `src/FileSystem.cpp`, 공개 API는 `src/iiSocietyHelper.h`에 있다.
 
 `iiSocietyHelper.filesystem` 및 설치 소비자는 서로 다른 프로세스의 표준 C++ 쓰기 → Qt 읽기·수정 → 표준 C++ 재읽기, 8개 영역, 이름 변경·삭제, URL, 잘못된 경로, 늦은 저장소 준비, 선택 고정·재선택, UUID 교체를 검사한다. 모든 파일은 `build/`의 임시 컨테이너에 한정한다.
 
@@ -276,7 +276,7 @@ Android와 WebAssembly는 개인 앱 저장 공간을 공용 위치로 오인하
 
 기존 Qt Core의 `QSaveFile`로 각 실행의 `<UUID>.json`을 원자적으로 기록하고, `QFileSystemWatcher`와 타이머 폴링을 함께 사용한다. 감시 통지가 합쳐지거나 누락되어도 주기적으로 다시 읽는다. 데이터 전달에는 기존 Qt 배포본의 Qt Sql·QSQLITE 드라이버를 추가로 연결한다. 별도 메시지 브로커나 외부 서버 패키지는 설치하지 않는다. Qt 6.8.3의 유지 중인 SQL API와 SQLite 트랜잭션을 사용하여 직접 만든 파일 저널의 복구 부담을 줄인다. Qt의 사용·재배포는 해당 설치본의 라이선스를 따른다.
 
-공개 헤더는 루트의 `iiSocietyHelper.h`이며 구현은 같은 루트의 `Helper.cpp`, `ObjectCodec.cpp`, `FileSystem.cpp`, `iiSocietyHelper.cpp`에 둔다. Apple 경로 해석만 `platform/apple/ObservationDirectory.mm`에 있다. 이전 `helloWorld()` 심볼은 기존 소비자 호환성을 위해 유지한다.
+공개 헤더는 루트의 `src/iiSocietyHelper.h`이며 구현은 같은 루트의 `src/Helper.cpp`, `src/ObjectCodec.cpp`, `src/FileSystem.cpp`, `src/iiSocietyHelper.cpp`에 둔다. Apple 경로 해석만 `src/platform/apple/ObservationDirectory.mm`에 있다. 이전 `helloWorld()` 심볼은 기존 소비자 호환성을 위해 유지한다.
 
 근거: [Qt 공유 저장 위치](https://doc.qt.io/qt-6.8/qstandardpaths.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html), [QFileSystemWatcher](https://doc.qt.io/qt-6.8/qfilesystemwatcher.html), [단조 시계](https://doc.qt.io/qt-6.8/qelapsedtimer.html), [Apple App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups), [iOS 백그라운드 실행](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes).
 
@@ -351,3 +351,7 @@ iiSocietyHelper의 자체 작성 코드와 문서는 GNU Affero General Public L
 Android 소비 앱은 `iiSocietyContainer_configure_android_client(target)`를 호출하고 Society와 동일한 인증서로 서명한다. Society 앱의 내부 ContentProvider가 앱이 닫혀 있어도 요청에 응답한다. `fileSystem.open()`은 기존 Society UUID를 선택하며 별도 컨테이너를 만들지 않는다. `path()`와 `url()`은 Android 소비 앱에서 content URI를 반환한다. `QFile`로 읽기·쓰기를 수행하고 `ensureDirectory()`와 `entries(sectionKey, relativePath)`로 폴더를 준비·열거한다. `entries` 항목은 `name`, `path`, `isDirectory`, `size`이다. 네이티브 경로가 필요한 엔진은 URI를 자체 캐시로 복사해 사용한다. 데스크톱과 Society 소유 앱의 절대 경로 동작은 유지한다.
 
 내부 제공자는 서명 권한과 호출 UID의 서명을 확인하고 모든 요청의 UUID·영역·상대 경로를 검증한다. 공개 Android 파일 앱에는 계속 Files 내용만 나타난다. 이 파일 시스템 IPC는 Android 앱 관측의 백그라운드 실행 제한을 없애지 않는다. `tests/android/`의 별도 Qt 앱은 실제 앱 UID에서 Helper를 통해 8개 영역의 생성·읽기·쓰기·열거·상위 경로 거부를 검사하고 logcat의 `SOCIETY_ANDROID_PEER` JSON으로 결과를 남긴다.
+
+## Source layout
+
+Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.
