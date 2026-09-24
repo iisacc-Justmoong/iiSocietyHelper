@@ -75,7 +75,9 @@ private slots:
         const auto snapshot = ObjectCodec::decode(payload, &error).value<ObjectSnapshot>();
         QCOMPARE(snapshot.className, "iisacc::accounts::Account");
         QCOMPARE(snapshot.properties, expected);
-        QCOMPARE(snapshot.properties.size(), 10);
+        QCOMPARE(snapshot.properties.size(), 11);
+        QVERIFY(snapshot.properties.contains("societyContainerDrive"));
+        QVERIFY(snapshot.properties.value("societyContainerDrive").isNull());
         QCOMPARE(snapshot.properties.value("authorDetails").toMap().size(), 20);
         iisacc::accounts::AccountManager restored;
         QVERIFY(restored.readAccount(snapshot.properties));

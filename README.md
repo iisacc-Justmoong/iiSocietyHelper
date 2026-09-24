@@ -69,7 +69,7 @@ accounts.loginWithPassword(email, password);
 | `accountManagerChanged()` | 연결·교체·연결 해제·매니저 파괴를 알린다. |
 | `accountChanged()` | 참조 교체와 계정·중첩 작성자 데이터 변경을 알린다. 변경된 전체 값이 반영된 뒤 보낸다. |
 
-`Account`의 신원·프로필·멤버십·동의 정보 10개 필드와 `AuthorDetails`의 20개 필드, 타입이 지정된 링크와
+`Account`의 신원·프로필·멤버십·동의·컨테이너 드라이브 정보 11개 필드와 `AuthorDetails`의 20개 필드, 타입이 지정된 링크와
 식별자 컬렉션을 그대로 읽는다. QML에서는 `societyHelper.account.userId`,
 `societyHelper.account.authorDetails.organization`, `societyHelper.accountManager.state`를 사용할 수 있다.
 연결이 없을 때에는 `societyHelper.account`를 먼저 검사한다. 계정 변경 알림은 로그인 요청 상태 변경과
@@ -355,3 +355,6 @@ Android 소비 앱은 `iiSocietyContainer_configure_android_client(target)`를 �
 ## Source layout
 
 Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.
+
+계정 스냅샷에는 `societyContainerDrive`도 포함된다. 드라이브가 없는 계정은
+이 필드를 누락하지 않고 null로 보존하며, 객체 전송·복원 테스트에서 이를 검증한다.

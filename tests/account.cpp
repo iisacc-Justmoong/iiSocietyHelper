@@ -78,7 +78,9 @@ private slots:
         });
         QVERIFY(manager.readAccount(profile()));
         QCOMPARE(helper.account()->userId(), "@example_author");
-        QCOMPARE(helper.account()->toVariantMap().size(), 10);
+        QCOMPARE(helper.account()->toVariantMap().size(), 11);
+        QVERIFY(helper.account()->toVariantMap().contains("societyContainerDrive"));
+        QVERIFY(helper.account()->toVariantMap().value("societyContainerDrive").isNull());
         QCOMPARE(helper.account()->authorDetails()->toVariantMap().size(), 20);
         QCOMPARE(helper.account()->authorDetails()->links().first().url, QUrl("https://example.org/"));
         QCOMPARE(helper.account()->authorDetails()->identifiers().first().value, "author-001");
