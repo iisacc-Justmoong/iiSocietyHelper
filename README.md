@@ -358,3 +358,7 @@ Implementation files and their headers live together under `src/`. Existing feat
 
 계정 스냅샷에는 `societyContainerDrive`도 포함된다. 드라이브가 없는 계정은
 이 필드를 누락하지 않고 null로 보존하며, 객체 전송·복원 테스트에서 이를 검증한다.
+
+### Fresh generation models (0.7.2)
+
+Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.

@@ -120,6 +120,19 @@ QString FileSystem::containerId() const {
 }
 QString FileSystem::errorString() const { return d->error; }
 
+QList<iiSocietyContainer::StoredModel> FileSystem::models()
+{
+    if (!d->ready()) return {};
+    if (!d->storage) {
+        d->setError(QStringLiteral("Native Society model inventory is unavailable for this storage provider."));
+        return {};
+    }
+    QString error;
+    auto result = d->storage->models(&error);
+    d->setError(error);
+    return result;
+}
+
 QVariantList FileSystem::sections() const
 {
     QVariantList result;

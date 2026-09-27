@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(iiSocietyHelper VERSION 0.7.1 LANGUAGES CXX)
+project(iiSocietyHelper VERSION 0.7.2 LANGUAGES CXX)
 
 if(PROJECT_IS_TOP_LEVEL AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     if(DEFINED ENV{HOME})
@@ -13,7 +13,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Sql)
-find_package(iiSocietyContainer 0.9.0 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyContainer")
+find_package(iiSocietyContainer 0.14.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyContainer")
 find_package(iiAcountManager 0.2.0 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiAcountManager")
 set(CMAKE_AUTOMOC ON)
 

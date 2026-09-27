@@ -1,5 +1,7 @@
 #include <iiSocietyHelper.h>
 #include <SharedStorage.h>
+#include <StorageMap.h>
+#include <QJsonArray>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -33,6 +35,29 @@ private slots:
         qunsetenv("SOCIETY_CONTAINER_PATH");
         const auto settings = m_fixture.filePath(QString(QTest::currentTestFunction()) + ".json");
         qputenv("SOCIETY_STORAGE_SETTINGS_PATH", settings.toUtf8());
+    }
+
+    void modelsTrackOwnerChangesWithoutRestart()
+    {
+        const auto root = createDrive("Model Inventory"); QVERIFY(!root.isEmpty());
+        QVERIFY(SharedStorage::setDefaultContainer(root));
+        const auto drive = SocietyDrive::open(root); QVERIFY(drive);
+        StorageMap map(*drive);
+        QVERIFY(map.publish({QJsonObject{{"path", "models/Checkpoint/deleted.safetensors"},
+            {"kind", "file"}, {"size", "7"}, {"version", QString(64, 'a')}}}));
+        QFile primary(root + "/.society-sync/primary.json"); QVERIFY(primary.open(QIODevice::WriteOnly));
+        primary.write(QJsonDocument(QJsonObject{{"schema", 1}, {"container", drive->identifier()},
+            {"scope", QString(64, 'a')}, {"host", "test-host"}}).toJson()); primary.close();
+        Helper helper; auto &files = *helper.fileSystem();
+        QVERIFY(files.models().isEmpty()); QVERIFY(files.errorString().isEmpty());
+        QFile model(root + "/Models/Checkpoint/new.safetensors"); QVERIFY(model.open(QIODevice::WriteOnly));
+        model.write("new weights"); model.close();
+        const auto inventory = files.models(); QCOMPARE(inventory.size(), 1);
+        QCOMPARE(inventory.first().id, "Checkpoint/new.safetensors"); QVERIFY(inventory.first().available);
+        QVERIFY(model.rename(root + "/Deleted/new.safetensors"));
+        QVERIFY(files.models().isEmpty()); QVERIFY(files.errorString().isEmpty());
+        QVERIFY(!files.open(m_fixture.filePath("absent")));
+        QVERIFY(files.models().isEmpty()); QVERIFY(!files.errorString().isEmpty());
     }
 
     void nativeIoAcrossIndependentApplications()

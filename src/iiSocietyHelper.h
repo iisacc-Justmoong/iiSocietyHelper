@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iiAcountManager/AccountManager.h>
+#include <SharedStorage.h>
 
 #include <QDateTime>
 #include <QObject>
@@ -95,6 +96,9 @@ public:
     [[nodiscard]] QString containerId() const;
     [[nodiscard]] QVariantList sections() const; // {key, name, path}
     [[nodiscard]] QString errorString() const;
+    // Fresh generation inventory from the selected Society drive. Local owners
+    // reconcile disk changes; replicas retain remote download-on-demand models.
+    [[nodiscard]] QList<iiSocietyContainer::StoredModel> models();
 
     // sectionKey is the stable key from sections(), e.g. "files" or "models".
     // Empty relativePath returns that section. Only a final leaf may be absent.
