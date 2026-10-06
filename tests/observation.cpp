@@ -108,6 +108,15 @@ private slots:
         Helper helper;
         QSignalSpy errors(&helper, &Helper::errorOccurred);
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root, 50, 400}));
+#ifdef Q_OS_WIN
+        // The native storage backend pins this directory without delete sharing.
+        QVERIFY(!QDir().rename(root, root + "-moved"));
+        QTest::qWait(200);
+        QVERIFY(helper.isRunning());
+        QVERIFY(errors.isEmpty());
+        helper.stop();
+        QVERIFY(QDir().rename(root, root + "-moved"));
+#else
         QVERIFY(QDir().rename(root, root + "-moved"));
         QVERIFY(QDir().mkpath(root + "-target"));
 #ifdef Q_OS_UNIX
@@ -117,6 +126,7 @@ private slots:
         QVERIFY(!errors.isEmpty());
         QVERIFY(!helper.errorString().isEmpty());
         QVERIFY(QDir(root + "-target").entryList(QDir::Files).isEmpty());
+#endif
     }
 
     void independentDirectoriesDoNotMix()

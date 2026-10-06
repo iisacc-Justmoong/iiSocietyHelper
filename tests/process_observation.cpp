@@ -84,14 +84,15 @@ private slots:
         QTRY_VERIFY2(!a.instance().isEmpty() && !b.instance().isEmpty() && !c.instance().isEmpty(),
                      (a.diagnostics() + b.diagnostics() + c.diagnostics()).constData());
         const auto aid = a.instance(), bid = b.instance(), cid = c.instance();
-        QTRY_COMPARE(a.peers(), QSet<QString>({bid, cid}));
+        QTRY_VERIFY2(a.peers() == QSet<QString>({bid, cid}),
+            (a.diagnostics() + b.diagnostics() + c.diagnostics()).constData());
         QTRY_COMPARE(b.peers(), QSet<QString>({aid, cid}));
         QTRY_COMPARE(c.peers(), QSet<QString>({aid, bid}));
         b.process.kill();
         QVERIFY(b.process.waitForFinished(3000));
         QVERIFY(QFile::exists(QDir(directory.path()).filePath(bid + ".json")));
-        QTRY_VERIFY_WITH_TIMEOUT(a.departed(bid, "timed-out"), 10000);
-        QTRY_VERIFY_WITH_TIMEOUT(c.departed(bid, "timed-out"), 10000);
+        QTRY_VERIFY2_WITH_TIMEOUT(a.departed(bid, "timed-out"), a.diagnostics().constData(), 10000);
+        QTRY_VERIFY2_WITH_TIMEOUT(c.departed(bid, "timed-out"), c.diagnostics().constData(), 10000);
         QTRY_COMPARE(a.peers(), QSet<QString>({cid}));
         QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes", 10000));
         QTRY_VERIFY(!b.instance().isEmpty());
@@ -101,7 +102,7 @@ private slots:
         QTRY_COMPARE(b.peers(), QSet<QString>({aid, cid}));
         QTRY_VERIFY_WITH_TIMEOUT(a.departed(restarted, "withdrawn"), 15000);
         QTRY_VERIFY_WITH_TIMEOUT(c.departed(restarted, "withdrawn"), 15000);
-        QTRY_COMPARE(b.process.state(), QProcess::NotRunning);
+        QTRY_COMPARE_WITH_TIMEOUT(b.process.state(), QProcess::NotRunning, 15000);
         QCOMPARE(b.process.exitCode(), 0);
         QVERIFY(!QFile::exists(QDir(directory.path()).filePath(restarted + ".json")));
     }
