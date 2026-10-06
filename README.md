@@ -1,12 +1,14 @@
 # iiSocietyHelper
 
-C++20·Qt 6.8.3 기반 **같은 디바이스 안의 앱과 Society 협업** 라이브러리이다. 버전 0.7.1은 C++ 객체 전달, 계정 객체 참조, 로컬 Society 파일 시스템 접근, 앱 관측과 영속 IPC를 제공한다. 다른 디바이스의 Society 통신과 컨테이너 복제는 iiSocietySync의 책임이다. Helper는 네트워크 탐색·페어링·원격 파일 전송·충돌 병합을 수행하지 않는다.
+A C++20/Qt 6.8.3 library for **collaboration between apps and Society on the same device**. Version 0.7.1 provides C++ object delivery, account-object references, local Society file-system access, app observation, and persistent IPC. Society communication and container replication across devices are the responsibility of iiSocietySync. Helper does not perform network discovery, pairing, remote file transfer, or conflict merging.
 
-로컬 앱은 Society가 중지된 동안에도 메시지를 큐에 넣고 파일을 사용할 수 있다. Society 또는 같은 기기의 daemon이 메시지를 수신한다. 계정 참조와 객체 스냅샷은 네트워크 인증 권한이 아니며 Sync로 자동 전달하지 않는다. Helper와 Sync는 서로를 의존하지 않고 iiSocietyContainer의 로컬 저장 계약을 각각 소비한다.
+The local app can queue messages and use files even while Society is stopped. Society or the device's daemon receives the message. Account references and object snapshots are not network authenticated and are not automatically propagated via Sync. Helper and Sync do not depend on each other and each consumes iiSocietyContainer's local storage contract.
 
-생존 신호·전달 SQLite·ACK는 복제 대상이 아니다. 관측·메시지 디렉터리를 Society 컨테이너 안이나 알려진 네트워크 파일 시스템에 지정하면 파일 생성 전에 거절한다. `delivery` 회귀 검사는 이 경계와 기존 같은 기기 전달·재실행 동작을 검사한다.
+Survival signals, delivery SQLite ·ACK are not replication targets. Specifying observation and message directory inside a Society container or a known network file system causes rejection before file creation. `delivery` regression inspection checks this boundary and existing same-device delivery and re-execution behavior.
 
-## 앱에서 사용하기
+<a id="앱에서-사용하기"></a>
+
+## Use from app
 
 ```cmake
 find_package(iiSocietyHelper 0.7.1 CONFIG REQUIRED)
@@ -34,18 +36,18 @@ int main(int argc, char **argv)
 }
 ```
 
-Helper는 `QCoreApplication` 생성 후 앱의 이벤트 루프 스레드에서 생성·호출하며, 관측하는 동안 살아 있어야 한다. DLL을 링크하는 것만으로 관측을 시작하지 않는다. 실제 앱 진입점에서 `start()`를 호출한다. 종료 시 `aboutToQuit`, 소멸자 또는 명시적인 `stop()`이 자기 기록을 제거한다. `stop()` 후 다시 시작하면 새 인스턴스 ID를 발급한다. 시작 중복 호출은 기존 관측을 유지하면서 오류를 반환한다. 시그널 처리에서 객체를 없애려면 Qt의 `deleteLater()`를 사용한다.
+The Helper is created after `QCoreApplication` and created and called from the app's event loop thread, and must remain alive during observation. Merely linking a DLL does not start observation. Call `start()` at the actual app entry point. At termination, `aboutToQuit`, destructor, or explicit `stop()` removes its own record. Upon restart after `stop()`, a new instance ID is issued. Duplicate start calls return an error while maintaining the existing observation. To remove an object in signal handling, use Qt's `deleteLater()`.
 
-Society와 Dreamscapes의 LVRS `configureEngine`에서 이 수명을 연결한다. Qt Quick 앱은 `QGuiApplication::applicationStateChanged`를 `setActivity()`에 연결할 수 있다. `Activity`는 Unknown/Foreground/Background이며, 포커스를 잃었다는 이유만으로 죽은 앱으로 처리하지 않는다.
+Society and Dreamscapes' LVRS `configureEngine` link this lifetime. Qt Quick app can link to `QGuiApplication::applicationStateChanged` at `setActivity()`. `Activity` is Unknown/Foreground/Background and is not treated as a dead app solely because it lost focus.
 
-## 계정 객체 참조 (0.6.0)
+<a id="계정-객체-참조-060"></a>
 
-앱에서 사용하는 `iisacc::accounts::AccountManager`를 `helper.setAccountManager(&accounts)`로 연결한다.
-실제 패키지·헤더 이름은 기존 저장소와 같은 `iiAcountManager`이다. Helper는 매니저와 계정을 복사하거나
-소유하지 않으며, 로그인은 연결된 매니저가 수행한다. 참조는 관측 `start()` 전부터 사용하고 `stop()` 후에도 유지한다.
+## Account object reference ( 0.6.0 )
+
+Connects the `iisacc::accounts::AccountManager` used in the app to the `helper.setAccountManager(&accounts)`. The actual package and header names are the same `iiAcountManager` as the existing repository. The Helper does not copy or own the manager and does not log in; the login is performed by the connected manager. The reference is used from before the observation `start()` and is maintained even after `stop()`.
 
 ```cpp
-#include <iiSocietyHelper.h> // AccountManager와 Account의 공개 헤더도 포함한다.
+#include <iiSocietyHelper.h> // Also includes the public headers for AccountManager and Account.
 
 iisacc::accounts::AccountManager accounts;
 iiSocietyHelper::Helper helper;
@@ -58,40 +60,30 @@ QObject::connect(&helper, &iiSocietyHelper::Helper::accountChanged, &helper, [&]
     const QVariantMap allValues = user->toVariantMap();
 });
 accounts.loginWithPassword(email, password);
-// accounts.verificationRequired() 이후 accounts.verifyEmailCode(code)를 호출한다.
+// Call accounts.verifyEmailCode(code) after accounts.verificationRequired().
 ```
 
-| API / Qt 속성 | 계약 |
+|API / Qt property|Contract|
 | --- | --- |
-| `setAccountManager(AccountManager*)` | 같은 스레드의 매니저를 연결한다. `nullptr`은 연결 해제이다. QML에서도 호출할 수 있다. |
-| `accountManager()` / `accountManager` | 연결한 매니저 객체 자체이다. 미연결·파괴 후에는 `nullptr`이다. |
-| `account()` / `account` | 매니저의 고정 `Account` 객체 자체이다. 미연결이면 `nullptr`, 연결 후 로그인 전에는 `present == false`이다. |
-| `accountManagerChanged()` | 연결·교체·연결 해제·매니저 파괴를 알린다. |
-| `accountChanged()` | 참조 교체와 계정·중첩 작성자 데이터 변경을 알린다. 변경된 전체 값이 반영된 뒤 보낸다. |
+| `setAccountManager(AccountManager*)` |Connects the manager in the same thread. `nullptr` is disconnect. It can also be called from QML.|
+| `accountManager()` / `accountManager` |Is the manager object itself that was connected. After being disconnected or destroyed, it is `nullptr`.|
+| `account()` / `account` |Is the manager's fixed `Account` object itself. If not connected, it is `nullptr`; if connected but before login, it is `present == false`.|
+| `accountManagerChanged()` |Notifies of connect, replace, disconnect, and manager destruction.|
+| `accountChanged()` |Notifies of reference replacement and account and nested author data changes. It sends after the entire changed value is reflected.|
 
-`Account`의 신원·프로필·멤버십·동의·컨테이너 드라이브 정보 11개 필드와 `AuthorDetails`의 20개 필드, 타입이 지정된 링크와
-식별자 컬렉션을 그대로 읽는다. QML에서는 `societyHelper.account.userId`,
-`societyHelper.account.authorDetails.organization`, `societyHelper.accountManager.state`를 사용할 수 있다.
-연결이 없을 때에는 `societyHelper.account`를 먼저 검사한다. 계정 변경 알림은 로그인 요청 상태 변경과
-구분하며, 로그인 상태는 매니저의 `state`·`stateChanged`를 사용한다.
+Reads 11 fields of `Account`'s identity, profile, membership, consent, and container drive information, and 20 fields of `AuthorDetails`, and the type-specified links and identifier collection as is. In QML, `societyHelper.account.userId`, `societyHelper.account.authorDetails.organization`, and `societyHelper.accountManager.state` can be used. When there is no connection, it checks `societyHelper.account` first. The account change notification is distinguished from the login request status change, and the login status uses the manager's `state` and `stateChanged`.
 
-같은 매니저를 다시 설정하면 중복 알림이 없다. 교체하면 이전 매니저의 알림 연결을 끊고, 매니저 파괴 시
-두 참조를 자동으로 비운다. 여러 Helper가 같은 매니저를 참조할 수 있다. Helper 해제·파괴는 매니저의
-로그아웃이나 계정 초기화를 수행하지 않는다. `setAccountManager()`는 Helper의 이벤트 루프 스레드에서
-호출하며 매니저도 같은 스레드에 유지한다. 다른 스레드는 변경 없이 `false`를 반환한다. 변경 알림 처리 중
-다른 참조로 교체되거나 Helper가 파괴되어도 이전 참조의 후속 알림을 보내지 않고 `false`를 반환한다.
+If the same manager is set again, there is no duplicate notification. If replaced, the notification connection of the previous manager is broken, and when the manager is destroyed, both references are automatically cleared. Multiple Helpers can reference the same manager. Helper release and destruction do not perform the manager's logout or account initialization. `setAccountManager()` is called from the Helper's event loop thread and the manager is also maintained in the same thread. Other threads return `false` without changes. Even if replaced with another reference or the Helper is destroyed during change notification processing, it returns `false` without sending subsequent notifications of the previous reference.
 
-이 연결은 같은 프로세스 안의 QObject 참조이다. 계정 데이터·인증 쿠키를 관측 기록이나 전달 큐에 자동으로
-저장·방송하지 않으며, 파일 시스템 접근 권한·저장 위치·원격 동기화 정책을 변경하지 않는다.
+This connection is a QObject reference within the same process. It does not automatically save or broadcast account data and authentication cookies to the observation record or delivery queue, and does not change file system access permissions, storage location, or remote synchronization policy.
 
-의존성 방향은 `iiSocietyHelper → iiAcountManager → Qt Core/Network`이다. 기존 Workspace에서 관리하는
-계정 SDK 0.2.x의 공개 API를 재사용한다. 계정 모델·로그인 구현의 복제나 새 외부 패키지 도입은 없다.
-Helper의 CMake 타깃이 계정 SDK를 공개 링크하고 설치 설정도 `find_dependency`로 찾으므로 소비자는
-Helper만 링크하면 된다. 계정 SDK에서 Helper나 Container를 참조하지 않는다.
+The dependency direction is `iiSocietyHelper → iiAcountManager → Qt Core/Network`. It reuses the public API of the account SDK 0.2.x managed by the existing Workspace. There is no duplication of the account model or login implementation, nor the introduction of a new external package. The CMake target of the Helper exposes the account SDK and also finds the installation settings at `find_dependency`, so the consumer only needs to link the Helper. The account SDK does not reference the Helper or the Container.
 
-## Society 파일 시스템 접근 (0.4.0)
+<a id="society-파일-시스템-접근-040"></a>
 
-`Helper`의 `fileSystem()`은 생성 시 Society 원본을 자동으로 열며 `start()` 이전과 `stop()` 이후에도 사용한다. Helper만 링크하면 iiSocietyContainer 0.9.0과 Qt도 연결된다. 기존 QML 컨텍스트에서는 `societyHelper.fileSystem`으로 사용한다.
+## Society file system access ( 0.4.0 )
+
+`Helper` 's `fileSystem()` automatically opens the Society original at creation and continues to use it before `start()` and after `stop()`. Linking only the Helper connects iiSocietyContainer 0.9.0 and Qt are also connected. In the existing QML context, it is used as `societyHelper.fileSystem` .
 
 ```cpp
 auto *storage = helper.fileSystem();
@@ -105,71 +97,63 @@ if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !fi
     qWarning() << file.errorString();
 ```
 
-`path()`는 `QFile`, `QDir`, `std::filesystem` 및 외부 엔진이 읽고 쓸 수 있는 실제 절대 경로이다. `url()`은 공백·한글·`#`·`%`를 보존하는 로컬 파일 URL이다. QML 예시는 `societyHelper.fileSystem.url("models", "weights.safetensors")`이다. `sections`는 `{key, name, path}` 목록이며 키는 `asset-library`, `deleted`, `files`, `forked`, `generation-history`, `models`, `photos`, `published`, `thinking-space`이다. iiSocietyContainer 0.13.0의 `photos`는 최상위 `Photos/` 경로를 사용한다. `filesystem` 회귀 검사는 이 경로와 독립 앱 사이의 9개 영역 읽기·쓰기를 검증한다.
+`path()` is an actual absolute path that `QFile`, `QDir`, `std::filesystem`, and external engines can read and write. `url()` is a local file URL preserving spaces, Korean characters, `#`, and `%`. A QML example is `societyHelper.fileSystem.url("models", "weights.safetensors")`. `sections` is a list of `{key, name, path}`; the keys are `asset-library`, `deleted`, `files`, `forked`, `generation-history`, `models`, `photos`, `published`, and `thinking-space`. `photos` in iiSocietyContainer 0.13.0 uses the top-level `Photos/` path. `filesystem` regression checks verify this path and reads/writes in 9 sections between independent apps.
 
-- `open()`의 우선순위는 명시 원본 경로, `SOCIETY_CONTAINER_PATH`, Society 공통 설정이다. iOS는 기존 Society App Group 원본을 사용한다. Helper는 컨테이너를 새로 만들거나 전역 기본 선택을 바꾸지 않는다.
-- 성공한 선택은 경로와 UUID에 고정된다. 기본 저장소가 바뀌어도 작업 중인 대상은 유지한다. `refresh()`는 현재 선택 방식을 다시 적용하고, `open(path)`는 명시 경로, 인자 없는 `open()`은 기본 선택으로 돌아간다. 선택 실패 시 이전 저장소로 쓰지 않는다.
-- 최초 저장소가 없으면 빈 경로와 `fileSystem.errorString`을 반환하고 다음 경로 요청에서 다시 시도한다. 열었던 드라이브가 사라지거나 교체되면 명시적 재선택 전에는 새 UUID로 전환하지 않는다.
-- `available`, `rootPath`, `containerId`, `sections`는 조회 시 유효성을 확인한다. `storageChanged`는 선택·재선택 및 접근 중 감지한 무효화를 알린다. 상시 디스크 감시는 없으므로 화면 복귀·새로 고침 시 `refresh()`를 호출한다. 파일 오류는 관측·전달의 `Helper.errorString`과 별도이며 관측을 중단하지 않는다.
-- `path(key)`는 영역 디렉터리이다. 상대 경로는 마지막 파일 이름만 없어도 반환하며 부모는 `ensureDirectory()`로 먼저 준비한다. 숨김 항목은 지원한다. 절대 경로, `..`, `.`, 빈 중간 요소, 역슬래시, 콜론, NUL, 심볼릭 링크·junction은 거부한다. 경로 조회는 파일을 만들지 않는다.
+- The priority of `open()` is the explicit original path, `SOCIETY_CONTAINER_PATH` , and Society common settings. iOS uses the existing Society App Group original. The Helper does not create a new container or change the global default selection.
+- A successful selection is fixed to the path and UUID. Even if the default storage changes, the target being worked on is maintained. `refresh()` re-applies the current selection method, and `open(path)` returns to the explicit path, while `open()` without arguments returns to the default selection. If selection fails, it does not use the previous storage.
+- If there is no initial storage, it returns an empty path and `fileSystem.errorString` and retries on the next path request. If the opened drive disappears or is replaced, it does not switch to a new UUID before explicit re-selection.
+- `available` , `rootPath` , `containerId` , and `sections` are validated upon query. `storageChanged` notifies invalidation detected during selection, re-selection, and access. Since there is no continuous disk monitoring, it calls `refresh()` upon screen return and refresh. File errors are separate from the `Helper.errorString` of observation and delivery, and observation is not stopped.
+- `path(key)` is the area directory. The relative path returns everything except the last filename and prepares the parent as `ensureDirectory()` first. Hidden items are supported. Absolute paths, `..`, `.`, empty intermediate elements, backslash, colon, NUL, symbolic links, and junctions are rejected. Path lookup does not create files.
 
-앱들은 같은 원본 바이트를 공유한다. Finder·iOS 파일 앱에는 기존대로 `Files/`만 공개하고 Helper 앱은 9개 영역을 사용한다. 경로 반환은 파일 잠금이나 I/O 성공을 보장하지 않는다. 실제 오류는 파일 API에서 처리하며 동시 편집은 앱의 잠금·충돌 정책을 적용한다. 반환 뒤 파일 시스템이 바뀔 수 있으므로 작업 직전에 경로를 다시 구한다. 원격 동기화와 OS sandbox 권한 부여는 별도이다.
+Apps share the same original bytes. Finder, iOS, and File apps expose only `Files/` as before, while the Helper app uses 9 area. Path return does not guarantee file locking or I/O success. Actual errors are handled by the file API, and concurrent editing applies the app's lock and conflict policy. Since the file system may change after return, the path is retrieved again right before the operation. Remote synchronization and OS sandbox permission granting are separate.
 
-iOS 소비 앱은 기존 `iiSocietyContainer_configure_ios_client()` 구성과 동일 App Group 서명이 필요하다. macOS sandbox 앱도 OS에서 허용한 원본을 사용해야 한다. Android·WebAssembly의 개인 앱 디렉터리는 공용 저장소가 아니며 호스트가 실제로 공유한 원본을 명시해야 한다. Android 앱 간 기본 공유 저장소·IPC는 제공하지 않는다. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)의 공유 컨테이너 계약을 따른다.
+iOS consuming apps require the same App Group signature as the existing `iiSocietyContainer_configure_ios_client()` configuration. macOS sandbox apps must also use the original allowed by the OS. The private app directories for Android and WebAssembly are not public storage, and the host must explicitly specify the shared original. Android apps do not provide default shared storage or IPC between apps. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)follows the shared container contract.
 
-Helper → Container → Qt Core 방향으로 의존한다. 발견·UUID·영역·경로 검사는 같은 Workspace에서 관리하는 AGPL-3.0-only iiSocietyContainer를 재사용하고 추가 서버·드라이버·외부 라이브러리는 도입하지 않는다. 일반 I/O는 기존 [QFile](https://doc.qt.io/qt-6.8/qfile.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html)을 사용하며 Qt 라이선스는 설치본을 따른다. 구현은 루트의 `src/FileSystem.cpp`, 공개 API는 `src/iiSocietyHelper.h`에 있다.
+Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing AGPL-3.0-only iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/FileSystem.cpp`, and the public API is at `src/iiSocietyHelper.h`.
 
-`iiSocietyHelper.filesystem` 및 설치 소비자는 서로 다른 프로세스의 표준 C++ 쓰기 → Qt 읽기·수정 → 표준 C++ 재읽기, 8개 영역, 이름 변경·삭제, URL, 잘못된 경로, 늦은 저장소 준비, 선택 고정·재선택, UUID 교체를 검사한다. 모든 파일은 `build/`의 임시 컨테이너에 한정한다.
+`iiSocietyHelper.filesystem` and install consumers check standard C++ write to Qt read/modify to standard C++ re-read, 8 areas, rename/delete, URL, invalid paths, late storage preparation, selective pin/unpin, and UUID replacement. All files are confined to `build/`'s temporary container.
 
-`build/install/bin/ii-society-helper --filesystem`은 관측·데이터베이스를 시작하지 않고 현재 원본의 경로·UUID·8개 영역을 JSON으로 출력한다. 기본 저장소가 없거나 잘못되면 오류와 종료 코드 1을 반환한다. 명시 원본은 `SOCIETY_CONTAINER_PATH`로 지정한다. QML 표현식과 이 진단 명령의 읽기 전용 동작도 설치 소비자에서 검증한다.
+`build/install/bin/ii-society-helper --filesystem` outputs the current original's path, UUID, and 8 areas as JSON without starting observation or database. If no default storage exists or it is invalid, it returns an error and exit code 1. The explicit original is specified as `SOCIETY_CONTAINER_PATH`. QML expressions and the read-only behavior of this diagnostic command are also verified by the install consumer.
 
-## 관측 계약
+<a id="관측-계약"></a>
 
-- `ApplicationInfo`: 앱을 구분하는 고정 reverse-DNS ID, 표시 이름, 버전이다.
-- `Peer`: 앱 정보, 실행별 UUID, PID, 전경/배경 상태, 시작 시각, 마지막 신호를 확인한 시각이다. PID를 식별 키로 사용하지 않아 PID 재사용과 같은 앱의 여러 실행을 구분한다.
-- `peers()`와 QML용 `observedApplications`에는 자기 자신을 제외한 현재 관측 가능한 인스턴스가 들어간다. UUID 순으로 정렬한다.
-- `peerAppeared`, `peerUpdated`, `peerDisappeared`와 `peersChanged`를 제공한다. 생존 신호만 갱신되면 메타데이터 변경 이벤트를 반복하지 않는다.
-- `DepartureReason::Withdrawn`은 기록이 사라지거나 유효하지 않게 되었음을, `TimedOut`은 신호가 끊겼음을 뜻한다. 앱의 종료 원인이나 OS 프로세스 사망을 단정하는 상태가 아니다.
-- 저장된 파일을 처음 읽은 것만으로 실행 중이라고 판정하지 않는다. 그 뒤 heartbeat 순번이 증가해야 발견 이벤트를 낸다. 강제 종료·재부팅 후 남은 기록은 발견되지 않으며, 다른 Helper의 파일을 삭제하지 않는다.
-- 기본 생존 신호 간격은 1초, 관측 만료는 5초이다. 발견에는 보통 한두 번의 갱신이 필요하다. OS 스케줄링에 따라 지연될 수 있다. `ObservationOptions`로 간격을 바꾸는 참여자는 서로의 주기를 수용하는 timeout을 사용해야 한다.
-  상호 발견·중단 후 복구 통합 검사도 실제 기본 만료 시간인 5초를 사용한다. 외장 볼륨의 파일 flush 지연을 정상 실행 중인 참여자의 만료로 오인하지 않으며, 복구 검사는 실제로 5.5초 동안 이벤트 루프를 중단해 만료와 새 heartbeat 재발견을 모두 확인한다.
-  별도 프로세스 검사 역시 5초 만료를 사용하며, 재시작 프로세스는 발견을 확인한 뒤 정상 종료 이벤트까지 관측할 수 있도록 10초 동안 실행한다.
-- 만료는 관측자 내부의 단조 시계를 사용한다. 기록의 날짜나 파일 수정 시각은 생존 증거가 아니다. 관측자 자체가 timeout 이상 중단되었다가 돌아오면 다시 새로운 신호를 확인한다.
-- 실행 중 디렉터리 접근이나 기록에 실패하면 `running=false`로 전환하고 `errorOccurred`/`errorString`을 제공한다. 원인을 해결한 뒤 `start()`로 재시작할 수 있다.
+## Observation contract
 
-이는 협력하는 앱들의 존재 확인이다. 설치된 모든 앱 검색, 화면·문서 내용 수집, 프로세스 제어, 앱 간 명령 전달, 기기 간 발견·동기화는 포함하지 않는다. 앱 ID는 참여자가 선언하므로 서명 검증이나 인증 수단으로 사용하지 않는다.
+- `ApplicationInfo`: fixed reverse- DNS ID, display name, and version that distinguish the app.
+- `Peer`: app info, per-run UUID, PID, foreground/background status, start time, and the time the last signal was acknowledged. PID is not used as the identifier key to distinguish multiple runs of the same app like PID reuse.
+- `peers()` and `observedApplications` for QML contain current observable instances except itself, sorted in order UUID.
+- It provides `peerAppeared`, `peerUpdated`, `peerDisappeared`, and `peersChanged`. It does not repeat metadata change events if only the alive signal is updated.
+- `DepartureReason::Withdrawn` means the record has disappeared or become invalid, and `TimedOut` means the signal is disconnected. It is not a state that definitively determines the app's termination cause or OS process death.
+- It does not judge that the app is running just by reading the stored file. It emits a discovery event only after the heartbeat sequence number increases. Records remaining after forced termination or reboot are not discovered, and files of other Helpers are not deleted.
+- The default survival signal interval is 1 seconds, and observation expiration is 5 seconds. Discovery usually requires one or two renewals. It may be delayed according to OS scheduling. Participants changing the interval via `ObservationOptions` must use a timeout that accommodates each other's periods. Mutual discovery/interruption and recovery integration checks also use the actual default expiration time of 5 seconds. Do not mistake external volume file flush delay for a normal running participant's expiration, and the recovery check actually waits 5.5 seconds to stop the event loop to verify both expiration and new heartbeat rediscovery. Separate process checks also use a 5 second expiration, and the restart process runs for 10 seconds to observe until the normal termination event after confirming discovery.
+- Expiration uses the monotonic clock inside the observer. The record's date or file modification time is not evidence of being alive. If the observer itself stops for more than the timeout and then returns, it checks for a new signal again.
+- If execution fails to access the directory or record, it switches to `running=false` and provides `errorOccurred` / `errorString`. After resolving the cause, it can restart at `start()`.
 
-## C++ 객체 전송 (0.7.0)
+This is confirmation of the existence of cooperating apps. It does not include searching all installed apps, collecting screen and document content, controlling processes, passing commands between apps, or discovery and synchronization between devices. App IDs are declared by participants, so they are not used for signature verification or authentication means.
 
-`Helper::sendObject(topic, object)`가 객체의 현재 값을 동기적으로 직렬화하여 기존 영속 전달 큐에 넣는다.
-성공 시 메시지 UUID, 실패 시 빈 문자열과 `errorString()`을 반환한다. `dataQueued(id)`는 실제 큐 삽입
-성공 후 한 번 발생한다. 전송 성공 후 원본 값 수정·QObject 삭제·송신 앱 종료는 큐에 저장한 값을 바꾸지 않는다.
-먼저 `start()`로 송신 앱·관측 디렉터리를 구성한다. 호출 중 getter나 직렬화 연산자가 Helper를 중단·재시작하면
-다른 송신 인스턴스 이름으로 객체를 넣지 않고 실패하며, Helper가 파괴되어도 남은 객체 전송을 수행하지 않는다.
+<a id="c-객체-전송-070"></a>
 
-| 전송 대상 | 송신 API | 복원 결과 |
+## C++ object transfer (0.7.0)
+
+`Helper::sendObject(topic, object)` synchronously serializes the current value of the object and puts it into the existing persistent delivery queue. On success, it returns message UUID, and on failure, it returns an empty string and `errorString()`. `dataQueued(id)` occurs after the actual queue insertion succeeds and one time. Modifying the original value, QObject deletion, or terminating the sending app after successful transmission does not change the value stored in the queue. First, configure the sending app and observer directory with `start()`. During the call, if the getter or serialization operator stops or restarts the Helper, the object is not put into another sending instance name but fails, and even if the Helper is destroyed, it does not perform the remaining object transmission.
+
+|Transfer target|Transmit API|Restoration result|
 | --- | --- | --- |
 | `QObject*` / `const QObject*` / `const QObject&` | `sendObject(topic, object)` | `ObjectSnapshot { QString className; QVariantMap properties; }` |
-| Qt 값·등록한 C++ struct/class | `sendObject(topic, value)` | 원래 Qt 메타타입을 보존한 `QVariant`, `value<T>()`로 C++ 값 복원 |
-| 이미 보유한 `QVariant` | `sendObject(topic, variant)` | 담겨 있던 값의 타입과 내용 |
-| 기존 JSON 값 묶음 | `sendData(topic, map)` | 기존 `QVariantMap` 계약 |
+|Qt value·registered C++ struct/class| `sendObject(topic, value)` |Original Qt metatype preserved `QVariant`, `value<T>()` to C++ value restoration|
+|Already held `QVariant`| `sendObject(topic, variant)` |Type and content of the held value|
+|Existing JSON value bundle| `sendData(topic, map)` |Existing `QVariantMap` contract|
 
-QObject는 `Q_INVOKABLE QVariantMap toVariantMap() const`가 있으면 그 명시적 저장 계약을 사용한다.
-그렇지 않으면 상속된 사용자 속성을 포함한 읽기 가능한 `STORED` Q_PROPERTY를 읽는다. QObject 기본
-`objectName`, 동적 속성, `STORED false` 속성은 자동 수집하지 않는다. 중첩 QObject 속성은 중첩
-`ObjectSnapshot`이 되고 null 참조는 null 값이 된다. 순환 참조는 거절한다. 객체는 자기 스레드에서 읽고,
-getter는 유효한 값·참조를 반환해야 한다. 원본 QObject와 실행 메서드·소유권·메모리 주소는 전송하지 않는다.
-원래 QObject 클래스의 인스턴스가 필요하면 수신 앱이 스냅샷과 해당 클래스의 생성·갱신 API를 사용한다.
+QObject uses the explicit storage contract if `Q_INVOKABLE QVariantMap toVariantMap() const` is present. Otherwise, it reads readable `STORED` Q_PROPERTY including inherited user properties. QObject default `objectName`, dynamic properties, and `STORED false` properties are not automatically collected. Nested QObject properties become nested `ObjectSnapshot` and null references become null values. Circular references are rejected. Objects must be read from their own thread, and getters must return valid value·references. The original QObject and execution method·ownership·memory address are not transmitted. If an instance of the original QObject class is needed, the receiving app uses the snapshot and that class's create·update API.
 
-계정 모델은 기존 전체 저장 계약을 그대로 사용한다. 로그인 후 10개 계정 필드와 작성자 정보 20개를 담으며,
-계정 참조 연결만으로 자동 전송하지 않고 다음 호출에서 명시적으로 전송한다.
+The account model uses the existing full storage contract as is. After login, it holds 10 account fields and 20 author information, and does not automatically transmit via account reference connection alone, but transmits explicitly in the next call.
 
 ```cpp
-// helper.start(...)와 로그인 완료 후, 같은 이벤트 루프 스레드에서 호출한다.
+// Call on the same event-loop thread after helper.start(...) and login completion.
 helper.setAccountManager(&accounts);
 const QString id = helper.sendObject("account.profile", helper.account());
 
-// 수신 측: DeliveryStore 또는 SocietyInbox에서 얻은 해당 메시지이다.
+// Receiver: this is the corresponding message obtained from DeliveryStore or SocietyInbox.
 QString error;
 const QVariant decoded = iiSocietyHelper::ObjectCodec::decode(message["payload"].toMap(), &error);
 if (decoded.metaType() == QMetaType::fromType<iiSocietyHelper::ObjectSnapshot>()) {
@@ -180,11 +164,9 @@ if (decoded.metaType() == QMetaType::fromType<iiSocietyHelper::ObjectSnapshot>()
 }
 ```
 
-이렇게 복원한 계정은 전달받은 프로필 값이다. 로그인 세션과 서버 권한을 발급하지 않는다. QML에서도
-`societyHelper.sendObject("account.profile", societyHelper.account)`로 QObject를 직접 전달할 수 있다.
+The account restored in this way is the received profile value. It does not issue login session and server authority. QObject can also be directly transmitted as `societyHelper.sendObject("account.profile", societyHelper.account)` in QML.
 
-일반 C++ 값 객체는 복사·기본 생성이 가능해야 하며, 송신·수신 앱이 같은 메타타입과 QDataStream 연산자를
-공유해야 한다. 다음 선언·연산자를 공통 헤더에 두고 수신 앱에서도 `qRegisterMetaType`을 호출한다.
+General C++ value objects must be copyable·default-constructible, and transmit·receive apps must share the same metatype and QDataStream operator. The next declaration·operator is placed in a common header, and the receive app also calls `qRegisterMetaType`.
 
 ```cpp
 #include <QDataStream>
@@ -203,12 +185,12 @@ inline QDataStream& operator>>(QDataStream& in, GenerationRequest& value) {
 }
 Q_DECLARE_METATYPE(GenerationRequest)
 
-// 앱 시작 시, 양쪽 프로세스에서 실행한다.
+// Run in both processes at app startup.
 qRegisterMetaType<GenerationRequest>();
 GenerationRequest request{"a forest", 18446744073709551615ULL};
 const QString id = helper.sendObject("generation.request", request);
 
-// 수신 앱에서 topic을 확인한 뒤 처리한다.
+// Check the topic in the receiving app before processing it.
 QString error;
 const QVariant value = iiSocietyHelper::ObjectCodec::decode(message["payload"].toMap(), &error);
 if (value.metaType() == QMetaType::fromType<GenerationRequest>()) {
@@ -216,27 +198,17 @@ if (value.metaType() == QMetaType::fromType<GenerationRequest>()) {
 }
 ```
 
-Q_GADGET을 포함한 사용자 값 타입도 동일한 스트림 연산자 계약을 따른다. QObject 속성에 담긴 사용자
-값 타입도 수신 측에서 등록해야 한다. 메타타입 등록만으로 임의 C++
-멤버를 자동 직렬화하지 않는다. 사용자 연산자가 필드·스키마 버전·내부 컬렉션 제한을 정의한다.
-`ObjectCodec::encode()` / `decode()`는 전송과 별도로 사용할 수 있다. 등록되지 않은 수신 타입, 지원하지
-않는 스트림 연산자, QVariant 안의 원시·QObject 스마트 포인터, 잘린 데이터, 후행 바이트, 잘못된 Base64와
-지원하지 않는 프로토콜 버전은 명시적으로 거절한다. 실패한 객체는 부분 메시지로 큐에 남지 않는다.
+User value types including Q_GADGET also follow the same stream operator contract. User value types contained in QObject must also be registered on the receiver side. Arbitrary C++ members are not automatically serialized by meta-type registration alone. User operators define field, schema version, and internal collection limits. `ObjectCodec::encode()` / `decode()` can be used separately from transmission. Unregistered receiver types, unsupported stream operators, primitive and QObject smart pointers within QVariant, truncated data, trailing bytes, incorrect Base64, and unsupported protocol versions are explicitly rejected. Failed objects are not left in the queue as partial messages.
 
-payload는 `format: "iisacc.qt-object"`, `version: 1`, `streamVersion: 22`, `typeName`, `data`의 다섯 필드이다.
-`data`는 Qt 6.8 QDataStream(BigEndian, DoublePrecision) 바이트의 Base64이다. 이 형식으로 QByteArray,
-64비트 부호·무부호 정수, QDateTime, QUrl과 사용자 값 타입을 보존한다. 원시 스트림 쓰기는 48 KiB로 제한하고,
-**메타데이터·Base64를 포함한 최종 payload는 기존 64 KiB 한도**를 따른다. 검사하는 QObject 스냅샷과
-QVariantMap/List/Hash에는 중첩 깊이 16·노드 4096 한도를 적용한다. 큰 객체는 저장소의 파일과 참조를 사용한다.
+The payload consists of five fields: `format: "iisacc.qt-object"`, `version: 1`, `streamVersion: 22`, `typeName`, and `data`. `data` is the Base64 of Qt 6.8 QDataStream(BigEndian, DoublePrecision) bytes. This format preserves QByteArray, 64 signed and unsigned integers, QDateTime, QUrl, and user value types. Primitive stream writing is limited to 48 KiB, and the final payload including **metadata and Base64 follows the existing 64 KiB limit**. The QObject snapshot being checked and QVariantMap/List/Hash apply a nesting depth 16 and node 4096 limit. Large objects use repository files and references.
 
-기존 outbox/inbox·데몬 수신·재시도·확인 위치를 그대로 사용하며 DB 스키마를 바꾸지 않는다. 데몬은
-객체 payload를 운반하고 수신 앱이 `ObjectCodec::decode()`로 복원한다. 현재 설치된 Qt Core의
-QMetaObject·QMetaType·QDataStream을 재사용하여 새 외부 라이브러리·직렬화 엔진을 추가하지 않았다.
-별도 프로세스 검사와 설치 소비자가 같은 API와 공개 헤더로 송신 종료 이후 복원을 확인한다.
+The existing outbox/inbox, daemon receive, retry, and acknowledgment locations are used as is, without changing the DB schema. The daemon carries the object payload, and the receiving app restores it at `ObjectCodec::decode()`. No new external library or serialization engine is added by reusing the currently installed Qt Core's QMetaObject, QMetaType, and QDataStream. A separate process check and installation consumer verify restoration after send completion using the same API and public headers.
 
-## Society 데몬으로 데이터 전달
+<a id="society-데몬으로-데이터-전달"></a>
 
-`Helper::sendData(topic, payload)`는 최대 64 KiB의 JSON 객체를 영속 발신 큐에 넣고 메시지 UUID를 반환한다. 빈 문자열이면 기록에 실패했으므로 `errorString()`을 확인한다. 반환 성공은 **디스크에 대기 데이터가 저장되었음**을 뜻하며 데몬 수신 완료와 구분한다. 큰 모델·이미지 자체 대신 Society에 저장된 에셋의 참조를 전달한다.
+## Data transfer via Society daemon
+
+`Helper::sendData(topic, payload)` places a JSON object of up to 64 KiB in the persistent outgoing queue and returns a message UUID. An empty string indicates a write failure; check `errorString()`. A successful return means **pending data has been stored on disk**, which is distinct from completed receipt by the daemon. Pass references to assets stored in Society rather than the large models or images themselves.
 
 ```cpp
 const QString messageId = helper.sendData("generation.queued", {
@@ -244,52 +216,58 @@ const QString messageId = helper.sendData("generation.queued", {
 });
 ```
 
-Helper는 `helper.started`, `helper.activity`, `helper.peerAppeared`, `helper.peerUpdated`, `helper.peerDisappeared`, `helper.stopped` 이벤트도 자동으로 기록한다. 생존 신호마다 이력을 추가하지 않는다. 데몬이 꺼져 있어도 발신 큐에 남고, Helper가 종료되어도 사라지지 않는다.
+The Helper also automatically records events `helper.started`, `helper.activity`, `helper.peerAppeared`, `helper.peerUpdated`, `helper.peerDisappeared`, and `helper.stopped`. History is not added for each survival signal. Even if the daemon is off, it remains in the send queue, and even if the Helper terminates, it does not disappear.
 
-여러 앱의 첫 실행이 겹쳐도 초기 스키마와 WAL 설정이 충돌하지 않도록 초기화에만 프로세스 간 잠금을 사용한다. 일반 발신·수신은 SQLite 트랜잭션을 사용한다.
+Even if the first execution of multiple apps overlaps, process-level locking is used only for initialization to avoid conflicts with the initial schema and WAL settings. Normal send and receive use SQLite transactions.
 
-공유 위치의 `delivery/delivery.sqlite`에는 outbox, inbox, 소비자 확인 위치, 마지막 데몬 스냅샷이 있다. `DeliveryStore::receivePending()`은 단일 SQLite 트랜잭션에서 발신 데이터를 수신함으로 옮긴다. WAL·FULL 동기화와 메시지 ID 고유 제약을 사용하며 트랜잭션이 실패하면 발신 데이터를 유지한다. 프로세스가 중단된 뒤 다시 처리해도 같은 ID를 중복 저장하지 않는다. Qt SQL 드라이버와 파일 시스템이 반환하는 오류를 호출자에게 전달한다.
+The `delivery/delivery.sqlite` of the shared location contains the outbox, inbox, consumer acknowledgment location, and the last daemon snapshot. `DeliveryStore::receivePending()` moves the send data to receive by means of a single SQLite transaction. WAL and FULL synchronization and message ID uniqueness constraints are used, and if the transaction fails, the send data is held. Even if the process is terminated and processed again, the same ID is not stored redundantly. Errors returned by the Qt SQL driver and file system are passed to the caller.
 
-Society 제품의 독립 실행 파일 `SocietyDaemon`이 이 작업을 수행한다. 앱 본체는 `SocietyInbox`를 통해 순번대로 데이터를 받고, `dataReceived(QVariantMap)`·최근 100개 메시지·페이지 읽기 API를 제공한다. `DeliveryStore::readAfter(sequence, limit)`로 데몬이 수신한 과거 데이터도 읽을 수 있다. 데몬의 마지막 스냅샷은 기록된 시점의 상태이며 현재 생존의 증명이 아니다.
+Society product's standalone executable `SocietyDaemon` performs this task. The app body receives data in sequence through `SocietyInbox`, and provides `dataReceived(QVariantMap)` ·recent 100 messages and page read API. `DeliveryStore::readAfter(sequence, limit)` allows reading past data received by the daemon as well. The daemon's last snapshot is the state at the recorded time and is not proof of current survival.
 
-읽기는 메시지를 지우지 않는다. 소비자가 처리를 끝낸 뒤 `acknowledge(consumerId, sequence)`를 호출해야 재실행 시 그 이후부터 시작한다. 확인 위치는 뒤로 가지 않으며 아직 수신되지 않은 순번을 확인할 수 없다. 확인 전 재실행은 같은 메시지를 다시 전달할 수 있으므로 소비자는 메시지 ID로 중복 처리를 피한다. 보존 기간이 아직 정의되지 않아 수신 기록을 자동 삭제하지 않는다.
+Reading does not delete messages. The consumer must call `acknowledge(consumerId, sequence)` after finishing processing to start from after that upon re-execution. The checkpoint position does not go back and cannot check sequence numbers not yet received. Re-execution before confirmation can re-deliver the same message, so the consumer avoids duplicate processing using the message ID. Since the retention period is not yet defined, received records are not automatically deleted.
 
-iOS 데이터도 캐시 정리에 의해 없어지지 않도록 0.3.0부터 App Group의 Application Support 아래에 둔다. 0.2.0의 Caches에는 영속 전달 데이터가 없었으므로 관측 기록을 이전하지 않고 새로 발견한다. iOS에서는 상시 별도 데몬을 실행할 수 없으므로 Society가 실행되는 동안 같은 수신 서비스를 가동하고, 앱이 중단된 동안에는 공유 발신 큐가 데이터를 보관한다. iOS 실기기 검증은 별도이다.
+Since 0.3.0, iOS data is also placed under Application Support in the App Group to prevent cache cleanup from removing it. The Caches location in 0.2.0 contained no persistent delivery data, so observation records are rediscovered rather than migrated. iOS cannot run a permanent separate daemon, so the same receiving service runs while Society is running, and the shared outbound queue retains data while the app is suspended. Physical iOS device verification is separate.
 
-추가 의존성 근거: [Qt SQL 드라이버](https://doc.qt.io/qt-6.8/sql-driver.html), [SQLite WAL](https://sqlite.org/wal.html), [SQLite 동기화 설정](https://sqlite.org/pragma.html#pragma_synchronous). Qt와 SQLite 구성 요소는 기존 배포본의 라이선스를 따른다.
+References for additional dependencies: the [Qt SQL driver](https://doc.qt.io/qt-6.8/sql-driver.html), [SQLite WAL](https://sqlite.org/wal.html), and [SQLite synchronization settings](https://sqlite.org/pragma.html#pragma_synchronous). Qt and SQLite components follow the licenses of the existing distributions.
 
-## 저장 위치와 플랫폼
+<a id="저장-위치와-플랫폼"></a>
 
-데스크톱 기본 위치는 `QStandardPaths::GenericDataLocation/iisacc/Society/Helpers/v1`이다. macOS 일반 앱에서는 `~/Library/Application Support/iisacc/Society/Helpers/v1`이다. 동일한 사용자와 공유 위치를 쓰는 참여자끼리 관측한다. 관측 상태와 발신·수신 데이터는 Society 드라이브의 콘텐츠 영역에 넣지 않는다.
+## Storage Location and Platform
 
-iOS 및 App Group으로 묶인 Apple 앱은 Info.plist의 `SocietyAppGroup`과 해당 App Group entitlement를 사용한다. 경로는 그룹 컨테이너의 `Library/Application Support/iiSocietyHelper/v1`이며 앱마다 별도 개인 컨테이너로 대체하지 않는다. 기존 iiSocietyContainer의 iOS 앱 패키징 함수가 설정하는 같은 `group.com.iisacc.society` 계약을 재사용한다. 구성되지 않은 iOS 앱은 시작 오류를 반환한다. macOS sandbox 앱도 같은 App Group 구성이 필요하다.
+The default location for desktop is `QStandardPaths::GenericDataLocation/iisacc/Society/Helpers/v1`. macOS For regular apps, it is `~/Library/Application Support/iisacc/Society/Helpers/v1`. Participants sharing the same user and location observe each other. Observed state and send/receive data are not placed in the content area of Society drive.
 
-iOS의 백그라운드 앱은 OS에 의해 중단될 수 있다. 중단된 앱은 신호를 갱신할 수 없어 관측에서 만료되고, 실행을 재개하면 다시 발견된다. 상시 백그라운드 실행이나 다른 앱 깨우기를 보장하지 않는다. 두 앱이 동시에 스케줄링되어야 양쪽의 관측이 진행된다. Apple 구현은 Foundation API를 사용한다. 현재 호스트에서는 App Group 경로 코드의 컴파일을 검증하며, 서명된 iOS 앱 두 개의 기기 실행은 별도 검증이 필요하다.
+iOS and Apple apps bundled with an App Group use `SocietyAppGroup` in Info.plist and the corresponding App Group entitlement. The path is `Library/Application Support/iiSocietyHelper/v1` in the group container and is not replaced with a separate private container for each app. It reuses the same `group.com.iisacc.society` contract set by the iOS app packaging function of existing iiSocietyContainer. An iOS app that is not configured returns a startup error. macOS sandbox apps also require the same App Group configuration.
 
-0.3.1부터 iOS는 정적 라이브러리로 빌드한다. 정적 Qt 앱에서는 `qt_import_plugins(AppTarget INCLUDE Qt6::QSQLiteDriverPlugin)`으로 SQLite 드라이버를 포함한다. 공유 전달 디렉터리와 기존 DB/WAL/SHM은 `NSFileProtectionCompleteUntilFirstUserAuthentication`으로 맞추고 새 파일은 디렉터리의 보호를 상속한다. 재부팅 후 첫 잠금 해제 전에는 시작 실패를 처리하고 나중에 다시 시작해야 한다. 호스트의 `ios_directory_syntax`는 이 iOS 분기의 Foundation API 타입을 검사한다. 앱은 중단 시 `stop()`으로 연결을 해제하고 복귀 시 `start()`로 다시 연결할 수 있다. Society 본체는 `SocietyRuntime`으로 이 흐름과 실패 재시도를 관리한다.
+Background apps of iOS can be suspended by the OS. Suspended apps cannot refresh signals and expire in the observer, and when execution resumes, they are discovered again. It does not guarantee continuous background execution or waking up other apps. Both apps must be scheduled simultaneously for both observers to proceed. The Apple implementation uses Foundation API. On the current host, it validates the compilation of App Group path code, and running two signed iOS apps on two devices requires separate validation.
 
-Android와 WebAssembly는 개인 앱 저장 공간을 공용 위치로 오인하지 않도록 기본 시작을 거부한다. 그 플랫폼에서 여러 앱에 접근 가능한 호스트 통합이 제공되면 명시적인 디렉터리를 사용할 수 있다. 기본 Android 앱 간 IPC는 이 버전에 포함하지 않는다. 데스크톱 구현은 Qt Core API를 사용하며 현재 실행 검증 플랫폼은 macOS이다.
+Since 0.3.1, iOS builds as a static library. Static Qt apps include the SQLite driver through `qt_import_plugins(AppTarget INCLUDE Qt6::QSQLiteDriverPlugin)`. The shared delivery directory and existing DB/WAL/SHM use `NSFileProtectionCompleteUntilFirstUserAuthentication`, and new files inherit the directory's protection. Startup failures before the first unlock after reboot must be handled, with startup retried later. The host's `ios_directory_syntax` checks Foundation API types in this iOS branch. The app can disconnect with `stop()` when suspended and reconnect with `start()` on return. The Society app itself uses `SocietyRuntime` to manage this flow and failure retries.
 
-테스트나 격리된 앱 묶음에는 `ObservationOptions.directory` 또는 `SOCIETY_HELPER_DIRECTORY`로 동일한 **기기 로컬 절대 경로**를 지정한다. 우선순위는 명시적 옵션, 환경변수, 플랫폼 기본 위치 순이다. 클라우드 동기화 폴더나 네트워크 볼륨을 사용하지 않는다. 직접 지정한 경로는 호출자가 접근 범위를 관리한다. 새 최종 디렉터리와 기록은 소유자 전용으로 만들고, 기존 디렉터리 권한은 바꾸지 않는다. 잘못된·큰·지원하지 않는 버전의 기록과 심볼릭 링크는 무시한다.
+Android and WebAssembly default to denying startup to avoid misinterpreting personal app storage as public location. If host integration accessible to multiple apps is provided on that platform, an explicit directory can be used. Default Android inter-App IPC is not included in this version. Desktop implementation uses Qt Core API and current running validation platform is macOS.
 
-## 구현과 의존성
+For tests or isolated app groups, specify the same **device-local absolute path**through `ObservationOptions.directory` or `SOCIETY_HELPER_DIRECTORY`. Precedence is explicit options, then environment variables, then the platform's default location. Do not use cloud-synchronized folders or network volumes. For explicitly specified paths, the caller manages the access scope. New final directories and records are created with owner-only access, while existing directory permissions remain unchanged. Invalid, oversized, or unsupported-version records and symbolic links are ignored.
 
-기존 Qt Core의 `QSaveFile`로 각 실행의 `<UUID>.json`을 원자적으로 기록하고, `QFileSystemWatcher`와 타이머 폴링을 함께 사용한다. 감시 통지가 합쳐지거나 누락되어도 주기적으로 다시 읽는다. 데이터 전달에는 기존 Qt 배포본의 Qt Sql·QSQLITE 드라이버를 추가로 연결한다. 별도 메시지 브로커나 외부 서버 패키지는 설치하지 않는다. Qt 6.8.3의 유지 중인 SQL API와 SQLite 트랜잭션을 사용하여 직접 만든 파일 저널의 복구 부담을 줄인다. Qt의 사용·재배포는 해당 설치본의 라이선스를 따른다.
+<a id="구현과-의존성"></a>
 
-공개 헤더는 루트의 `src/iiSocietyHelper.h`이며 구현은 같은 루트의 `src/Helper.cpp`, `src/ObjectCodec.cpp`, `src/FileSystem.cpp`, `src/iiSocietyHelper.cpp`에 둔다. Apple 경로 해석만 `src/platform/apple/ObservationDirectory.mm`에 있다. 이전 `helloWorld()` 심볼은 기존 소비자 호환성을 위해 유지한다.
+## Implementation and Dependencies
 
-근거: [Qt 공유 저장 위치](https://doc.qt.io/qt-6.8/qstandardpaths.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html), [QFileSystemWatcher](https://doc.qt.io/qt-6.8/qfilesystemwatcher.html), [단조 시계](https://doc.qt.io/qt-6.8/qelapsedtimer.html), [Apple App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups), [iOS 백그라운드 실행](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes).
+`QSaveFile` from the existing Qt Core atomically records `<UUID>.json` for each run, while `QFileSystemWatcher` and timer polling are used together. Records are reread periodically even if watcher notifications are coalesced or missed. Data delivery additionally links Qt Sql and the QSQLITE driver from the existing Qt distribution. No separate message broker or external server package is installed. Maintained SQL APIs in Qt 6.8.3 and SQLite transactions reduce the recovery burden of a custom file journal. Qt usage and redistribution follow the installed distribution's license.
 
-## 빌드·검증·설치
+The public header is at `src/iiSocietyHelper.h` of the root, and the implementation is placed at `src/Helper.cpp`, `src/ObjectCodec.cpp`, `src/FileSystem.cpp`, and `src/iiSocietyHelper.cpp` of the same root. Only Apple path resolution is at `src/platform/apple/ObservationDirectory.mm`. The previous `helloWorld()` symbol is maintained for existing consumer compatibility.
 
-CMake 3.24 이상, C++20, iiSocietyContainer **0.9.0** 이상, iiAcountManager **0.2.x**, Qt **6.8.3** Core·Sql·Network와 QSQLITE 드라이버가 필요하다. 계정 SDK 자체를 빌드하려면 CMake 3.31 이상이 필요하다. 테스트에는 같은 버전의 Qt Test·Qml, Apple 빌드에는 Foundation과 Objective-C++ 컴파일러가 필요하다. 모든 산출물은 `build/`에 둔다.
+References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpaths.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html), [QFileSystemWatcher](https://doc.qt.io/qt-6.8/qfilesystemwatcher.html), [monotonic clock](https://doc.qt.io/qt-6.8/qelapsedtimer.html), [Apple App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups), and [iOS background execution](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes).
+
+<a id="빌드검증설치"></a>
+
+## Build·Verify·Install
+
+Requires CMake 3.24 or later, C++20, iiSocietyContainer **0.9.0** or later, iiAcountManager **0.2.x**, Qt **6.8.3** Core/Sql/Network, and the QSQLITE driver. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
 
 ```sh
 CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAcountManager/build/install" \
   INSTALL_PREFIX="$PWD/build/install" ./install.sh
 ```
 
-이 스크립트는 빌드·CTest·설치 후 `build/consumer/build/`에서 설치된 공개 헤더와 라이브러리만 사용하는 독립 소비자의 실제 관측을 검증한다. `INSTALL_PREFIX`를 생략하면 기존 SDK 기본 설치 위치인 `$HOME/.local/SDK/iiSocietyHelper`를 사용한다. 이 작업에서는 Workspace의 `build/install` 설치본을 검증한다.
+This script verifies the actual observation of an independent consumer that uses only public headers and libraries installed at `build/consumer/build/` after build·CTest·install. If `INSTALL_PREFIX` is omitted, it uses the default installation location `$HOME/.local/SDK/iiSocietyHelper` of the existing SDK. This task verifies the `build/install` installation of the Workspace.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
@@ -302,28 +280,13 @@ ctest --test-dir build --output-on-failure
 cmake --install build
 ```
 
-테스트는 세 Helper의 상호 발견, 같은 앱 복수 인스턴스, 상태 변경, 정상 종료, 강제 종료 후 남은 기록, 재시작, 프로세스 중단·복귀, 관측자 이벤트 루프 중단·복귀, 잘못된 설정, 디렉터리 경계와 격리를 검사한다. 별도 프로세스 테스트는 실제로 세 실행 파일을 가동한다. `iiSocietyHelper.account`와 `iiSocietyHelper.installed_account`는 실제 계정 SDK를 연결하여 객체 동일성·전체 모델 접근·갱신·초기화·교체·소멸·재진입·스레드 경계·QML 참조·관측 데이터 분리를 검사한다.
+The test checks mutual discovery of three Helpers, multiple instances of the same app, state changes, normal termination, remaining records after forced termination, restart, process suspension and resumption, observer event loop suspension and resumption, incorrect settings, and directory boundary and isolation. Separate process tests actually run three executables. `iiSocietyHelper.account` and `iiSocietyHelper.installed_account` check object identity, full model access, update, initialization, replacement, destruction, thread boundary, QML reference, and observed data separation by connecting to the actual account SDK.
 
-2026-09-09 0.6.0 계정 참조 검증에서 Helper Release 빌드와 CTest **7/7**, `build/install` 설치본만 링크한
-`build/account-reference/consumer`의 CTest **5/5**가 통과했다. 계정 참조 검사는 각 실행에서 9개 사례를
-검증했다(초기화·정리 포함 11개 통과). 소비자의 CMake는 Helper만 찾고 링크하며, iiAcountManager 0.2.0을
-`SDK/iiAcountManager/build/install`에서 의존성으로 해석했다. 실행 시 `DYLD_LIBRARY_PATH`,
-`DYLD_FRAMEWORK_PATH`, `DYLD_FALLBACK_LIBRARY_PATH`를 제거했다. 결과 XML은
-`build/account-reference-tests.xml`과 `build/account-reference/consumer/account-reference-installed-tests.xml`이다.
-이번 참조 검증에는 실제 로그인 요청·운영 배포·Android/iOS 기기 실행을 포함하지 않는다.
+In the 2026-09-09 0.6.0 account-reference verification, the Helper Release build and CTest **7/7**passed, as did CTest **5/5**in `build/account-reference/consumer`, which linked only against the `build/install` installation. Account-reference checks verified 9 cases on each run (11 passes including initialization and cleanup). The consumer's CMake finds and links only Helper, resolving iiAcountManager 0.2.0 as a dependency from `SDK/iiAcountManager/build/install`. `DYLD_LIBRARY_PATH`, `DYLD_FRAMEWORK_PATH`, and `DYLD_FALLBACK_LIBRARY_PATH` were removed at runtime. The result XML files are `build/account-reference-tests.xml` and `build/account-reference/consumer/account-reference-installed-tests.xml`. This reference verification does not include actual login requests, production deployment, or execution on Android/iOS devices.
 
-2026-09-09 0.7.0 객체 전송 검증에서 Helper 빌드와 CTest **8/8**, `build/install`의 공개 헤더와
-라이브러리로 새로 빌드한 `build/object-transfer/consumer`의 CTest **6/6**이 통과했다.
-객체 전송 검사는 각 실행에서 12개 사례를 검증했다(초기화·정리 포함 14개 통과).
-C++ 값 타입과 64비트 정수·바이너리·날짜·URL의 왕복, QObject 속성과 계정 전체 모델의 스냅샷,
-잘못된 형식·크기·순환·스레드의 거부, getter 실행 중 객체 소멸·Helper 재시작, QML 호출을 검사했다.
-서로 다른 프로세스로 송신자가 종료된 뒤에도 수신자가 영속 큐에서 객체를 복원하고, 재실행 시 같은
-메시지 값을 읽는 것을 확인했다. 소비자는 iiAcountManager 0.2.0을 Workspace의 설치본에서 해석했고,
-실행 시 위의 세 `DYLD_*` 변수를 제거했다. 결과 XML은 `build/object-transfer-tests.xml`과
-`build/object-transfer/consumer/object-transfer-installed-tests.xml`이다. 이번 검증 범위는 macOS 로컬
-프로세스 간 전달이며, 운영 배포·실제 로그인·Android/iOS 기기 실행은 포함하지 않는다.
+In the 2026-09-09 0.7.0 object-transfer verification, the Helper build and CTest **8/8**passed, as did CTest **6/6**in `build/object-transfer/consumer`, freshly built with the public headers and libraries from `build/install`. Object-transfer checks verified 12 cases on each run (14 passes including initialization and cleanup). They checked round trips for C++ value types, 64-bit integers, binary data, dates, and URLs; snapshots of QObject properties and the full account model; rejection of invalid formats, sizes, cycles, and threads; object destruction during getter execution and Helper restarts; and QML calls. Separate processes confirmed that the receiver restores objects from the persistent queue after the sender exits and reads the same message values on relaunch. The consumer resolved iiAcountManager 0.2.0 from the Workspace installation, with the three `DYLD_*` variables above removed at runtime. The result XML files are `build/object-transfer-tests.xml` and `build/object-transfer/consumer/object-transfer-installed-tests.xml`. This verification covers local inter-process delivery on macOS; it does not include production deployment, actual login, or execution on Android/iOS devices.
 
-진단 실행 파일도 설치한다. 두 터미널에서 동일한 위치로 실행하면 양쪽에서 JSON Lines 형태의 발견·변경·이탈 이벤트를 확인할 수 있다. 진단 실행 파일도 하나의 참여자이다.
+Install the diagnostic executable as well. If executed from the same location in two terminals, you can check discovery, modification, and exit events in the form of JSON Lines from both sides. The diagnostic executable is also a participant.
 
 ```sh
 build/install/bin/ii-society-helper --directory "$PWD/build/observe" \
@@ -332,32 +295,35 @@ build/install/bin/ii-society-helper --directory "$PWD/build/observe" \
   --application-id com.iisacc.example.two --exit-after-ms 15000
 ```
 
-SDK의 `iisacc.society.helper` Qt 로그에는 관측 시작과 peer 발견·이탈·오류가 기록된다. UI 없이 실제 앱의 양방향 관측 여부를 확인할 수 있다.
+The `iisacc.society.helper` Qt logs in the SDK record the start of observation and peer discovery, departure, and errors. UI, you can check whether actual bidirectional observation is enabled in the real app.
 
-## 0.7.1 기기 내 협업 경계
+<a id="071-기기-내-협업-경계"></a>
 
-Helper와 DeliveryStore의 런타임 경로는 기기 로컬 위치여야 한다. 시작 전에 Society 매니페스트가 있는 모든 상위 경로와 알려진 SMB/NFS 등의 네트워크 파일 시스템을 검사하고, 해당 경로 안에서는 관측·메시지 디렉터리를 만들지 않는다. 실행 중에도 경계를 다시 확인하므로 이미 열린 큐의 위치가 동기화 컨테이너가 되면 다음 작업을 거부한다. App Group의 Helper 런타임은 Society 데이터 영역과 별도 위치를 유지한다.
+## 0.7.1 collaboration boundary within the device
 
-다른 기기와의 파일·변경 기록·충돌·이어받기는 [iiSocietySync](../iiSocietySync/README.md)의 책임이다. Helper의 SQLite outbox/inbox/ACK, 실행 인스턴스, 객체 스냅샷과 계정 참조는 네트워크 동기화 프로토콜이 아니다. Helper는 Sync나 ServerHost에 링크하지 않는다. 설치 소비자 검사도 이 의존 경계를 확인한다. `delivery` 검사는 기존 영속 전달·중복 방지에 더해 시작 전과 실행 중 컨테이너 경계 침범을 검사한다.
+The runtime path of the Helper and DeliveryStore must be on the device's local location. Before starting, inspect all parent paths containing a Society manifest and known network file systems such as SMB / NFS, and do not create observation or message directories within those paths. Since the boundary is rechecked during execution, if the location of an already opened queue becomes a synchronization container, the next operation is rejected. The Helper runtime for an App Group maintains a separate location from the Society data area.
+
+File transfer, change logs, conflict resolution, and receiving from other devices are the responsibility of [iiSocietySync](../iiSocietySync/README.md). The Helper's SQLite outbox/inbox/ ACK, running instances, object snapshots, and account references are not part of the network synchronization protocol. The Helper does not link to Sync or ServerHost. The install consumer check also verifies this dependency boundary. The `delivery` check inspects for container boundary violations before starting and during execution, in addition to existing persistence transfer and duplicate prevention.
 
 ## License
 
 SPDX-License-Identifier: AGPL-3.0-only
 
-iiSocietyHelper의 자체 작성 코드와 문서는 GNU Affero General Public License v3.0 전용이다. 전체 조건은 [LICENSE](LICENSE)를 따른다. Qt와 Apple SDK 등 외부 구성 요소의 라이선스는 그대로 유지한다.
+The self-written code and documentation of iiSocietyHelper are exclusively under the GNU Affero General Public License v3.0. The full terms follow [LICENSE](LICENSE). The licenses for external components such as Qt and Apple SDK remain unchanged.
 
-## Android 공통 파일 시스템 (0.5)
+<a id="android-공통-파일-시스템-05"></a>
 
-Android 소비 앱은 `iiSocietyContainer_configure_android_client(target)`를 호출하고 Society와 동일한 인증서로 서명한다. Society 앱의 내부 ContentProvider가 앱이 닫혀 있어도 요청에 응답한다. `fileSystem.open()`은 기존 Society UUID를 선택하며 별도 컨테이너를 만들지 않는다. `path()`와 `url()`은 Android 소비 앱에서 content URI를 반환한다. `QFile`로 읽기·쓰기를 수행하고 `ensureDirectory()`와 `entries(sectionKey, relativePath)`로 폴더를 준비·열거한다. `entries` 항목은 `name`, `path`, `isDirectory`, `size`이다. 네이티브 경로가 필요한 엔진은 URI를 자체 캐시로 복사해 사용한다. 데스크톱과 Society 소유 앱의 절대 경로 동작은 유지한다.
+## Android common file system ( 0.5 )
 
-내부 제공자는 서명 권한과 호출 UID의 서명을 확인하고 모든 요청의 UUID·영역·상대 경로를 검증한다. 공개 Android 파일 앱에는 계속 Files 내용만 나타난다. 이 파일 시스템 IPC는 Android 앱 관측의 백그라운드 실행 제한을 없애지 않는다. `tests/android/`의 별도 Qt 앱은 실제 앱 UID에서 Helper를 통해 8개 영역의 생성·읽기·쓰기·열거·상위 경로 거부를 검사하고 logcat의 `SOCIETY_ANDROID_PEER` JSON으로 결과를 남긴다.
+Android consumer apps call `iiSocietyContainer_configure_android_client(target)` and sign with the same certificate as Society. The internal Society of the ContentProvider app responds to requests even when the app is closed. `fileSystem.open()` selects an existing Society UUID and does not create a separate container. `path()` and `url()` return content URIs from the Android consumer app. Reading and writing are performed via `QFile`, and folders are prepared and enumerated via `ensureDirectory()` and `entries(sectionKey, relativePath)`. Items `entries` are `name`, `path`, `isDirectory`, and `size`. Engines requiring native paths copy the URI to their own cache for use. The absolute path behavior for desktop and Society owned apps is maintained.
+
+The internal provider verifies the signature authority and the signature of the calling UID, and validates the UUID ·area·relative path of all requests. For public Android file apps, only the Files content continues to appear. This file system IPC does not remove the background execution limit for Android app observation. A separate `tests/android/` Qt app checks the creation, reading, writing, enumeration, and rejection of parent paths for 8 areas from the actual app UID via the Helper, and logs the results as `SOCIETY_ANDROID_PEER` JSON in logcat.
 
 ## Source layout
 
 Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.
 
-계정 스냅샷에는 `societyContainerDrive`도 포함된다. 드라이브가 없는 계정은
-이 필드를 누락하지 않고 null로 보존하며, 객체 전송·복원 테스트에서 이를 검증한다.
+Account snapshots also include `societyContainerDrive`. Accounts without a drive preserve this field as null and do not omit it, and this is verified in object transfer and restoration tests.
 
 ### Fresh generation models (0.7.2)
 
