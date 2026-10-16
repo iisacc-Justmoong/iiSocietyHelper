@@ -1,11 +1,11 @@
+#include <iiFileProviderDevice.h>
 #include "iiSocietyHelper.h"
 #include "DeliveryStore.h"
 #include "LocalDirectory.h"
+#include "PresenceWorker_p.h"
 
 #include <QCoreApplication>
-#include <QDir>
 #include <QElapsedTimer>
-#include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QJsonDocument>
@@ -14,12 +14,14 @@
 #include <QMap>
 #include <QPointer>
 #include <QRegularExpression>
-#include <QSaveFile>
 #include <QSet>
 #include <QStandardPaths>
+#include <SharedStorage.h>
 #include <QThread>
 #include <QTimer>
 #include <QUuid>
+#include <utility>
+#include <exception>
 
 namespace iiSocietyHelper {
 Q_LOGGING_CATEGORY(presenceLog, "iisacc.society.helper")
@@ -61,7 +63,7 @@ bool readRecord(const QFileInfo &info, Record *result)
     if (!info.isFile() || info.isSymLink() || info.size() > maximumRecordBytes) return false;
     const auto instance = info.completeBaseName();
     if (QUuid(instance).isNull() || QUuid(instance).toString(QUuid::WithoutBraces) != instance) return false;
-    QFile file(info.absoluteFilePath());
+    iiFileProvider::FileDevice file(info.absoluteFilePath());
     if (!file.open(QIODevice::ReadOnly)) return false;
     const auto bytes = file.read(maximumRecordBytes + 1);
     if (bytes.size() > maximumRecordBytes) return false;
@@ -84,6 +86,65 @@ bool readRecord(const QFileInfo &info, Record *result)
     *result = record;
     return true;
 }
+
+bool intactRoot(const QString &root)
+{
+    const QFileInfo info(root);
+    return info.isDir() && !info.isSymLink() && info.canonicalFilePath() == root
+        && local::validateDirectory(root, nullptr);
+}
+
+struct PresenceResult {
+    QString error;
+    QDateTime publishedAt;
+    QList<Record> records;
+};
+
+struct AutomaticMessage {
+    Peer sender;
+    QString topic;
+    QVariantMap payload;
+};
+
+// All recurring filesystem work consumes values and runs outside the UI thread.
+PresenceResult inspectPresence(const QString &root, const Peer &local, quint64 sequence,
+                               bool publish, bool scan = true)
+{
+    PresenceResult result;
+    if (!intactRoot(root)) {
+        result.error = QStringLiteral("The Society Helper observation directory disappeared or was redirected.");
+        return result;
+    }
+    if (publish) {
+        auto object = QJsonObject::fromVariantMap(local.toVariantMap());
+        object.remove("lastSeenAt");
+        object.insert("startedAt", local.startedAt.toString(Qt::ISODateWithMs));
+        object.insert("protocol", 1);
+        object.insert("heartbeat", QString::number(sequence));
+        const auto bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
+        const auto path = iiFileProvider::Directory(root).filePath(local.instanceId + ".json");
+        iiFileProvider::SaveFile file(path);
+        file.setDirectWriteFallback(false);
+        if (QFileInfo(path).isSymLink() || !file.open(QIODevice::WriteOnly)
+            || !file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)
+            || file.write(bytes) != bytes.size() || !file.commit()) {
+            result.error = QStringLiteral("Cannot publish Society Helper presence: %1").arg(file.errorString());
+            return result;
+        }
+        result.publishedAt = QDateTime::currentDateTimeUtc();
+    }
+    if (scan) {
+        const auto entries = iiFileProvider::Directory(root).entryInfoList({"*.json"},
+            iiFileProvider::Directory::Files | iiFileProvider::Directory::NoSymLinks,
+            iiFileProvider::Directory::Name);
+        for (const auto &entry : entries) {
+            Record record;
+            if (readRecord(entry, &record) && record.peer.instanceId != local.instanceId)
+                result.records.append(std::move(record));
+        }
+    }
+    return result;
+}
 }
 
 QVariantMap Peer::toVariantMap() const
@@ -100,9 +161,9 @@ public:
     {
         clock.start();
         QObject::connect(timer, &QTimer::timeout, owner, [this] {
-            if (publish()) scan();
+            requestCycle(true);
         });
-        QObject::connect(watcher, &QFileSystemWatcher::directoryChanged, owner, [this] { scan(); });
+        QObject::connect(watcher, &QFileSystemWatcher::directoryChanged, owner, [this] { requestCycle(false); });
     }
 
     struct Observation {
@@ -129,6 +190,14 @@ public:
     qint64 lastScan = 0;
     QMap<QString, Observation> observations;
     DeliveryStore delivery;
+    std::unique_ptr<detail::PresenceWorker> presenceWorker, automaticWorker;
+    quint64 presenceEpoch = 0;
+    bool cycleInFlight = false;
+    bool scanPending = false;
+    bool publishPending = false;
+    bool automaticInFlight = false;
+    bool stopping = false;
+    QList<AutomaticMessage> automaticMessages;
 
     bool fail(const QString &message, QString *output = nullptr)
     {
@@ -146,47 +215,118 @@ public:
 
     bool rootIntact() const
     {
-        const QFileInfo info(root);
-        return info.isDir() && !info.isSymLink() && info.canonicalFilePath() == root
-            && local::validateDirectory(root, nullptr);
+        return intactRoot(root);
     }
 
-    QString recordPath() const { return QDir(root).filePath(local.instanceId + ".json"); }
+    QString recordPath() const { return iiFileProvider::Directory(root).filePath(local.instanceId + ".json"); }
 
     bool publish()
     {
-        if (!rootIntact()) {
-            q->stop();
-            return fail(QStringLiteral("The Society Helper observation directory disappeared or was redirected."));
-        }
-        auto object = QJsonObject::fromVariantMap(local.toVariantMap());
-        object.remove("lastSeenAt");
-        object.insert("startedAt", local.startedAt.toString(Qt::ISODateWithMs));
-        object.insert("protocol", 1);
-        object.insert("heartbeat", QString::number(++sequence));
-        const auto bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
-        QSaveFile file(recordPath());
-        // Never fall back to overwriting a half-written presence record.
-        file.setDirectWriteFallback(false);
-        if (!QFileInfo(recordPath()).isSymLink() && file.open(QIODevice::WriteOnly)
-            && file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)
-            && file.write(bytes) == bytes.size() && file.commit()) {
-            local.lastSeenAt = QDateTime::currentDateTimeUtc();
-            return true;
-        }
-        const auto message = QStringLiteral("Cannot publish Society Helper presence: %1").arg(file.errorString());
+        const auto result = inspectPresence(root, local, ++sequence, true, false);
+        if (result.error.isEmpty()) { local.lastSeenAt = result.publishedAt; return true; }
         q->stop();
-        return fail(message);
+        return fail(result.error);
     }
 
-    void scan()
+    void requestCycle(bool publish)
     {
         if (!running) return;
-        if (!rootIntact()) {
-            q->stop();
-            fail(QStringLiteral("The Society Helper observation directory disappeared or was redirected."));
+        if (cycleInFlight) {
+            scanPending = true;
+            publishPending |= publish;
             return;
         }
+        cycleInFlight = true;
+        const auto epoch = presenceEpoch;
+        const auto directory = root;
+        const auto peer = local;
+        const auto heartbeat = publish ? ++sequence : sequence;
+        if (!presenceWorker) presenceWorker = std::make_unique<detail::PresenceWorker>();
+        presenceWorker->post([this, epoch, directory, peer, heartbeat, publish] {
+            PresenceResult result;
+            try {
+                result = inspectPresence(directory, peer, heartbeat, publish);
+            }
+            catch (const std::exception &error) { result.error = QString::fromUtf8(error.what()); }
+            // stop() drains the worker before the receiver can be destroyed.
+            QMetaObject::invokeMethod(q, [this, epoch, result = std::move(result)] {
+                const QPointer<Helper> guard(q);
+                if (!running || presenceEpoch != epoch) return;
+                cycleInFlight = false;
+                if (!result.error.isEmpty()) {
+                    q->stop();
+                    if (guard) fail(result.error);
+                    return;
+                }
+                if (result.publishedAt.isValid()) local.lastSeenAt = result.publishedAt;
+                scan(result.records);
+                if (!guard || !running || presenceEpoch != epoch) return;
+                if (std::exchange(scanPending, false))
+                    requestCycle(std::exchange(publishPending, false));
+            }, Qt::QueuedConnection);
+        });
+    }
+
+    void queueAutomatic(const QString &topic, const QVariantMap &payload)
+    {
+        if (!running) return;
+        automaticMessages.append({local, topic, payload});
+        scheduleAutomatic();
+    }
+
+    void scheduleAutomatic()
+    {
+        if (!running || automaticInFlight || automaticMessages.isEmpty()) return;
+        automaticInFlight = true;
+        if (!automaticWorker) automaticWorker = std::make_unique<detail::PresenceWorker>();
+        const auto epoch = presenceEpoch;
+        const auto directory = root;
+        auto messages = std::exchange(automaticMessages, {});
+        // History commits cannot hold up the independently scheduled heartbeat.
+        automaticWorker->post([this, epoch, directory, messages = std::move(messages)] {
+            QStringList queued;
+            QString error;
+            try {
+                DeliveryStore outbox;
+                if (outbox.open(directory, &error))
+                    for (const auto &message : messages) {
+                        const auto id = outbox.enqueue(message.sender, message.topic, message.payload);
+                        if (id.isEmpty()) error = outbox.errorString();
+                        else queued.append(id);
+                    }
+            } catch (const std::exception &failure) { error = QString::fromUtf8(failure.what()); }
+            QMetaObject::invokeMethod(q, [this, epoch, queued, error] {
+                const QPointer<Helper> guard(q);
+                if (presenceEpoch == epoch) automaticInFlight = false;
+                for (const auto &id : queued) {
+                    if (!guard) return;
+                    emit q->dataQueued(id);
+                }
+                if (!guard || !running || presenceEpoch != epoch) return;
+                if (!error.isEmpty()) fail(error);
+                if (!guard || !running || presenceEpoch != epoch) return;
+                scheduleAutomatic();
+            }, Qt::QueuedConnection);
+        });
+    }
+
+    void flushAutomatic()
+    {
+        // Explicit stop() drains the worker first, preserving normal-shutdown
+        // durability without making focus and peer changes wait for SQLite.
+        const auto messages = std::exchange(automaticMessages, {});
+        const QPointer<Helper> guard(q);
+        for (const auto &message : messages) {
+            if (!guard) return;
+            const auto id = delivery.enqueue(message.sender, message.topic, message.payload);
+            if (id.isEmpty()) fail(delivery.errorString());
+            else emit q->dataQueued(id);
+        }
+    }
+
+    void scan(const QList<Record> &records)
+    {
+        if (!running) return;
         if (!watcher->directories().contains(root)) watcher->addPath(root);
         const auto now = clock.elapsed();
         // Update the collection before emitting signals so subscribers may safely query it.
@@ -200,10 +340,7 @@ public:
         }
         lastScan = now;
         QSet<QString> present;
-        const auto entries = QDir(root).entryInfoList({"*.json"}, QDir::Files | QDir::NoSymLinks, QDir::Name);
-        for (const auto &entry : entries) {
-            Record record;
-            if (!readRecord(entry, &record) || record.peer.instanceId == local.instanceId) continue;
+        for (auto record : records) {
             const auto &id = record.peer.instanceId;
             present.insert(id);
             auto it = observations.find(id);
@@ -232,23 +369,24 @@ public:
             }
         }
         const auto instance = local.instanceId;
+        const QPointer<Helper> guard(q);
         // A slot may stop/restart this helper. Do not deliver the old scan's remaining events.
         for (const auto &peer : appeared) {
-            if (!running || local.instanceId != instance) return;
+            if (!guard || !running || local.instanceId != instance) return;
             qCInfo(presenceLog).noquote() << local.application.id << "observed" << peer.application.id << peer.instanceId;
             emit q->peerAppeared(peer);
         }
         for (const auto &peer : updated) {
-            if (!running || local.instanceId != instance) return;
+            if (!guard || !running || local.instanceId != instance) return;
             emit q->peerUpdated(peer);
         }
         for (const auto &[peer, reason] : departed) {
-            if (!running || local.instanceId != instance) return;
+            if (!guard || !running || local.instanceId != instance) return;
             qCInfo(presenceLog).noquote() << local.application.id << "lost" << peer.application.id << peer.instanceId
                 << (reason == DepartureReason::Withdrawn ? "withdrawn" : "timed-out");
             emit q->peerDisappeared(peer, reason);
         }
-        if (running && local.instanceId == instance && (!appeared.isEmpty() || !updated.isEmpty() || !departed.isEmpty()))
+        if (guard && running && local.instanceId == instance && (!appeared.isEmpty() || !updated.isEmpty() || !departed.isEmpty()))
             emit q->peersChanged();
     }
 };
@@ -256,12 +394,12 @@ public:
 Helper::Helper(QObject *parent) : QObject(parent), d(std::make_unique<Private>(this))
 {
     if (qApp) connect(qApp, &QCoreApplication::aboutToQuit, this, &Helper::stop);
-    connect(this, &Helper::peerAppeared, this, [this](const Peer &peer) { sendData("helper.peerAppeared", peer.toVariantMap()); });
-    connect(this, &Helper::peerUpdated, this, [this](const Peer &peer) { sendData("helper.peerUpdated", peer.toVariantMap()); });
+    connect(this, &Helper::peerAppeared, this, [this](const Peer &peer) { d->queueAutomatic("helper.peerAppeared", peer.toVariantMap()); });
+    connect(this, &Helper::peerUpdated, this, [this](const Peer &peer) { d->queueAutomatic("helper.peerUpdated", peer.toVariantMap()); });
     connect(this, &Helper::peerDisappeared, this, [this](const Peer &peer, DepartureReason reason) {
         auto payload = peer.toVariantMap();
         payload.insert("reason", reason == DepartureReason::Withdrawn ? "withdrawn" : "timed-out");
-        sendData("helper.peerDisappeared", payload);
+        d->queueAutomatic("helper.peerDisappeared", payload);
     });
 }
 
@@ -271,23 +409,17 @@ QString Helper::defaultDirectory(QString *error)
 {
     if (error) error->clear();
     const auto override = qEnvironmentVariable("SOCIETY_HELPER_DIRECTORY");
-    if (!override.isEmpty()) return override;
-#ifdef Q_OS_DARWIN
-    QString appleError;
-    const auto shared = appleObservationDirectory(&appleError);
-    if (!shared.isEmpty()) return shared;
-    if (!appleError.isEmpty()) {
-        if (error) *error = appleError;
+    const auto storage = iiSocietyContainer::SharedStorage::open({}, error, true);
+    if (!storage) return {};
+    if (override.isEmpty()) return storage->runtimePath(QStringLiteral("helpers/v1"), error);
+    const auto runtime = storage->runtimePath({}, error);
+    const auto relative = iiFileProvider::Directory(runtime).relativeFilePath(iiFileProvider::Directory::cleanPath(override));
+    if (runtime.isEmpty() || !iiFileProvider::Directory::isAbsolutePath(override)
+        || storage->runtimePath(relative == "." ? QString() : relative, error) != iiFileProvider::Directory::cleanPath(override)) {
+        if (error) *error = QStringLiteral("The Helper override must be inside the selected Society container's runtime directory.");
         return {};
     }
-#endif
-#if defined(Q_OS_ANDROID) || defined(Q_OS_WASM)
-    if (error) *error = QStringLiteral("This platform needs a shared observation directory provided by the host integration.");
-    return {};
-#else
-    return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation))
-        .filePath(QStringLiteral("iisacc/Society/Helpers/v1"));
-#endif
+    return iiFileProvider::Directory::cleanPath(override);
 }
 
 bool Helper::start(const ApplicationInfo &application, const ObservationOptions &options, QString *error)
@@ -303,14 +435,14 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
         return d->fail(QStringLiteral("Heartbeat must be 20–60000 ms; timeout must be at least three heartbeats and at most 300000 ms."), error);
     QString rootError;
     QString root = options.directory.isEmpty() ? defaultDirectory(&rootError) : options.directory;
-    if (root.isEmpty() || !QDir::isAbsolutePath(root) || QDir(root).isRoot())
+    if (root.isEmpty() || !iiFileProvider::Directory::isAbsolutePath(root) || iiFileProvider::Directory(root).isRoot())
         return d->fail(rootError.isEmpty() ? QStringLiteral("Provide an absolute shared observation directory.") : rootError, error);
-    root = QDir::cleanPath(root);
+    root = iiFileProvider::Directory::cleanPath(root);
     if (!local::validateDirectory(root, &rootError)) return d->fail(rootError, error);
     const bool existed = QFileInfo::exists(root);
-    if (QFileInfo(root).isSymLink() || !QDir().mkpath(root) || !QFileInfo(root).isDir())
+    if (QFileInfo(root).isSymLink() || !iiFileProvider::Directory().mkpath(root) || !QFileInfo(root).isDir())
         return d->fail(QStringLiteral("Cannot create the shared observation directory."), error);
-    if (!existed && !QFile::setPermissions(root, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner))
+    if (!existed && !iiFileProvider::FileDevice::setPermissions(root, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner))
         return d->fail(QStringLiteral("Cannot restrict the observation directory to its owner."), error);
     d->root = QFileInfo(root).canonicalFilePath();
     if (!d->delivery.open(d->root, &rootError)) return d->fail(rootError, error);
@@ -318,6 +450,7 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
     d->local = {application, QUuid::createUuid().toString(QUuid::WithoutBraces), QCoreApplication::applicationPid(),
                 Activity::Unknown, QDateTime::currentDateTimeUtc(), {}};
     d->sequence = 0;
+    ++d->presenceEpoch;
     d->lastScan = d->clock.elapsed();
     d->observations.clear();
     if (!d->publish()) {
@@ -333,24 +466,37 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
     qCInfo(presenceLog).noquote() << application.id << "observing as" << d->local.instanceId;
     d->watcher->addPath(d->root); // Timer polling remains available if the OS cannot watch it.
     d->timer->start(options.heartbeatIntervalMs);
-    d->scan();
+    d->requestCycle(false);
     emit runningChanged();
     return true;
 }
 
 void Helper::stop()
 {
+    if (d->stopping) return;
+    d->stopping = true;
+    const QPointer<Helper> guard(this);
+    ++d->presenceEpoch;
+    d->timer->stop();
+    if (d->presenceWorker) d->presenceWorker->clearAndWait();
+    if (d->automaticWorker) d->automaticWorker->drain();
+    d->cycleInFlight = d->scanPending = d->publishPending = false;
+    d->automaticInFlight = false;
+    d->flushAutomatic();
+    if (!guard) return;
     const bool wasRunning = d->running;
     const bool hadPeers = !peers().isEmpty();
     if (wasRunning) sendData("helper.stopped", d->local.toVariantMap());
+    if (!guard) return;
     d->running = false;
     d->timer->stop();
     if (!d->watcher->directories().isEmpty()) d->watcher->removePaths(d->watcher->directories());
-    if (!d->local.instanceId.isEmpty() && d->rootIntact()) QFile::remove(d->recordPath());
+    if (!d->local.instanceId.isEmpty() && d->rootIntact()) iiFileProvider::FileDevice::remove(d->recordPath());
     d->observations.clear();
     d->delivery.close();
+    d->stopping = false;
     if (wasRunning) emit runningChanged();
-    if (hadPeers) emit peersChanged();
+    if (guard && hadPeers) emit peersChanged();
 }
 
 void Helper::setActivity(Activity activity)
@@ -358,7 +504,10 @@ void Helper::setActivity(Activity activity)
     if (activity != Activity::Unknown && activity != Activity::Foreground && activity != Activity::Background) return;
     if (d->local.activity == activity) return;
     d->local.activity = activity;
-    if (d->running && d->publish()) sendData("helper.activity", d->local.toVariantMap());
+    if (d->running) {
+        d->requestCycle(true);
+        d->queueAutomatic("helper.activity", d->local.toVariantMap());
+    }
 }
 
 QString Helper::sendData(const QString &topic, const QVariantMap &payload)

@@ -1,0 +1,9 @@
+#pragma once
+#include <QtCore/qglobal.h>
+#if defined(IISOCIETYHELPER_STATIC)
+#  define IISOCIETYHELPER_EXPORT
+#elif defined(IISOCIETYHELPER_BUILDING_LIBRARY)
+#  define IISOCIETYHELPER_EXPORT Q_DECL_EXPORT
+#else
+#  define IISOCIETYHELPER_EXPORT Q_DECL_IMPORT
+#endif

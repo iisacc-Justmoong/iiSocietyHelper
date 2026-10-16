@@ -1,6 +1,8 @@
 #include "iiSocietyHelper.h"
+#include "DeliveryStore.h"
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -8,6 +10,10 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
+#include <SharedStorage.h>
+#include <QScopeGuard>
+#include <QTimer>
+#include <algorithm>
 
 using namespace iiSocietyHelper;
 
@@ -15,6 +21,65 @@ class ObservationTests : public QObject
 {
     Q_OBJECT
 private slots:
+    void presenceResponsiveness()
+    {
+        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/responsiveness-XXXXXX"));
+        QVERIFY(directory.isValid());
+        Helper a, b;
+        const ObservationOptions options{directory.path(), 100, 5000};
+        QVERIFY(a.start({"com.iisacc.input.probe", "Input probe", "1"}, options));
+        QVERIFY(b.start({"com.iisacc.peer.probe", "Peer probe", "1"}, options));
+        bool wrongThread = false;
+        connect(&a, &Helper::peerAppeared, this, [&] { wrongThread |= QThread::currentThread() != thread(); });
+        QTRY_COMPARE(a.peers().size(), 1);
+        QTRY_COMPARE(b.peers().size(), 1);
+        QElapsedTimer clock;
+        clock.start();
+        qint64 previous = 0, maximumGap = 0;
+        QList<qint64> gaps;
+        QTimer input;
+        input.setInterval(5);
+        connect(&input, &QTimer::timeout, this, [&] {
+            const auto now = clock.nsecsElapsed();
+            gaps.append(now - previous);
+            maximumGap = std::max(maximumGap, now - previous);
+            previous = now;
+        });
+        input.start();
+        QTest::qWait(3000);
+        input.stop();
+        QVERIFY(!wrongThread);
+        QVERIFY(gaps.size() >= 10);
+        QTRY_COMPARE(a.peers().size(), 1);
+        std::sort(gaps.begin(), gaps.end());
+        qInfo().nospace() << "PRESENCE_RESPONSIVENESS {\"ticks\":" << gaps.size()
+            << ",\"p95Ms\":" << gaps[gaps.size() * 95 / 100] / 1000000.0
+            << ",\"maxMs\":" << maximumGap / 1000000.0 << '}';
+    }
+
+    void stoppedWorkCannotRepublishIntoTheNextSession()
+    {
+        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/epochs-XXXXXX"));
+        Helper helper;
+        const ObservationOptions options{directory.path(), 20, 5000};
+        QVERIFY(helper.start({"com.iisacc.epochs", "Epochs", "1"}, options));
+        const auto old = helper.self().instanceId;
+        for (int i = 0; i < 20; ++i)
+            helper.setActivity(i % 2 ? Activity::Foreground : Activity::Background);
+        helper.stop();
+        QVERIFY(!QFileInfo::exists(directory.filePath(old + ".json")));
+        QVERIFY(helper.start({"com.iisacc.epochs", "Epochs", "2"}, options));
+        QVERIFY(helper.self().instanceId != old);
+        QTest::qWait(200);
+        QVERIFY(!QFileInfo::exists(directory.filePath(old + ".json")));
+        helper.stop();
+        QVERIFY(QDir(directory.path()).entryList({"*.json"}, QDir::Files).isEmpty());
+        DeliveryStore outbox;
+        QVERIFY(outbox.open(directory.path()));
+        // Two starts, two stops and every one of the twenty activity transitions.
+        QCOMPARE(outbox.pendingCount(), 24);
+    }
+
     void mutualDiscoveryAndDistinctInstances()
     {
         QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-XXXXXX"));
@@ -139,7 +204,18 @@ private slots:
         QVERIFY(a.peers().isEmpty());
         QVERIFY(b.peers().isEmpty());
         qputenv("SOCIETY_HELPER_DIRECTORY", directory.path().toUtf8());
-        QCOMPARE(Helper::defaultDirectory(), directory.path());
+        QVERIFY(Helper::defaultDirectory().isEmpty());
+        qunsetenv("SOCIETY_HELPER_DIRECTORY");
+        const auto package = directory.path() + "/selected.societycontainer";
+        QVERIFY(QDir().mkdir(package));
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(package));
+        const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
+        const auto cleanup = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", previous); });
+        qputenv("SOCIETY_CONTAINER_PATH", package.toUtf8());
+        const auto inside = package + "/.society-runtime/isolated";
+        qputenv("SOCIETY_HELPER_DIRECTORY", inside.toUtf8());
+        QCOMPARE(Helper::defaultDirectory(), inside);
+        QVERIFY(!QFileInfo::exists(inside));
         qunsetenv("SOCIETY_HELPER_DIRECTORY");
     }
 

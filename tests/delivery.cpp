@@ -15,7 +15,7 @@ class DeliveryTests : public QObject {
 private slots:
     void localMessagesNeverLiveInsideAReplicatedDrive()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/local-boundary-XXXXXX");
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/local-boundary-XXXXXX.societycontainer");
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         for (const auto &path : {root.path(), root.filePath("Files/LocalMessages"), root.filePath("Models/LocalMessages")}) {
             Helper helper;
@@ -24,6 +24,11 @@ private slots:
             QVERIFY(!store.open(path));
             QVERIFY(!QFileInfo::exists(QDir(path).filePath("delivery")));
         }
+        const auto privateDirectory = root.filePath(".society-runtime/helpers/v1");
+        Helper privateHelper;
+        QVERIFY(privateHelper.start({"com.iisacc.test", "Test", "1"}, {privateDirectory, 50, 400}));
+        DeliveryStore privateStore; QVERIFY(privateStore.open(privateDirectory));
+        QVERIFY(privateStore.receivePending() > 0);
     }
     void queueSurvivesSenderAndReceiverRestarts()
     {
@@ -58,7 +63,7 @@ private slots:
 
     void runningLocalQueueStopsIfItsDirectoryBecomesReplicated()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/late-boundary-XXXXXX");
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/late-boundary-XXXXXX.societycontainer");
         Helper helper;
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root.path(), 50, 400}));
         DeliveryStore store;

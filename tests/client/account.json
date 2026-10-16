@@ -1,0 +1,51 @@
+{
+  "account": {
+    "sub": "fixture-author-001",
+    "email": "author@example.org",
+    "displayName": "한 작가",
+    "userId": "@example_author",
+    "societyCloudMembership": "Pro",
+    "avatarUrl": null,
+    "authorDetails": {
+      "fullName": "한 예시",
+      "givenName": "예시",
+      "additionalName": "Example",
+      "familyName": "한",
+      "pseudonym": "Example Artist",
+      "biography": "Independent artist.\n독립 창작자.",
+      "organization": "Example Studio",
+      "organizationId": "example-studio",
+      "department": "Creative",
+      "team": "Canvas",
+      "jobTitle": "Artist",
+      "contactEmail": "studio@example.org",
+      "phoneNumber": "+82 2 0000 0000",
+      "locale": "ko-KR",
+      "timeZone": "Asia/Seoul",
+      "countryCode": "KR",
+      "region": "Seoul",
+      "city": "Seoul",
+      "links": [
+        {
+          "relation": "portfolio",
+          "label": "Portfolio",
+          "url": "https://example.org/portfolio"
+        },
+        {
+          "relation": "website",
+          "label": "소개",
+          "url": "https://example.org/%ED%95%9C"
+        }
+      ],
+      "identifiers": [
+        {
+          "scheme": "studio-id",
+          "value": "example-artist-001"
+        }
+      ]
+    },
+    "passwordEnabled": true,
+    "emailMarketingConsent": true,
+    "termsAcceptedAt": "2026-09-07T00:00:00.123Z"
+  }
+}

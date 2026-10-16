@@ -1,12 +1,11 @@
+#include <File.h>
+#include <iiFileProviderDevice.h>
 #include "DeliveryStore.h"
 #include "LocalDirectory.h"
-
-#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QLockFile>
 #include <QRegularExpression>
 #include <QSqlDatabase>
 #include <QSqlError>
@@ -42,7 +41,7 @@ public:
             return fail(QStringLiteral("The Society delivery directory disappeared or was redirected."));
         if (!local::validateDirectory(root, &error)) return false;
         for (const auto *name : {"delivery.sqlite", "delivery.sqlite-wal", "delivery.sqlite-shm"})
-            if (QFileInfo(QDir(root).filePath(QString::fromLatin1(name))).isSymLink())
+            if (QFileInfo(iiFileProvider::Directory(root).filePath(QString::fromLatin1(name))).isSymLink())
                 return fail(QStringLiteral("Society delivery files cannot be symbolic links."));
         return true;
     }
@@ -74,14 +73,14 @@ bool DeliveryStore::open(const QString &observationDirectory, QString *error)
         if (error) *error = message;
         return d->fail(message);
     };
-    if (!QDir::isAbsolutePath(observationDirectory) || QDir(observationDirectory).isRoot()
+    if (!iiFileProvider::Directory::isAbsolutePath(observationDirectory) || iiFileProvider::Directory(observationDirectory).isRoot()
         || QFileInfo(observationDirectory).isSymLink())
         return fail(QStringLiteral("Provide a local absolute Society observation directory."));
     QString boundaryError;
     if (!local::validateDirectory(observationDirectory, &boundaryError)) return fail(boundaryError);
-    const auto directory = QDir(observationDirectory).filePath("delivery");
+    const auto directory = iiFileProvider::Directory(observationDirectory).filePath("delivery");
     const bool existed = QFileInfo::exists(directory);
-    if (QFileInfo(directory).isSymLink() || !QDir().mkpath(directory))
+    if (QFileInfo(directory).isSymLink() || !iiFileProvider::Directory().mkpath(directory))
         return fail(QStringLiteral("Cannot create the Society delivery directory."));
     if (!existed && !QFile::setPermissions(directory, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner))
         return fail(QStringLiteral("Cannot restrict Society delivery storage to its owner."));
@@ -92,18 +91,19 @@ bool DeliveryStore::open(const QString &observationDirectory, QString *error)
 #endif
     // Changing journal mode/schema concurrently can return SQLITE_BUSY immediately,
     // even with SQLite's busy timeout. Serialize initialization, not normal delivery.
-    const auto initializationPath = QDir(d->root).filePath("initialization.lock");
+    const auto initializationPath = iiFileProvider::Directory(d->root).filePath("initialization.lock");
     if (QFileInfo(initializationPath).isSymLink()) return fail(QStringLiteral("Invalid Society delivery initialization lock."));
-    QLockFile initialization(initializationPath);
+    iiFileProvider::LockFile initialization(initializationPath);
     initialization.setStaleLockTime(0);
     if (!initialization.tryLock(3000)) return fail(QStringLiteral("Society delivery storage is being initialized by another app."));
     for (const auto *name : {"delivery.sqlite", "delivery.sqlite-wal", "delivery.sqlite-shm"})
-        if (QFileInfo(QDir(d->root).filePath(QString::fromLatin1(name))).isSymLink())
+        if (QFileInfo(iiFileProvider::Directory(d->root).filePath(QString::fromLatin1(name))).isSymLink())
             return fail(QStringLiteral("Society delivery files cannot be symbolic links."));
     d->connection = "society-delivery-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
     d->database = QSqlDatabase::addDatabase("QSQLITE", d->connection);
-    d->database.setDatabaseName(QDir(d->root).filePath("delivery.sqlite"));
+    d->database.setDatabaseName(iiFileProvider::Directory(d->root).filePath("delivery.sqlite"));
     d->database.setConnectOptions("QSQLITE_BUSY_TIMEOUT=1000");
+    if (!iiFileProvider::File::prepareDatabase(d->database.databaseName())) return fail(QStringLiteral("Cannot create delivery database."));
     if (!d->database.open()) return fail(d->database.lastError().text());
     if (!QFile::setPermissions(d->database.databaseName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner))
         return fail(QStringLiteral("Cannot restrict the Society delivery database to its owner."));

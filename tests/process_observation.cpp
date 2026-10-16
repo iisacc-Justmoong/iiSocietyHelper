@@ -95,7 +95,7 @@ private slots:
         QTRY_VERIFY2_WITH_TIMEOUT(c.departed(bid, "timed-out"), c.diagnostics().constData(), 10000);
         QTRY_COMPARE(a.peers(), QSet<QString>({cid}));
         QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes", 10000));
-        QTRY_VERIFY(!b.instance().isEmpty());
+        QTRY_VERIFY2(!b.instance().isEmpty(), b.diagnostics().constData());
         const auto restarted = b.instance();
         QVERIFY(restarted != bid);
         QTRY_COMPARE(a.peers(), QSet<QString>({restarted, cid}));

@@ -1,7 +1,13 @@
 #pragma once
 
+#include <iiSocietyHelper/Export.h>
+#include <iiSocietyHelper/Client.h>
+#include <iiSocietyHelper/AccountSession.h>
+
 #include <iiAcountManager/AccountManager.h>
 #include <SharedStorage.h>
+#include <Container.h>
+#include <iiSharedCanvas/Media/MediaIo.h>
 
 #include <QDateTime>
 #include <QObject>
@@ -11,14 +17,10 @@
 #include <QtGlobal>
 #include <memory>
 #include <type_traits>
+#include <atomic>
 
 class QDataStream;
 
-#if defined(IISOCIETYHELPER_BUILDING_LIBRARY)
-#  define IISOCIETYHELPER_EXPORT Q_DECL_EXPORT
-#else
-#  define IISOCIETYHELPER_EXPORT Q_DECL_IMPORT
-#endif
 
 namespace iiSocietyHelper {
 
@@ -83,6 +85,8 @@ class IISOCIETYHELPER_EXPORT FileSystem final : public QObject {
     Q_PROPERTY(QString containerId READ containerId NOTIFY storageChanged)
     Q_PROPERTY(QVariantList sections READ sections NOTIFY storageChanged)
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorChanged)
+    Q_PROPERTY(iiSocietyContainer::Container *container READ container CONSTANT)
+    Q_PROPERTY(QVariantMap containerState READ containerState NOTIFY containerStateChanged)
 public:
     explicit FileSystem(QObject *parent = nullptr);
     ~FileSystem() override;
@@ -96,24 +100,65 @@ public:
     [[nodiscard]] QString containerId() const;
     [[nodiscard]] QVariantList sections() const; // {key, name, path}
     [[nodiscard]] QString errorString() const;
+    [[nodiscard]] iiSocietyContainer::Container *container() const;
+    // Credential-free state published by SocietyContainerDaemon. Delivery is on
+    // this QObject's thread; daemonRunning becomes false for stale heartbeats.
+    [[nodiscard]] QVariantMap containerState() const;
+    Q_INVOKABLE bool synchronize();
+    // Alias snapshots are provided by the storage owner. Applications do not
+    // probe paths or persist payloads through the read-only Container object.
+    Q_INVOKABLE QVariantMap alias(const QString &sectionKey, const QString &relativePath);
+    Q_INVOKABLE QVariantMap aliasForPath(const QString &source);
+    Q_INVOKABLE bool openForSource(const QString &source);
+    Q_INVOKABLE bool selectDefaultContainer(const QString &source);
+    Q_INVOKABLE QUrl preview(const QString &source);
+    Q_INVOKABLE QString canvasDestination(const QString &destination);
+    iiSharedCanvas::MediaDocumentResult readCanvas(const QString &source);
+    Q_INVOKABLE QVariantMap importCanvas(const QString &source);
+    Q_INVOKABLE QVariantMap createImageCanvas(const QString &source, const QString &destination);
+    Q_INVOKABLE QVariantMap saveCanvas(const QByteArray &encoded, const QString &destination,
+                                      const QString &expectedVersion = {});
+    Q_INVOKABLE QString publishFile(const QString &source, const QString &sectionKey, const QString &relativePath);
+    Q_INVOKABLE bool removeFile(const QString &sectionKey, const QString &relativePath);
+    Q_INVOKABLE QVariantMap saveFile(const QString &destination, const QByteArray &bytes, bool overwrite = true);
+    Q_INVOKABLE bool removeGenerationInputs(const QString &directory);
+    Q_INVOKABLE bool discardLegacyGenerationStorage();
+    Q_INVOKABLE bool exportMedia(const QUrl &source, const QUrl &destination, bool video = false);
     // Fresh generation inventory from the selected Society drive. Local owners
     // reconcile disk changes; replicas retain remote download-on-demand models.
     [[nodiscard]] QList<iiSocietyContainer::StoredModel> models();
+    QString resolveModel(const QJsonObject &reference, QString *error = nullptr);
+    QString path(iiSocietyContainer::StoreSection section, const QString &relativePath, QString *error);
+    QStringList files(const QString &key);
+    bool available(const QStringList &keys);
+    QString requestFiles(const QStringList &keys, QString *error = nullptr);
+    QJsonObject requestState(const QString &id);
+    bool cancelFileRequest(const QString &id);
 
     // sectionKey is the stable key from sections(), e.g. "files" or "models".
     // Empty relativePath returns that section. Only a final leaf may be absent.
     Q_INVOKABLE QString path(const QString &sectionKey, const QString &relativePath = {});
     Q_INVOKABLE QUrl url(const QString &sectionKey, const QString &relativePath = {});
     Q_INVOKABLE QString ensureDirectory(const QString &sectionKey, const QString &relativePath);
+    Q_INVOKABLE QString ensureRuntimeDirectory(const QString &relativePath);
+    // Synchronous native PNG publication, independent of presence/the daemon.
+    // Writes into this pinned drive's flat History; collisions preserve originals.
+    Q_INVOKABLE QString publishGeneratedImage(const QString &source, const QString &fileName);
     // Android peer apps receive content URIs; use QFile/url() for I/O and entries()
     // for directory listing. Desktop and the Society owner retain native paths.
     Q_INVOKABLE QVariantList entries(const QString &sectionKey, const QString &relativePath = {});
+    // Blocking on this object's thread: on-demand Provider details, preview and
+    // classification. GUI code can copy SharedStorage to its I/O worker or use
+    // Client::inspectHostFile's asynchronous host inspection.
+    Q_INVOKABLE QVariantMap fileInformation(const QString &sectionKey, const QString &relativePath);
 
 signals:
     void storageChanged();
+    void containerStateChanged();
     void errorChanged();
 
 private:
+    void setError(const QString &message);
     class Private;
     std::unique_ptr<Private> d;
 };
@@ -183,6 +228,8 @@ private:
 
 // Retained for existing 0.1 consumers.
 [[nodiscard]] IISOCIETYHELPER_EXPORT QString helloWorld();
+IISOCIETYHELPER_EXPORT bool migrateLegacyCache(const QString &source, const QString &destination,
+    const std::atomic_bool &cancelled, QString *error);
 
 } // namespace iiSocietyHelper
 

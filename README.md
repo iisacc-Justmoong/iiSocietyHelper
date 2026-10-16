@@ -1,8 +1,68 @@
 # iiSocietyHelper
 
-A C++20/Qt 6.8.3 library for **collaboration between apps and Society on the same device**. Version 0.7.1 provides C++ object delivery, account-object references, local Society file-system access, app observation, and persistent IPC. Society communication and container replication across devices are the responsibility of iiSocietySync. Helper does not perform network discovery, pairing, remote file transfer, or conflict merging.
+Version 0.9.1 requires iiFileProvider 0.6.0. Media export validates the source
+format here, then delegates opening and final native URL publication to
+`iiFileProvider::File`. Android document-picker destinations use the provider's
+granted `content:` stream adapter. Existing destinations remain intact when
+validation or a native stream transfer fails. Classified file libraries use the
+separate native `iiFileProvider::Catalog` metadata/collection/search API; generic
+single-stream export does not implicitly scan or register the user's directories.
 
-The local app can queue messages and use files even while Society is stopped. Society or the device's daemon receives the message. Account references and object snapshots are not network authenticated and are not automatically propagated via Sync. Helper and Sync do not depend on each other and each consumes iiSocietyContainer's local storage contract.
+Version 0.9.0 consolidates the former iiSocietyClient module into this SDK and builds and exports an exact iiSharedCanvas 0.31.0 dependency,
+which uses iiPaintEngine 0.4.1. Canvas documents cross the Helper API by value;
+applications and Helper must use the same canvas headers and library version.
+
+Use the single `iiSocietyHelper::iiSocietyHelper` CMake target for local app
+collaboration, native file/canvas access, account sessions, discovery, pairing,
+replica synchronization and authenticated host-drive access. The consolidated
+host API is `iiSocietyHelper::Client` in `<iiSocietyHelper/Client.h>`.
+See [migration and dependency direction](docs/Migration.md),
+[host access](docs/HostDrive.md) and [account and connection lifecycle](docs/Client.md).
+
+## Container state and file ownership
+
+`Helper::fileSystem()->container()` exposes an `iiSocietyContainer::Container`
+owned by the bridge. It contains read-only Alias snapshots instead of application
+copies of stored payloads. The bridge synchronizes the selected drive every two
+seconds, on `synchronize()`/`Container::refresh()`, and after publication or save.
+The selection remains pinned to the drive identity until explicitly reopened.
+Android clients synchronize this mirror through Society's existing ContentProvider
+listing and retain its readable `content:` source/preview addresses. They do not
+interpret provider addresses as native filesystem paths.
+
+Use `alias(section, relativePath)` to distinguish logical existence from locally
+available contents. A catalog-only replica entry does not create a zero-byte file
+or directory. Resident payloads establish existence without reopening the catalog
+for each file during synchronization. Raster Alias previews are supplied by the bridge; call `preview()`
+for a native `.iisc` preview. Helper renders and caches it beneath the selected
+container's private `.society-runtime/canvas-previews`, preserving the document.
+
+`importCanvas()` and `createImageCanvas()` persist native image documents in Files.
+`readCanvas()` supplies detached iiSharedCanvas data for application editing.
+`saveCanvas()` owns native file creation and updates, accepts encoded document
+snapshots, and rejects stale versions before changing stored contents. New native
+documents use the SDK's SQLite authoring format; imported serialized canvases are
+updated by compare-and-replace. The returned Alias carries the saved version.
+Applications never receive a writable DocumentFile binding.
+Helper's native write locks are hidden implementation files and are never
+published as document Aliases or recent files. The saved version is captured
+while holding the write lock, before releasing it and refreshing the mirror.
+
+PNG generation uses `publishGeneratedImage()` in Generation History.
+`publishFile()`, `saveFile()` and `exportMedia()` own other publication/export I/O.
+Model resolution, file download requests, generation-input cleanup and legacy
+cache/queue migration also pass through this bridge. Native canvas writes inside
+Society belong to Files. Explicit external export remains supported.
+
+Canvas operations depend on iiSharedCanvas 0.31.0 and iiSocietyContainer 0.16.0.
+Supply the installed iiSharedCanvas codec dependencies, including libzip, in the
+CMake prefix when configuring a standalone Helper consumer. Filesystem tests
+exercise two independent bridges, Alias deletion, remote-only objects, real native
+save/reopen/preview and conflicting document versions.
+
+A C++23/Qt 6.8.3 library for **native app collaboration with local or remote Society storage**. Version 0.8.0 adds container Alias synchronization and Helper-owned canvas persistence and previews to C++ object delivery, account-object references, local Society file-system access, app observation, and persistent IPC. Society communication and container replication across devices are the responsibility of iiSocietySync. The Client API in this library performs account-scoped discovery, pairing and host requests; iiSocietySync owns the underlying replication and transport protocol.
+
+The local app can queue messages and use files even while Society is stopped. Society or the device's daemon receives the message. Account references and object snapshots are not network authenticated and are not automatically propagated via Sync. Helper depends on iiSocietySync for host sessions; Sync never depends on Helper. Local observation and delivery do not start a network session.
 
 Survival signals, delivery SQLite ·ACK are not replication targets. Specifying observation and message directory inside a Society container or a known network file system causes rejection before file creation. `delivery` regression inspection checks this boundary and existing same-device delivery and re-execution behavior.
 
@@ -11,7 +71,7 @@ Survival signals, delivery SQLite ·ACK are not replication targets. Specifying 
 ## Use from app
 
 ```cmake
-find_package(iiSocietyHelper 0.7.1 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.9.0 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -83,13 +143,23 @@ The dependency direction is `iiSocietyHelper → iiAcountManager → Qt Core/Net
 
 ## Society file system access ( 0.4.0 )
 
+Generated image originals use
+`fileSystem()->publishGeneratedImage(sourcePng, "<job UUID>-0001.png")`.
+This delegates to iiSocietyContainer's atomic, no-replacement PNG publication in
+the selected drive's flat `Generation History/`. It preserves PNG bytes, reports
+failure through `errorString()`, and works without `start()` or a Society daemon.
+The caller validates image decoding and dimensions. Storage selection stays
+pinned until `open()`/`refresh()`. Generation does not create `.iisc`; the editor
+creates its native document when the user opens an image for editing. This
+native-path operation is unavailable to an Android content-URI-only peer.
+
 `Helper` 's `fileSystem()` automatically opens the Society original at creation and continues to use it before `start()` and after `stop()`. Linking only the Helper connects iiSocietyContainer 0.9.0 and Qt are also connected. In the existing QML context, it is used as `societyHelper.fileSystem` .
 
 ```cpp
 auto *storage = helper.fileSystem();
-const auto directory = storage->ensureDirectory("generation-history", "Example/session-1");
+const auto directory = storage->ensureDirectory("files", "Example/session-1");
 if (directory.isEmpty()) { qWarning() << storage->errorString(); return; }
-const auto path = storage->path("generation-history", "Example/session-1/result.json");
+const auto path = storage->path("files", "Example/session-1/result.json");
 if (path.isEmpty()) { qWarning() << storage->errorString(); return; }
 QSaveFile file(path); // #include <QSaveFile>
 const QByteArray bytes = "{\"status\":\"saved\"}";
@@ -126,6 +196,26 @@ Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and
 - `DepartureReason::Withdrawn` means the record has disappeared or become invalid, and `TimedOut` means the signal is disconnected. It is not a state that definitively determines the app's termination cause or OS process death.
 - It does not judge that the app is running just by reading the stored file. It emits a discovery event only after the heartbeat sequence number increases. Records remaining after forced termination or reboot are not discovered, and files of other Helpers are not deleted.
 - The default survival signal interval is 1 seconds, and observation expiration is 5 seconds. Discovery usually requires one or two renewals. It may be delayed according to OS scheduling. Participants changing the interval via `ObservationOptions` must use a timeout that accommodates each other's periods. Mutual discovery/interruption and recovery integration checks also use the actual default expiration time of 5 seconds. Do not mistake external volume file flush delay for a normal running participant's expiration, and the recovery check actually waits 5.5 seconds to stop the event loop to verify both expiration and new heartbeat rediscovery. Separate process checks also use a 5 second expiration, and the restart process runs for 10 seconds to observe until the normal termination event after confirming discovery.
+- Recurring presence publication, directory validation and peer-record reads run
+  on one private standard C++ worker. Timer and filesystem-watcher requests are
+  coalesced while an operation is active; they do not queue an unbounded backlog
+  or wait for disk flushes on the application's event loop. Peer collections and
+  signals remain on the Helper's owning thread. Session epochs discard late
+  results, and `stop()` drains active work before removing its own record, so an
+  old heartbeat cannot recreate a withdrawn session. Initial `start()`, explicit
+  `stop()` and durable `sendData`/`sendObject` remain synchronous. Atomic record
+  publication, owner-only permissions and runtime-directory checks are retained.
+  `iiSocietyHelper.presence_worker` covers an intentionally blocked operation,
+  and `ObservationTests::presenceResponsiveness` reports event-loop latency
+  with real presence I/O; its timings depend on the current host load.
+  Automatic activity/peer history is committed on a separate lazy worker and drained
+  during normal `stop()`. Every transition retains its own durable outbox record;
+  only redundant presence/scan requests are coalesced. `dataQueued` is delivered
+  on the owning thread after each commit, including a completed old session's
+  notification. Forced termination may lose automatic events not yet committed.
+  Explicit `sendData` and `sendObject` still commit before returning to callers.
+  Slow history commits do not delay presence heartbeats. Unstarted storage-only
+  Helpers allocate neither presence nor history worker threads.
 - Expiration uses the monotonic clock inside the observer. The record's date or file modification time is not evidence of being alive. If the observer itself stops for more than the timeout and then returns, it checks for a new signal again.
 - If execution fails to access the directory or record, it switches to `running=false` and provides `errorOccurred` / `errorString`. After resolving the cause, it can restart at `start()`.
 
@@ -226,7 +316,7 @@ Society product's standalone executable `SocietyDaemon` performs this task. The 
 
 Reading does not delete messages. The consumer must call `acknowledge(consumerId, sequence)` after finishing processing to start from after that upon re-execution. The checkpoint position does not go back and cannot check sequence numbers not yet received. Re-execution before confirmation can re-deliver the same message, so the consumer avoids duplicate processing using the message ID. Since the retention period is not yet defined, received records are not automatically deleted.
 
-Since 0.3.0, iOS data is also placed under Application Support in the App Group to prevent cache cleanup from removing it. The Caches location in 0.2.0 contained no persistent delivery data, so observation records are rediscovered rather than migrated. iOS cannot run a permanent separate daemon, so the same receiving service runs while Society is running, and the shared outbound queue retains data while the app is suspended. Physical iOS device verification is separate.
+Container-owned delivery state replaces the previous App Group Application Support default. The App Group remains an OS entitlement for participating apps; no new observation data is placed there by default. The Caches location in 0.2.0 contained no persistent delivery data, so observation records are rediscovered rather than migrated. iOS cannot run a permanent separate daemon, so the same receiving service runs while Society is running, and the shared outbound queue retains data while the app is suspended. Physical iOS device verification is separate.
 
 References for additional dependencies: the [Qt SQL driver](https://doc.qt.io/qt-6.8/sql-driver.html), [SQLite WAL](https://sqlite.org/wal.html), and [SQLite synchronization settings](https://sqlite.org/pragma.html#pragma_synchronous). Qt and SQLite components follow the licenses of the existing distributions.
 
@@ -234,7 +324,7 @@ References for additional dependencies: the [Qt SQL driver](https://doc.qt.io/qt
 
 ## Storage Location and Platform
 
-The default location for desktop is `QStandardPaths::GenericDataLocation/iisacc/Society/Helpers/v1`. macOS For regular apps, it is `~/Library/Application Support/iisacc/Society/Helpers/v1`. Participants sharing the same user and location observe each other. Observed state and send/receive data are not placed in the content area of Society drive.
+The default observation location is the selected valid `.societycontainer/.society-runtime/helpers/v1`. Participants selecting the same package share observations and delivery state there. Resolving the default path creates no directory; without a selected valid package, startup waits without using an OS AppData fallback. Observation state and the delivery database are private container state and are excluded from the public Files projection.
 
 iOS and Apple apps bundled with an App Group use `SocietyAppGroup` in Info.plist and the corresponding App Group entitlement. The path is `Library/Application Support/iiSocietyHelper/v1` in the group container and is not replaced with a separate private container for each app. It reuses the same `group.com.iisacc.society` contract set by the iOS app packaging function of existing iiSocietyContainer. An iOS app that is not configured returns a startup error. macOS sandbox apps also require the same App Group configuration.
 
@@ -242,9 +332,9 @@ Background apps of iOS can be suspended by the OS. Suspended apps cannot refresh
 
 Since 0.3.1, iOS builds as a static library. Static Qt apps include the SQLite driver through `qt_import_plugins(AppTarget INCLUDE Qt6::QSQLiteDriverPlugin)`. The shared delivery directory and existing DB/WAL/SHM use `NSFileProtectionCompleteUntilFirstUserAuthentication`, and new files inherit the directory's protection. Startup failures before the first unlock after reboot must be handled, with startup retried later. The host's `ios_directory_syntax` checks Foundation API types in this iOS branch. The app can disconnect with `stop()` when suspended and reconnect with `start()` on return. The Society app itself uses `SocietyRuntime` to manage this flow and failure retries.
 
-Android and WebAssembly default to denying startup to avoid misinterpreting personal app storage as public location. If host integration accessible to multiple apps is provided on that platform, an explicit directory can be used. Default Android inter-App IPC is not included in this version. Desktop implementation uses Qt Core API and current running validation platform is macOS.
+Android and WebAssembly require a native selected package or an explicitly integrated shared observation transport. Provider-only Android paths do not become host filesystem directories. Default Android inter-app IPC is not included in this version. Current runtime validation is macOS.
 
-For tests or isolated app groups, specify the same **device-local absolute path**through `ObservationOptions.directory` or `SOCIETY_HELPER_DIRECTORY`. Precedence is explicit options, then environment variables, then the platform's default location. Do not use cloud-synchronized folders or network volumes. For explicitly specified paths, the caller manages the access scope. New final directories and records are created with owner-only access, while existing directory permissions remain unchanged. Invalid, oversized, or unsupported-version records and symbolic links are ignored.
+`SOCIETY_HELPER_DIRECTORY` may select another private runtime directory only inside the currently selected package; outside overrides fail before creation. Low-level `ObservationOptions.directory` remains available for explicitly integrated device-local transports and isolated SDK tests. Society itself validates explicit paths against its selected package too. Public drive sections remain invalid observation locations because their content can be replicated. Do not use cloud-synchronized folders or network volumes for Helper transport. New final directories and records use owner-only access; existing permissions are preserved. Invalid, oversized, unsupported-version records and symbolic links are ignored.
 
 <a id="구현과-의존성"></a>
 
@@ -328,3 +418,46 @@ Account snapshots also include `societyContainerDrive`. Accounts without a drive
 ### Fresh generation models (0.7.2)
 
 Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.
+
+The 0.8.3 package pins iiSharedCanvas 0.31.0 for matching application and storage-owner headers and runtime. Existing detached read/write behavior is covered by the filesystem and installed consumer tests.
+
+The 0.8.3 package aligns by-value canvas storage with iiSharedCanvas 0.31.0.
+Native IISC 1.21 mask stacks retain independent operands and appearance when
+saved, read or rendered as a preview; application and storage-owner binaries
+must be rebuilt together. Existing filesystem and installed-consumer checks
+continue to verify native save/reopen and stale-version rejection.
+
+### Container monitor subscription
+
+`FileSystem` automatically subscribes to the Qt-free `iiSocietyMonitor` service
+for its pinned container. `containerState()` / the QML `containerState` property
+contains the daemon identity, container UUID, revision, availability, heartbeat
+liveness, completeness, nine section inventories and changed section keys.
+`containerStateChanged()` is delivered on the FileSystem QObject's thread.
+Opening the same container preserves the subscription; switching containers
+clears its state and discards queued events from the previous subscription.
+
+A changed revision refreshes the existing read-only `Container` mirror and
+emits `storageChanged()`. Complete inventories of a local authority replace
+the mirror's periodic metadata refresh while the daemon is live. Replicas retain
+the fallback for preview-only/private download changes; partial inventories also
+retain it. Missing/stale/offline daemon state restores the
+existing fallback refresh. A daemon heartbeat older than five seconds reports
+`daemonRunning=false`; availability and liveness have separate meanings.
+The native daemon never copies model weights, reads document payloads or
+performs network synchronization. Mobile platforms remain subject to their
+existing background execution limits.
+
+```cpp
+QObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,
+                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });
+```
+
+Install `iiSocietyMonitor` 0.1 or newer before building this SDK. Its native
+process and independent-consumer tests cover publication and late subscribers;
+`iiSocietyHelper.filesystem` covers two GUI consumers, queued delivery, same-drive
+reopening, selection changes and graceful daemon shutdown.
+
+The filesystem suite allows 120 seconds for durable writes on external storage,
+including the mask-stack storage/preview regression. This is a test deadline;
+production storage transaction and conflict behavior remain unchanged.

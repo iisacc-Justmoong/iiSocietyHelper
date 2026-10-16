@@ -2,6 +2,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QStorageInfo>
+#include <SharedStorage.h>
 
 namespace iiSocietyHelper::local {
 bool validateDirectory(const QString &path, QString *error) {
@@ -16,8 +17,13 @@ bool validateDirectory(const QString &path, QString *error) {
         QDir ancestor(start);
         do {
             const QFileInfo manifest(ancestor.filePath(".society-drive.json"));
-            if (manifest.exists() || manifest.isSymLink())
-                return fail(QStringLiteral("Local Helper presence and messages cannot be stored inside a synchronized Society drive."));
+            if (manifest.exists() || manifest.isSymLink()) {
+                const auto storage = iiSocietyContainer::SharedStorage::open(ancestor.absolutePath(), nullptr, true);
+                const auto runtime = storage ? storage->runtimePath() : QString();
+                const auto relative = runtime.isEmpty() ? QString() : QDir(runtime).relativeFilePath(QDir::cleanPath(path));
+                if (!storage || runtime.isEmpty() || storage->runtimePath(relative == "." ? QString() : relative) != QDir::cleanPath(path))
+                    return fail(QStringLiteral("Local Helper presence and messages require the Society container's private runtime directory."));
+            }
         } while (ancestor.cdUp());
     }
     const auto type = QStorageInfo(existing).fileSystemType().toLower();
