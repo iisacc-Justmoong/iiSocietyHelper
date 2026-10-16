@@ -430,10 +430,15 @@ private slots:
         if (useRelay) QTRY_VERIFY(account.setServerConfiguration({{"url", endpoint.toString()}, {"host", false}}));
         iiSocietySync::Controller hosting({}); hosting.open(hostRoot.path(), scope); QTRY_VERIFY(hosting.available());
         hosting.setPeers({phoneId}, {});
+        QSet<QString> authorizedSessions{phoneId};
         iiServerHost::Peer host;
         const auto handle = [&](const QString &peer, const QJsonObject &payload) {
             if (payload.value("op") == "society.generation")
                 return QJsonObject{{"ok", true}, {"peer", peer}, {"echo", payload}};
+            // As in Society's host, the LAN/relay handler receives only an
+            // authenticated account peer. Direct clients need not advertise a
+            // hosted file service in the relay's host directory.
+            authorizedSessions.insert(peer); hosting.setPeers(authorizedSessions.values(), {});
             return hosting.handle(peer, payload);
         };
         iiServerHost::PeerOptions options; options.relayUrl = endpoint; options.credential = "fixture";
@@ -444,13 +449,6 @@ private slots:
         FakeDiscoveryService discovery, hostDiscovery;
         NearbyDevices hostNearby(&hostDiscovery, QHostAddress::LocalHost);
         iiServerHost::LanPeer hostLan;
-        const auto authorizeSessions = [&] {
-            auto peers = hostLan.pairedDeviceIds();
-            for (const auto &value : host.peers()) peers.append(value.toObject().value("peerId").toString());
-            peers.append(phoneId); peers.removeDuplicates(); hosting.setPeers(peers, {});
-        };
-        connect(&hostLan, &iiServerHost::LanPeer::paired, &hosting, authorizeSessions);
-        connect(&host, &iiServerHost::Peer::peersChanged, &hosting, authorizeSessions);
         hostLan.setPairingAuthentication([&](const QByteArray &context) { return SocietyPairingCredentials::sign(account.pairingCredentials(), context); },
             [&](const QByteArray &context, const QJsonObject &proof) { return SocietyPairingCredentials::verify(account.pairingCredentials(), context, proof); });
         connect(&hostLan, &iiServerHost::LanPeer::completed, &hosting, [&](auto id, auto response, auto) { hosting.receive(id, response); });
@@ -473,7 +471,9 @@ private slots:
             announcements.start(50);
         }
         verifyDirectHostAccess(account, discovery, hostRoot);
+        if (QTest::currentTestFailed()) return;
         verifyNativeFileDownloads(account, discovery, hostDiscovery, hostRoot, phoneRoot);
+        if (QTest::currentTestFailed()) return;
         iiSocietyHelper::Client consumer(&account, &discovery, QHostAddress::LocalHost);
         QVERIFY(consumer.requestHost({{"op", "society.generation"}}).isEmpty());
         QVERIFY(consumer.start(phoneRoot.path())); QTRY_VERIFY2_WITH_TIMEOUT(consumer.connected(),

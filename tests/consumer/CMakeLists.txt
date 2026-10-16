@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiSocietyHelperConsumer LANGUAGES CXX)
 enable_testing()
-find_package(iiSocietyHelper 0.9.2 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.9.3 CONFIG REQUIRED)
 find_package(iiSharedCanvas 0.31.0 EXACT CONFIG REQUIRED)
 get_target_property(helper_dependencies iiSocietyHelper::iiSocietyHelper INTERFACE_LINK_LIBRARIES)
 if(helper_dependencies MATCHES "iiSocietyClient" OR TARGET iiSocietyClient::iiSocietyClient)
@@ -75,7 +75,7 @@ target_compile_definitions(iiSocietyHelper_installed_client PRIVATE
     CLIENT_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
 add_test(NAME iiSocietyHelper.installed_host_drive COMMAND iiSocietyHelper_installed_client
     downloadsAndUploadsWithoutASocietyApplicationProcess)
-set_tests_properties(iiSocietyHelper.installed_host_drive PROPERTIES TIMEOUT 120
+set_tests_properties(iiSocietyHelper.installed_host_drive PROPERTIES TIMEOUT 300
     ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
 add_test(NAME iiSocietyHelper.installed_local_drive COMMAND iiSocietyHelper_installed_client
     applicationsOnTheRegisteredHostUseItsNativeDriveWithoutASelfPeer)

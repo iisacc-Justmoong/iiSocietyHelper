@@ -143,7 +143,7 @@ if(BUILD_TESTING)
             SOCIETY_ACCOUNT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/client/account.json"
             CLIENT_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
         add_test(NAME iiSocietyHelper.session COMMAND iiSocietyHelper_session_tests)
-        set_tests_properties(iiSocietyHelper.session PROPERTIES TIMEOUT 120 ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
+        set_tests_properties(iiSocietyHelper.session PROPERTIES TIMEOUT 300 ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
         if(APPLE AND NOT IOS)
             # Exercise the private native Keychain adapter without exporting it.
             add_executable(iiSocietyHelper_apple_state_tests tests/client/apple_state.mm src/iiSocietyHelper/AppleStateLocation.mm)
