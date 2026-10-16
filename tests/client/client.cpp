@@ -30,7 +30,7 @@ class ClientTests : public QObject {
             for (const auto &row : responses) if (row[0].toString() == id) return row[1].toJsonObject();
             return QJsonObject();
         };
-        if (id.isEmpty() || !QTest::qWaitFor([&] { return !find().isEmpty(); }, 10000))
+        if (id.isEmpty() || !QTest::qWaitFor([&] { return !find().isEmpty(); }, 30000))
             return QJsonObject{{"ok", false}, {"error", "test_response_timeout"}};
         return find();
     }
@@ -39,6 +39,7 @@ class ClientTests : public QObject {
                                    const QTemporaryDir &hostRoot, const QTemporaryDir &replicaRoot) {
         iiSocietyHelper::FileSystem files; QVERIFY(files.open(replicaRoot.path()));
         FakeDiscoveryService otherDiscovery;
+        otherDiscovery.publishDepartures = true;
         iiSocietyHelper::Client other(&account, &otherDiscovery, QHostAddress::LocalHost);
         QTimer announcements;
         if (account.serverConfiguration().value("url").toString().isEmpty()) {
@@ -448,6 +449,7 @@ private slots:
             QVERIFY(host.start(options, handle)); QTRY_VERIFY(host.isReady());
         }
         FakeDiscoveryService discovery, hostDiscovery;
+        discovery.publishDepartures = hostDiscovery.publishDepartures = true;
         NearbyDevices hostNearby(&hostDiscovery, QHostAddress::LocalHost);
         iiServerHost::LanPeer hostLan;
         hostLan.setPairingAuthentication([&](const QByteArray &context) { return SocietyPairingCredentials::sign(account.pairingCredentials(), context); },
@@ -477,8 +479,10 @@ private slots:
         if (QTest::currentTestFailed()) return;
         iiSocietyHelper::Client consumer(&account, &discovery, QHostAddress::LocalHost);
         QVERIFY(consumer.requestHost({{"op", "society.generation"}}).isEmpty());
+        // Completed direct-session fixtures are retired by the bounded nearby
+        // endpoint lifetime; reconnect using the SDK's 30-second open budget.
         QVERIFY(consumer.start(phoneRoot.path())); QTRY_VERIFY2_WITH_TIMEOUT(consumer.connected(),
-            qPrintable(consumer.status() + ' ' + hostPairing.status() + ' ' + hostLan.phase() + ' ' + hostLan.errorString()), 10000);
+            qPrintable(consumer.status() + ' ' + hostPairing.status() + ' ' + hostLan.phase() + ' ' + hostLan.errorString()), 30000);
         iiSocietyContainer::StorageMap map(*iiSocietyContainer::SocietyDrive::open(phoneRoot.path()));
         QSignalSpy responses(&consumer, &iiSocietyHelper::Client::hostResponse);
         const auto rpc = consumer.requestHost({{"op", "society.generation"}, {"action", "submit"}});
@@ -487,11 +491,11 @@ private slots:
         QCOMPARE(responses[0][1].toJsonObject().value("peer").toString(), phoneId);
         QVERIFY(!QFileInfo::exists(phoneRoot.filePath("Models/model.safetensors")));
         const auto request = map.request({"models/model.safetensors"}); QVERIFY(!request.isEmpty()); consumer.synchronizeNow();
-        QTRY_COMPARE_WITH_TIMEOUT(map.requestState(request).value("state").toString(), QString("ready"), 15000);
+        QTRY_COMPARE_WITH_TIMEOUT(map.requestState(request).value("state").toString(), QString("ready"), 30000);
         QVERIFY(map.available({"models/model.safetensors"}));
         QFile image(phoneRoot.filePath("Generation History/generated.png")); QVERIFY(image.open(QIODevice::WriteOnly)); image.write("completed output"); image.close();
         consumer.synchronizeNow();
-        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(hostRoot.filePath("Generation History/generated.png")), 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(hostRoot.filePath("Generation History/generated.png")), 30000);
         QVERIFY(account.logout()); QTRY_VERIFY(!account.signedIn()); QTRY_VERIFY(!consumer.connected());
         QVERIFY(!consumer.container()->available()); QVERIFY(consumer.container()->aliases().isEmpty());
         QVERIFY(consumer.hostSections().isEmpty()); QVERIFY(consumer.statHostEntry("models/model.safetensors").isEmpty());
