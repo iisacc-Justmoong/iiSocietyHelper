@@ -53,6 +53,11 @@ public:
     QJsonObject binding;
     QUrl server;
     QByteArray credential;
+    // Direct consumers are independent authenticated application sessions. A
+    // device ID is reserved for its replica synchronizer; reusing it would make
+    // a second app contend for the same LAN/relay connection.
+    const QString directPeerId = QString::fromLatin1(QCryptographicHash::hash(
+        QUuid::createUuid().toRfc4122(), QCryptographicHash::Sha256).toHex());
     QSet<QString> hostRequests;
     iiSocietyContainer::Container mirror;
     QVariantList sections;
@@ -401,10 +406,11 @@ public:
             sync.open(container, scope);
         }
         const auto name = device.value("name").toString().isEmpty() ? QSysInfo::machineHostName() : device.value("name").toString();
+        const auto peerId = direct ? directPeerId : device.value("id").toString();
         const QUrl configured(account->serverConfiguration().value("url").toString());
         if (configured.isEmpty()) {
             if (!server.isEmpty()) { relay.stop(); server = QUrl(); credential.clear(); }
-            nearby->setIdentity(scope, device.value("id").toString(), name, device.value("type").toString(), false);
+            nearby->setIdentity(scope, peerId, name, device.value("type").toString(), false);
             nearby->setCredentials(account->pairingCredentials(), false, accountHost());
             pairing->setEnabled(account->automaticPairingEnabled());
             if (pairing->enabled() && !lan.connected())
@@ -421,7 +427,7 @@ public:
             if (server != configured || credential != proof) {
                 lan.stop(); relay.stop(); server = configured; credential = proof;
                 iiServerHost::PeerOptions options;
-                options.relayUrl = server; options.credential = proof; options.peerId = device.value("id").toString(); options.name = name.left(128);
+                options.relayUrl = server; options.credential = proof; options.peerId = peerId; options.name = name.left(128);
                 options.service = "com.iisacc.society.files"; options.hostFiles = false; options.localHostingEnabled = false;
                 relay.start(options, [this](const QString &peer, const QJsonObject &payload) { return sync.handle(peer, payload); });
             }
@@ -464,6 +470,10 @@ bool Client::connected() const {
         && d->binding.value("scope").toString() == d->account->storageScope();
 }
 iiSocietyContainer::Container *Client::container() const { return &d->mirror; }
+QJsonObject Client::hostBinding() const {
+    return connected() ? QJsonObject{{"scope", d->account->storageScope()},
+        {"host", d->accountHost()}, {"container", d->accountContainer()}} : QJsonObject{};
+}
 QVariantList Client::hostSections() const { return d->sections; }
 void Client::refreshContainer() { d->refreshHost(); }
 QString Client::listHostDirectory(const QString &path, const QString &cursor, const QString &version) {

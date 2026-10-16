@@ -1,6 +1,23 @@
 # iiSocietyHelper
 
-Version 0.9.1 requires iiFileProvider 0.6.0. Media export validates the source
+Version 0.9.3 adds `FileDownload` for explicit native `.societycontainer`
+hydration within the consuming application. It reads the selected drive through
+`FileSystem`, uses a dedicated `Client::connectHost()` session for missing bytes,
+and runs the replica's bounded chunk writes, SHA-256 verification and atomic
+publication on its own worker. It never creates a shared download-request file,
+waits for `client-session.lock`, starts Society, or sends a local IPC request.
+Direct host sessions have an independent authenticated session identity so a
+consumer does not replace another app's device-level LAN or relay connection.
+`state` reports preparing/connecting/downloading/verifying/ready/failed/cancelled
+with file identity and byte progress. `cancel()` retires the pending open intent;
+`ready` contains a fresh, locally available Alias. Drive changes and stale
+revisions cannot publish an old selection. Resident files work without a login
+or a Client. Network retrieval still requires access to the authenticated host.
+The session integration tests exercise LAN TLS and account relay downloads while
+another replica-session lease is held, cancellation/retry, integrity failure,
+drive changes and native offline reads without a Society application process.
+
+Version 0.9.3 requires iiFileProvider 0.7.1 and iiSocietySync 0.8.3. Media export validates the source
 format here, then delegates opening and final native URL publication to
 `iiFileProvider::File`. Android document-picker destinations use the provider's
 granted `content:` stream adapter. Existing destinations remain intact when

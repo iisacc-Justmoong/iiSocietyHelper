@@ -29,6 +29,8 @@ public:
     void synchronizeNow();
     QString status() const;
     bool connected() const;
+    // Credential-free identity of the currently authenticated host session.
+    QJsonObject hostBinding() const;
     // Owned by this Client; its address remains stable until destruction.
     iiSocietyContainer::Container *container() const;
     QVariantList hostSections() const;

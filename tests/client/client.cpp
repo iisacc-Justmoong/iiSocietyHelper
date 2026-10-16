@@ -1,4 +1,6 @@
 #include <iiSocietyHelper/Client.h>
+#include <iiSocietyHelper/FileDownload.h>
+#include <iiSocietyHelper.h>
 #include <iiSocietyHelper/GroupSessionStore.h>
 #include <QScopeGuard>
 #include <iiSocietyHelper/PairingCredentials.h>
@@ -31,6 +33,81 @@ class ClientTests : public QObject {
         if (id.isEmpty() || !QTest::qWaitFor([&] { return !find().isEmpty(); }, 10000))
             return QJsonObject{{"ok", false}, {"error", "test_response_timeout"}};
         return find();
+    }
+    void verifyNativeFileDownloads(AccountSession &account, FakeDiscoveryService &discovery,
+                                   FakeDiscoveryService &hostDiscovery,
+                                   const QTemporaryDir &hostRoot, const QTemporaryDir &replicaRoot) {
+        iiSocietyHelper::FileSystem files; QVERIFY(files.open(replicaRoot.path()));
+        FakeDiscoveryService otherDiscovery;
+        iiSocietyHelper::Client other(&account, &otherDiscovery, QHostAddress::LocalHost);
+        QTimer announcements;
+        if (account.serverConfiguration().value("url").toString().isEmpty()) {
+            connect(&announcements, &QTimer::timeout, this, [&] {
+                if (!otherDiscovery.record.isEmpty()) otherDiscovery.announceTo(hostDiscovery);
+                if (!hostDiscovery.record.isEmpty()) hostDiscovery.announceTo(otherDiscovery);
+            });
+            announcements.start(50);
+        }
+        QVERIFY(other.connectHost()); QTRY_VERIFY_WITH_TIMEOUT(other.connected(), 10000);
+        QSignalSpy otherResponses(&other, &iiSocietyHelper::Client::hostDriveResponse);
+        iiSocietyHelper::Client client(&account, &discovery, QHostAddress::LocalHost);
+        iiSocietyHelper::FileDownload download(&files, &client);
+        QSignalSpy ready(&download, &iiSocietyHelper::FileDownload::ready);
+        const auto id = files.containerId();
+        // A different app may own its normal sync session. Explicit hydration
+        // must still complete within this process without a queued disk request.
+        QLockFile otherSession(replicaRoot.filePath(".society-sync/client-session.lock"));
+        otherSession.setStaleLockTime(0); QVERIFY(otherSession.tryLock());
+        const auto queuedBefore = QDir(replicaRoot.filePath(".society-sync/requests")).entryList({"*.json"}, QDir::Files);
+        const auto wait = [&] { return QTest::qWaitFor([&] { return !download.active(); }, 15000); };
+        const auto contents = [](const QString &path) { QFile file(path); return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{}; };
+        for (const auto &key : {QString("files/nested % #/document.iisc"), QString("generation-history/download.png")}) {
+            const auto relative = iiSocietyContainer::StorageMap::physicalPath(key);
+            QVERIFY(!QFileInfo::exists(replicaRoot.filePath(relative)));
+            QVERIFY(download.start(key, id)); QVERIFY(download.start(key, id));
+            QVERIFY(wait()); QCOMPARE(download.state().value("state").toString(), "ready");
+            QVERIFY(!ready.isEmpty()); const auto file = ready.last().first().toMap();
+            QCOMPARE(file.value("key").toString(), key); QVERIFY(file.value("available").toBool());
+            QCOMPARE(file.value("source").toUrl().toLocalFile(), replicaRoot.filePath(relative));
+            QCOMPARE(contents(file.value("path").toString()), contents(hostRoot.filePath(relative)));
+            QVERIFY(files.container()->alias(key).value("available").toBool());
+            QVERIFY(other.connected());
+            QVERIFY(driveResponse(otherResponses, other.statHostEntry("models/model.safetensors")).value("ok").toBool());
+        }
+        const auto beforeCancel = ready.size();
+        bool cancelAfterChunk = true;
+        const auto cancellation = connect(&download, &iiSocietyHelper::FileDownload::changed, this, [&] {
+            if (cancelAfterChunk && download.active() && download.state().value("completed").toLongLong() > 0) {
+                cancelAfterChunk = false; download.cancel();
+            }
+        });
+        QVERIFY(download.start("files/cancel.bin", id)); QVERIFY(wait());
+        QCOMPARE(download.state().value("state").toString(), "cancelled"); QCOMPARE(ready.size(), beforeCancel);
+        QVERIFY(!QFileInfo::exists(replicaRoot.filePath("Files/cancel.bin")));
+        disconnect(cancellation);
+        QVERIFY(download.start("files/cancel.bin", id)); QVERIFY(wait());
+        QCOMPARE(download.state().value("state").toString(), "ready");
+        QCOMPARE(contents(replicaRoot.filePath("Files/cancel.bin")), QByteArray(900123, 'c'));
+        const auto beforeCorrupt = ready.size();
+        QFile changed(hostRoot.filePath("Files/corrupt.bin")); QVERIFY(changed.open(QIODevice::WriteOnly));
+        QCOMPARE(changed.write(QByteArray(900123, 'x')), 900123); changed.close();
+        QVERIFY(download.start("files/corrupt.bin", id)); QVERIFY(wait());
+        QCOMPARE(download.state().value("state").toString(), "failed"); QCOMPARE(ready.size(), beforeCorrupt);
+        QCOMPARE(download.state().value("error").toString(), "incomplete_or_corrupt_transfer");
+        QVERIFY(!QFileInfo::exists(replicaRoot.filePath("Files/corrupt.bin")));
+        QVERIFY(!download.start("../outside", id));
+        QVERIFY(!download.start("files/cancel.bin", "stale-container"));
+        QVERIFY(download.start("files/switch.bin", id));
+        QTemporaryDir second(CLIENT_TEST_DIRECTORY "/download-switch-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(second.path())); QVERIFY(files.open(second.path()));
+        QVERIFY(!download.active()); QCOMPARE(download.state().value("state").toString(), "cancelled");
+        QTest::qWait(100); QCOMPARE(ready.size(), beforeCorrupt);
+        QCOMPARE(QDir(replicaRoot.filePath(".society-sync/requests")).entryList({"*.json"}, QDir::Files), queuedBefore);
+        // Ordinary resident files do not need login, sockets, or any Client.
+        QFile local(second.filePath("Files/local.txt")); QVERIFY(local.open(QIODevice::WriteOnly)); local.write("local"); local.close();
+        iiSocietyHelper::FileDownload offline(&files, nullptr); QSignalSpy localReady(&offline, &iiSocietyHelper::FileDownload::ready);
+        QVERIFY(offline.start("files/local.txt", files.containerId())); QTRY_COMPARE(localReady.size(), 1);
+        QCOMPARE(offline.state().value("state").toString(), "ready");
     }
     void verifyDirectHostAccess(AccountSession &account, FakeDiscoveryService &discovery, const QTemporaryDir &hostRoot) {
         iiSocietyHelper::Client client(&account, &discovery, QHostAddress::LocalHost);
@@ -321,6 +398,13 @@ private slots:
         QTemporaryDir hostRoot(CLIENT_TEST_DIRECTORY "/host-XXXXXX.societycontainer"), phoneRoot(CLIENT_TEST_DIRECTORY "/phone-XXXXXX.societycontainer");
         QVERIFY(iiSocietyContainer::SocietyDrive::create(hostRoot.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(phoneRoot.path()));
         QFile model(hostRoot.filePath("Models/model.safetensors")); QVERIFY(model.open(QIODevice::WriteOnly)); model.write(QByteArray(800123, 'm')); model.close();
+        QVERIFY(QDir().mkpath(hostRoot.filePath("Files/nested % #")));
+        const QMap<QString, QByteArray> downloadFiles{{"Files/nested % #/document.iisc", QByteArray(600123, 'f')},
+            {"Generation History/download.png", QByteArray(700123, 'h')}, {"Files/cancel.bin", QByteArray(900123, 'c')},
+            {"Files/corrupt.bin", QByteArray(900123, 'o')}, {"Files/switch.bin", QByteArray(900123, 's')}};
+        for (auto it = downloadFiles.cbegin(); it != downloadFiles.cend(); ++it) {
+            QFile file(hostRoot.filePath(it.key())); QVERIFY(file.open(QIODevice::WriteOnly)); QCOMPARE(file.write(it.value()), it.value().size());
+        }
         const auto hostId = QString(64, '1'); const auto phoneId = device.value("id").toString(); const auto scope = authority.scope();
         authority.profile.insert("societyContainerDrive", QJsonObject{{"hostDeviceId", hostId},
             {"containerId", iiSocietyContainer::SocietyDrive::open(hostRoot.path())->identifier()},
@@ -360,6 +444,13 @@ private slots:
         FakeDiscoveryService discovery, hostDiscovery;
         NearbyDevices hostNearby(&hostDiscovery, QHostAddress::LocalHost);
         iiServerHost::LanPeer hostLan;
+        const auto authorizeSessions = [&] {
+            auto peers = hostLan.pairedDeviceIds();
+            for (const auto &value : host.peers()) peers.append(value.toObject().value("peerId").toString());
+            peers.append(phoneId); peers.removeDuplicates(); hosting.setPeers(peers, {});
+        };
+        connect(&hostLan, &iiServerHost::LanPeer::paired, &hosting, authorizeSessions);
+        connect(&host, &iiServerHost::Peer::peersChanged, &hosting, authorizeSessions);
         hostLan.setPairingAuthentication([&](const QByteArray &context) { return SocietyPairingCredentials::sign(account.pairingCredentials(), context); },
             [&](const QByteArray &context, const QJsonObject &proof) { return SocietyPairingCredentials::verify(account.pairingCredentials(), context, proof); });
         connect(&hostLan, &iiServerHost::LanPeer::completed, &hosting, [&](auto id, auto response, auto) { hosting.receive(id, response); });
@@ -382,6 +473,7 @@ private slots:
             announcements.start(50);
         }
         verifyDirectHostAccess(account, discovery, hostRoot);
+        verifyNativeFileDownloads(account, discovery, hostDiscovery, hostRoot, phoneRoot);
         iiSocietyHelper::Client consumer(&account, &discovery, QHostAddress::LocalHost);
         QVERIFY(consumer.requestHost({{"op", "society.generation"}}).isEmpty());
         QVERIFY(consumer.start(phoneRoot.path())); QTRY_VERIFY2_WITH_TIMEOUT(consumer.connected(),
