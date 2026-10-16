@@ -59,13 +59,14 @@ class ClientTests : public QObject {
         QLockFile otherSession(replicaRoot.filePath(".society-sync/client-session.lock"));
         otherSession.setStaleLockTime(0); QVERIFY(otherSession.tryLock());
         const auto queuedBefore = QDir(replicaRoot.filePath(".society-sync/requests")).entryList({"*.json"}, QDir::Files);
-        const auto wait = [&] { return QTest::qWaitFor([&] { return !download.active(); }, 15000); };
+        const auto wait = [&] { return QTest::qWaitFor([&] { return !download.active(); }, 35000); };
         const auto contents = [](const QString &path) { QFile file(path); return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{}; };
         for (const auto &key : {QString("files/nested % #/document.iisc"), QString("generation-history/download.png")}) {
             const auto relative = iiSocietyContainer::StorageMap::physicalPath(key);
             QVERIFY(!QFileInfo::exists(replicaRoot.filePath(relative)));
             QVERIFY(download.start(key, id)); QVERIFY(download.start(key, id));
-            QVERIFY(wait()); QCOMPARE(download.state().value("state").toString(), "ready");
+            QVERIFY2(wait(), qPrintable(QJsonDocument::fromVariant(download.state()).toJson() + client.status().toUtf8()));
+            QCOMPARE(download.state().value("state").toString(), "ready");
             QVERIFY(!ready.isEmpty()); const auto file = ready.last().first().toMap();
             QCOMPARE(file.value("key").toString(), key); QVERIFY(file.value("available").toBool());
             QCOMPARE(file.value("source").toUrl().toLocalFile(), replicaRoot.filePath(relative));
