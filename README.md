@@ -1,5 +1,10 @@
 # iiSocietyHelper
 
+Package release: **0.9.4** (2026-10-19). This patch packages the current
+source snapshot; build, test and installation evidence is recorded in the SDK
+patch-release report. Earlier versioned feature notes remain historical.
+
+
 Version 0.9.3 adds `FileDownload` for explicit native `.societycontainer`
 hydration within the consuming application. It reads the selected drive through
 `FileSystem`, uses a dedicated `Client::connectHost()` session for missing bytes,

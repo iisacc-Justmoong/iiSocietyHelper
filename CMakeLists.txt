@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(iiSocietyHelper VERSION 0.9.3 LANGUAGES CXX)
+project(iiSocietyHelper VERSION 0.9.4 LANGUAGES CXX)
 # File creation is owned by iiFileProvider.
 find_package(iiFileProvider 0.7.1 CONFIG REQUIRED HINTS "$ENV{IIFILEPROVIDER_PREFIX}" "$ENV{HOME}/.local/SDK/iiFileProvider")
 
@@ -22,7 +22,7 @@ find_package(Threads REQUIRED)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Sql Network)
 find_package(iiFileProvider 0.7 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiFileProvider")
 find_package(iiSocietyContainer 0.16.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyContainer")
-find_package(iiSharedCanvas 0.31.0 EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
+find_package(iiSharedCanvas 0.31.1 EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
 find_package(iiAcountManager 0.2.8 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiAcountManager")
 find_package(iiSocietyMonitor 0.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyMonitor")
 find_package(iiSocietySync 0.8.3 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietySync")
