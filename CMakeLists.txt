@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
-project(iiSocietyHelper VERSION 0.9.4 LANGUAGES CXX)
+project(iiSocietyHelper VERSION 0.10.1 LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 # File creation is owned by iiFileProvider.
-find_package(iiFileProvider 0.7.1 CONFIG REQUIRED HINTS "$ENV{IIFILEPROVIDER_PREFIX}" "$ENV{HOME}/.local/SDK/iiFileProvider")
 
 
 
@@ -19,13 +21,29 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 find_package(Threads REQUIRED)
-find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Sql Network)
+option(IISOCIETYHELPER_BUILD_CORE "Build the account, IPC, storage, sync and remote-generation facade" ON)
+if(NOT IISOCIETYHELPER_BUILD_CORE)
+    set(IISOCIETYHELPER_BUILD_GENERATION_HOST OFF)
+    set(IISOCIETYHELPER_WITH_BLE OFF)
+    include(cmake/Monitoring.cmake)
+    install(DIRECTORY src/iiSocietyHelper/Monitoring DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h")
+    include(cmake/Package.cmake)
+    return()
+endif()
+find_package(iiServerHost 0.6.0 CONFIG REQUIRED)
+find_package(iiFileProviderTemporary CONFIG REQUIRED)
+find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Gui Sql Network)
+if(APPLE AND NOT IOS AND TARGET WrapOpenGL::WrapOpenGL)
+    get_target_property(_helper_gl WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+    if(_helper_gl)
+        list(FILTER _helper_gl EXCLUDE REGEX "AGL")
+        set_property(TARGET WrapOpenGL::WrapOpenGL PROPERTY INTERFACE_LINK_LIBRARIES "${_helper_gl}")
+    endif()
+endif()
 find_package(iiFileProvider 0.7 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiFileProvider")
 find_package(iiSocietyContainer 0.16.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyContainer")
-find_package(iiSharedCanvas 0.31.1 EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
+find_package(iiSharedCanvas 0.31.3 EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
 find_package(iiAcountManager 0.2.8 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiAcountManager")
-find_package(iiSocietyMonitor 0.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyMonitor")
-find_package(iiSocietySync 0.8.3 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietySync")
 set(CMAKE_AUTOMOC ON)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
@@ -47,8 +65,8 @@ if(helper_library_type STREQUAL "STATIC")
     target_compile_definitions(iiSocietyHelper PUBLIC IISOCIETYHELPER_STATIC)
 endif()
 target_link_libraries(iiSocietyHelper PUBLIC Qt6::Core Qt6::Sql
-    iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core iiAcountManager::iiAcountManager iiSocietySync::iiSocietySync Qt6::Network)
-target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::iiFileProvider iiSocietyMonitor::iiSocietyMonitor)
+    iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core iiAcountManager::iiAcountManager Qt6::Network Qt6::Gui iiServerHost::iiServerHost)
+target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::iiFileProvider iiSocietyHelper::Monitoring iiFileProvider::Temporary)
 target_link_libraries(iiSocietyHelper PRIVATE Threads::Threads)
 target_sources(iiSocietyHelper PRIVATE src/FilePresentation.cpp src/FilePresentation_p.h)
 target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::Native)
@@ -63,12 +81,16 @@ set_target_properties(iiSocietyHelper PROPERTIES
     VISIBILITY_INLINES_HIDDEN YES
     INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+include(cmake/Monitoring.cmake)
+include(cmake/Sync.cmake)
+include(cmake/Generation.cmake)
+
 if(APPLE)
     enable_language(OBJCXX)
     target_sources(iiSocietyHelper PRIVATE src/platform/apple/ObservationDirectory.mm)
     set_source_files_properties(src/platform/apple/ObservationDirectory.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     target_link_libraries(iiSocietyHelper PRIVATE "-framework Foundation")
-    set_target_properties(iiSocietyHelper PROPERTIES OBJCXX_STANDARD 20 OBJCXX_STANDARD_REQUIRED YES)
+    set_target_properties(iiSocietyHelper PROPERTIES OBJCXX_STANDARD 23 OBJCXX_STANDARD_REQUIRED YES)
 endif()
 
 if(WIN32)
@@ -199,7 +221,7 @@ if(BUILD_TESTING)
         add_executable(iiSocietyHelper_filesystem_peer tests/filesystem_peer.cpp)
         target_link_libraries(iiSocietyHelper_filesystem_peer PRIVATE iiSocietyHelper::iiSocietyHelper)
         add_executable(iiSocietyHelper_filesystem_tests tests/filesystem.cpp)
-        target_link_libraries(iiSocietyHelper_filesystem_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyMonitor::iiSocietyMonitor iiFileProvider::iiFileProvider iiFileProvider::Native Qt6::Test Qt6::Qml)
+        target_link_libraries(iiSocietyHelper_filesystem_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyHelper::Monitoring iiFileProvider::iiFileProvider iiFileProvider::Native Qt6::Test Qt6::Qml)
         target_compile_definitions(iiSocietyHelper_filesystem_tests PRIVATE
             HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}"
             HELPER_FILESYSTEM_PEER="$<TARGET_FILE:iiSocietyHelper_filesystem_peer>"
@@ -227,21 +249,18 @@ install(TARGETS iiSocietyHelper EXPORT iiSocietyHelperTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES src/iiSocietyHelper.h src/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(DIRECTORY src/iiSocietyHelper/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper/docs FILES_MATCHING PATTERN "*.md")
-install(FILES README.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper)
-set(iiSocietyHelper_PACKAGE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper")
-configure_package_config_file(cmake/iiSocietyHelperConfig.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfig.cmake"
-    INSTALL_DESTINATION "${iiSocietyHelper_PACKAGE_DIR}")
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion)
-install(EXPORT iiSocietyHelperTargets
-    NAMESPACE iiSocietyHelper::
-    DESTINATION "${iiSocietyHelper_PACKAGE_DIR}")
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfigVersion.cmake"
-    DESTINATION "${iiSocietyHelper_PACKAGE_DIR}")
+install(DIRECTORY src/iiSocietyHelper/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h"
+    PATTERN "ConfinedFiles.h" EXCLUDE PATTERN "NamespaceJournal.h" EXCLUDE
+    PATTERN "WatchPaths.h" EXCLUDE PATTERN "FilePresentation_p.h" EXCLUDE)
+install(EXPORT iiSocietyHelperTargets NAMESPACE iiSocietyHelper:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper)
+include(cmake/Package.cmake)
+
+include(cmake/SyncTests.cmake)
+if(BUILD_TESTING)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_test(NAME iiSocietyHelper.module_boundary COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/module_boundary.py")
+    # The consolidated suites share one physical fixture volume. Preserve their
+    # strict transfer deadlines when the caller requests parallel CTest jobs.
+    get_property(_helper_tests DIRECTORY PROPERTY TESTS)
+    set_tests_properties(${_helper_tests} PROPERTIES RESOURCE_LOCK iiSocietyHelperStorage)
+endif()

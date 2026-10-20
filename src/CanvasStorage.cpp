@@ -1,5 +1,6 @@
 #include <iiFileProviderDevice.h>
 #include "iiSocietyHelper.h"
+#include "iiSocietyHelper/MediaExport.h"
 #include <iiSharedCanvas/Bitmap/BitmapCodec.h>
 #include <iiSharedCanvas/File/DocumentFile.h>
 #include <iiSharedCanvas/Render/FrameRenderer.h>
@@ -53,20 +54,49 @@ void createOrReuse(const QString &destination, const QByteArray &bytes) {
     iiFileProvider::File::create(destination, bytes);
 }
 }
+MediaExportDestination mediaExportDestination(const QUrl &destination, bool nativeCanvas) {
+    try {
+        if (!destination.isLocalFile() || destination.toLocalFile().isEmpty())
+            throw std::runtime_error("Choose a local export destination.");
+        if (nativeCanvas) return {checkedDestination(destination.toLocalFile()), {}};
+        const auto selected = iiFileProvider::File::absolutePath(destination.toLocalFile());
+        if (selected.endsWith(".iisc", Qt::CaseInsensitive))
+            throw std::runtime_error("Use native canvas saving for .iisc documents.");
+        if (const auto drive = iiSocietyContainer::FileOperations::containingDrive(selected)) {
+            QString error; const auto storage = iiSocietyContainer::SharedStorage::open(drive->rootPath(), &error);
+            if (!storage) throw std::runtime_error(error.isEmpty() ? "The Society drive is unavailable." : error.toStdString());
+            bool accepted = false;
+            for (const auto section : iiSocietyContainer::allStoreSections()) {
+                const auto root = storage->filePath(section);
+                if (!root.isEmpty() && selected.startsWith(root + '/')
+                    && storage->filePath(section, QDir(root).relativeFilePath(selected), &error) == selected) { accepted = true; break; }
+            }
+            if (!accepted) throw std::runtime_error("Choose a file in a Society section.");
+        }
+        return {selected, {}};
+    } catch (const std::exception &e) { return {{}, QString::fromUtf8(e.what())}; }
+}
+MediaExportResult exportCanvasCopy(const Document &document, const QUrl &destination) {
+    const auto selected = mediaExportDestination(destination, true);
+    if (!selected.error.isEmpty()) return {false, selected.error};
+    try {
+        iiFileProvider::LockFile lock(lockPath(selected.path));
+        if (!lock.tryLock()) throw std::runtime_error("The canvas is being written by another operation.");
+        DocumentFile file; const auto created = file.create(selected.path.toStdString(), document, limits());
+        if (!created.ok()) throw std::runtime_error(created.message);
+        file.close();
+        iiFileProvider::native::Presentation::enqueue(std::filesystem::path(selected.path.toStdU16String()));
+        return {true, {}};
+    } catch (const std::exception &e) { return {false, QString::fromUtf8(e.what())}; }
+}
 MediaDocumentResult FileSystem::readCanvas(const QString &source) {
     try {
         const QFileInfo info(source);
         if (!info.isFile() || info.isSymLink() || info.isJunction()) return failed("Choose a readable local image or canvas.");
         if (info.suffix().compare("iisc", Qt::CaseInsensitive) == 0) {
-            if (iiFileProvider::File::readPrefix(source, 16).startsWith("SQLite format 3")) {
-                DocumentFile file; const auto opened = file.open(source.toStdString(), limits());
-                if (!opened.ok()) return failed(opened.message);
-                return {*file.document(), {}};
-            }
-            const auto bytes = iiFileProvider::File::read(source, limits().maximumContainerBytes);
-            auto decoded = decodeIisc({reinterpret_cast<const std::uint8_t *>(bytes.constData()), std::size_t(bytes.size())}, limits());
-            if (!decoded.ok()) return failed(decoded.error.message);
-            return {std::move(decoded.document), {}};
+            Document snapshot;const auto read=DocumentFile::readSnapshot(source.toStdString(),snapshot,limits());
+            if(!read.ok())return failed(read.message);
+            return {std::move(snapshot),{}};
         }
         BitmapImportOptions options; options.assetId = "image.fill"; options.extendedCodecs = false;
         auto imported = importBitmap(source.toStdString(), options);

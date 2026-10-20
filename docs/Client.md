@@ -10,7 +10,7 @@ Reads are version-pinned and chunked; atomic creation preserves existing files.
 Apps on the registered host use the selected, identity-checked native drive
 without a self peer or another indexer. Other devices retain pinned LAN TLS or
 account relay access.
-See [HostDrive.md](docs/HostDrive.md) for API, lifecycle, paging and size limits.
+See [HostDrive.md](HostDrive.md) for API, lifecycle, paging and size limits.
 
 `tests/consumer` verifies the installed public API and repeats native LAN TLS and
 account-relay access against installed packages, independently of source targets.
@@ -53,7 +53,9 @@ The app completes the generation result with an atomic rename/commit inside Soci
 Implementation of AccountSession, NearbyDevices, AutomaticPairing, and GroupSessionStore was migrated from the Society app to this SDK. Society's QML AccountController is a thin registration wrapper. The consumer app is responsible for app lifecycle, background execution permission, and status display policy.
 
 
-Dependencies are iiSocietySync, 0.8.1, iiSocietyContainer, 0.16.0, iiServerHost, 0.6.0, iiAcountManager, and existing Qt. Desktop state encryption uses OpenSSL Crypto and iOS uses CryptoKit. The consolidated SDK does not depend on higher-level Product sources. See Migration.md for the single Helper package and dependency direction. Headers are installed via the `iiSocietyHelper/Client.h` path. The consumer app calls start when creating the repository object, explicitly downloads/file publishes after synchronizeNow, and calls stop on background transition/termination.
+Synchronization is included in Helper Core. Dependencies include iiSocietyContainer
+0.16.1, iiServerHost 0.6.0, iiAcountManager 0.2.8, iiSharedCanvas Core 0.31.3,
+iiFileProvider and the existing Qt adapters. Desktop state encryption uses OpenSSL Crypto and iOS uses CryptoKit. The consolidated SDK does not depend on higher-level Product sources. See Migration.md for the single Helper package and dependency direction. Headers are installed via the `iiSocietyHelper/Client.h` path. The consumer app calls start when creating the repository object, explicitly downloads/file publishes after synchronizeNow, and calls stop on background transition/termination.
 
 `AccountSession::storageScope()` is calculated using the authentication service origin and account sub, and LAN proof and server replication use the same namespace. Replicas of other accounts are not opened. If the initial Society configuration is not complete, a new host is not arbitrarily selected. `client-session.lock` occupancy failure is retried after waiting, and connections from other processes are not forcibly terminated.
 

@@ -7,7 +7,7 @@
 #include <iiSocietyHelper/AccountSession.h>
 #include <iiSocietyHelper/NearbyDevices.h>
 #include <iiSocietyHelper/AutomaticPairing.h>
-#include <iiSocietySync.h>
+#include <iiSocietyHelper/Sync/Sync.h>
 #include <Container.h>
 #include <StorageMap.h>
 #include "AccountServer.h"
@@ -154,7 +154,7 @@ class ClientTests : public QObject {
         QVERIFY2(rich.value("ok").toBool(), qPrintable(rich.value("error").toString()));
         const auto remotePreview = rich.value("information").toObject().value("preview").toObject();
         QCOMPARE(remotePreview.value("kind").toString(), "image");
-        QVERIFY(remotePreview.value("data").toString().size() > iiSocietySync::Replica::ChunkBytes);
+        QVERIFY(remotePreview.value("data").toString().size() > iiSocietyHelper::Sync::Replica::ChunkBytes);
         QCOMPARE(QByteArray::fromBase64(remotePreview.value("data").toString().toLatin1()), png);
         auto busy = std::make_shared<QLockFile>(hostRoot.filePath(".society-sync/operation.lock"));
         busy->setStaleLockTime(0); QVERIFY(busy->tryLock(2000));
@@ -177,7 +177,7 @@ class ClientTests : public QObject {
         QVERIFY(client.statHostEntry("../outside").isEmpty());
         QVERIFY(client.inspectHostFile("files/private.iisacc.json").isEmpty());
         QVERIFY(client.readHostFile("files/.iisacc-temporary.lock").isEmpty());
-        QVERIFY(client.writeHostFile("files/oversize", QByteArray(iiSocietySync::Replica::ChunkBytes + 1, 'a')).isEmpty());
+        QVERIFY(client.writeHostFile("files/oversize", QByteArray(iiSocietyHelper::Sync::Replica::ChunkBytes + 1, 'a')).isEmpty());
         mirror->refresh();
         QTRY_VERIFY_WITH_TIMEOUT(!mirror->alias("files/direct/from-app.txt").isEmpty(), 10000);
         QVERIFY(mirror->alias("files/direct").isEmpty());
@@ -204,9 +204,9 @@ private slots:
         auto device = account.manager()->deviceInfo(); device.insert("id", hostId); QVERIFY(account.manager()->setDeviceInfo(device));
         QVERIFY(account.login("builder@example.com", "FixtureOnly1!")); QTRY_VERIFY(account.signedIn() && !account.busy());
         {
-            iiSocietySync::Replica owner; QVERIFY(owner.open(root.path(), authority.scope())); QVERIFY(owner.scan());
+            iiSocietyHelper::Sync::Replica owner; QVERIFY(owner.open(root.path(), authority.scope())); QVERIFY(owner.scan());
         }
-        QVERIFY(iiSocietySync::Replica::claimPrimaryHost(root.path(), authority.scope(), hostId));
+        QVERIFY(iiSocietyHelper::Sync::Replica::claimPrimaryHost(root.path(), authority.scope(), hostId));
         QFile unindexed(root.filePath("Files/not-indexed.txt")); QVERIFY(unindexed.open(QIODevice::WriteOnly)); unindexed.write("live native data"); unindexed.close();
         const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
         const auto restore = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", previous); });
@@ -230,7 +230,7 @@ private slots:
         QVERIFY2(write.value("ok").toBool(), qPrintable(write.value("error").toString()));
         QFile published(root.filePath("Files/from-local-app.txt")); QVERIFY(published.open(QIODevice::ReadOnly)); QCOMPARE(published.readAll(), QByteArray("local publication"));
         QTest::qWait(150);
-        iiSocietySync::Replica inspected; QVERIFY(inspected.open(root.path(), authority.scope()));
+        iiSocietyHelper::Sync::Replica inspected; QVERIFY(inspected.open(root.path(), authority.scope()));
         QVERIFY(inspected.record("files/not-indexed.txt").isEmpty()); // No second background indexer.
         QCOMPARE(discovery.starts, 0);
         QVERIFY(client.requestHost({{"op", "society.generation"}}).isEmpty());
@@ -417,11 +417,11 @@ private slots:
         // Fixture for the one-time Society setup: bind to the authenticated
         // host and receive its storage map, without downloading its payload.
         {
-            iiSocietySync::Replica host, phone;
+            iiSocietyHelper::Sync::Replica host, phone;
             QVERIFY(host.open(hostRoot.path(), scope)); QVERIFY(phone.open(phoneRoot.path(), scope));
-            iiSocietySync::Synchronizer initial(&phone); initial.setContentPolicy(iiSocietySync::Synchronizer::ContentPolicy::MetadataFirst);
-            QSignalSpy done(&initial, &iiSocietySync::Synchronizer::finished);
-            connect(&initial, &iiSocietySync::Synchronizer::requestReady, this, [&](auto id, auto, auto wire) {
+            iiSocietyHelper::Sync::Synchronizer initial(&phone); initial.setContentPolicy(iiSocietyHelper::Sync::Synchronizer::ContentPolicy::MetadataFirst);
+            QSignalSpy done(&initial, &iiSocietyHelper::Sync::Synchronizer::finished);
+            connect(&initial, &iiSocietyHelper::Sync::Synchronizer::requestReady, this, [&](auto id, auto, auto wire) {
                 initial.receive(id, {{"ok", true}, {"result", host.handle(phoneId, wire.value("message").toObject())}});
             });
             QVERIFY(initial.start(hostId)); QTRY_COMPARE(done.size(), 1); QVERIFY(done[0][1].toBool());
@@ -430,7 +430,7 @@ private slots:
         QVERIFY(relay.listen(QHostAddress::LocalHost));
         const QUrl endpoint(QString("ws://127.0.0.1:%1").arg(relay.port()));
         if (useRelay) QTRY_VERIFY(account.setServerConfiguration({{"url", endpoint.toString()}, {"host", false}}));
-        iiSocietySync::Controller hosting({}); hosting.open(hostRoot.path(), scope); QTRY_VERIFY(hosting.available());
+        iiSocietyHelper::Sync::Controller hosting({}); hosting.open(hostRoot.path(), scope); QTRY_VERIFY(hosting.available());
         hosting.setPeers({phoneId}, {});
         QSet<QString> authorizedSessions{phoneId};
         iiServerHost::Peer host;

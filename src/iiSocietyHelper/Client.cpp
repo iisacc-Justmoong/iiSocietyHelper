@@ -4,7 +4,7 @@
 #include "PairingCredentials.h"
 #include "NearbyDevices.h"
 #include "AutomaticPairing.h"
-#include <iiSocietySync.h>
+#include <iiSocietyHelper/Sync/Sync.h>
 #include <SharedStorage.h>
 #include <StorageMap.h>
 #include <QDir>
@@ -46,7 +46,7 @@ public:
     std::unique_ptr<AutomaticPairing> pairing;
     iiServerHost::LanPeer lan;
     iiServerHost::Peer relay;
-    iiSocietySync::Controller sync;
+    iiSocietyHelper::Sync::Controller sync;
     QTimer timer;
     std::unique_ptr<iiFileProvider::LockFile> lease;
     QString container, message, registeredHost, registeredContainer;
@@ -95,10 +95,10 @@ public:
         });
         timer.setInterval(1000);
         QObject::connect(&timer, &QTimer::timeout, q, [this] { update(); });
-        QObject::connect(&sync, &iiSocietySync::Controller::progress, q, &Client::progress);
+        QObject::connect(&sync, &iiSocietyHelper::Sync::Controller::progress, q, &Client::progress);
         QObject::connect(&mirror, &iiSocietyContainer::Container::refreshRequested, q, &Client::refreshContainer);
-        QObject::connect(&sync, &iiSocietySync::Controller::synchronized, q, [this] { refreshHost(); emit q->synchronized(); });
-        QObject::connect(&sync, &iiSocietySync::Controller::changed, q, [this] {
+        QObject::connect(&sync, &iiSocietyHelper::Sync::Controller::synchronized, q, [this] { refreshHost(); emit q->synchronized(); });
+        QObject::connect(&sync, &iiSocietyHelper::Sync::Controller::changed, q, [this] {
             if (!sync.errorString().isEmpty()) message = sync.errorString();
             if (local && active) { peers(); return; }
             emit q->changed();
@@ -144,7 +144,7 @@ public:
             const auto size = result.value("size").toString().toLongLong(&validSize);
             const auto token = result.value("informationVersion").toString(), version = result.value("version").toString();
             const auto encoded = result.value("data").toString().toLatin1();
-            if (!result.value("data").isString() || encoded.size() > ((iiSocietySync::Replica::ChunkBytes + 2) / 3) * 4) {
+            if (!result.value("data").isString() || encoded.size() > ((iiSocietyHelper::Sync::Replica::ChunkBytes + 2) / 3) * 4) {
                 finishInspection(state, driveError("invalid_host_information_chunk")); return;
             }
             const auto decoded = QByteArray::fromBase64Encoding(encoded, QByteArray::AbortOnBase64DecodingErrors);
@@ -153,7 +153,7 @@ public:
             });
             if (!validOffset || !validSize || offset != state->bytes.size() || size <= 0
                 || size > iiSocietyContainer::SharedStorage::maximumFileInformationBytes || (state->size >= 0 && state->size != size)
-                || !decoded || decoded.decoded.isEmpty() || decoded.decoded.size() > iiSocietySync::Replica::ChunkBytes
+                || !decoded || decoded.decoded.isEmpty() || decoded.decoded.size() > iiSocietyHelper::Sync::Replica::ChunkBytes
                 || decoded.decoded.toBase64() != encoded || offset + decoded.decoded.size() > size
                 || result.value("path").toString() != state->path || result.value("format") != "iiFileProvider.FileInformation"
                 || result.value("schema") != 1 || !result.value("eof").isBool()
@@ -384,8 +384,8 @@ public:
         if (direct && !accountHost().isEmpty() && accountHost() == device.value("id").toString()) {
             const auto storage = iiSocietyContainer::SharedStorage::open();
             const bool valid = storage && storage->drive().identifier() == accountContainer()
-                && iiSocietySync::Replica::binding(storage->drive().rootPath()).isEmpty()
-                && iiSocietySync::Replica::primaryHost(storage->drive().rootPath(), scope) == accountHost();
+                && iiSocietyHelper::Sync::Replica::binding(storage->drive().rootPath()).isEmpty()
+                && iiSocietyHelper::Sync::Replica::primaryHost(storage->drive().rootPath(), scope) == accountHost();
             if (!valid) {
                 transportStop(); local = true;
                 message = "The registered local Society host container is unavailable."; emit q->changed(); return;
@@ -447,7 +447,7 @@ bool Client::start(const QString &container) {
     d->direct = false; d->local = false;
     const auto storage = iiSocietyContainer::SharedStorage::open(container);
     if (!storage) { d->message = "Open the Society storage map on this device first."; emit changed(); return false; }
-    d->container = storage->drive().rootPath(); d->binding = iiSocietySync::Replica::binding(d->container);
+    d->container = storage->drive().rootPath(); d->binding = iiSocietyHelper::Sync::Replica::binding(d->container);
     if (d->binding.isEmpty()) { d->message = "Using the local Society host storage."; emit changed(); return true; }
     d->active = true; d->initialize(); d->timer.start(); d->update(); return true;
 }
@@ -504,7 +504,7 @@ QString Client::readHostFile(const QString &path, qint64 offset, const QString &
     return d->requestDrive(message);
 }
 QString Client::writeHostFile(const QString &path, const QByteArray &data) {
-    if (!drivePath(path) || !path.contains('/') || data.size() > iiSocietySync::Replica::ChunkBytes) return {};
+    if (!drivePath(path) || !path.contains('/') || data.size() > iiSocietyHelper::Sync::Replica::ChunkBytes) return {};
     return d->requestDrive({{"action", "drive.write"}, {"path", path}, {"data", QString::fromLatin1(data.toBase64())}});
 }
 QString Client::createHostDirectory(const QString &path) {

@@ -9,6 +9,9 @@
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+    iiSocietyHelper::Sync::Replica replica;
+    iiSocietyHelper::Generation::Remote remote([](const QJsonObject &) { return QString(); });
+    if (remote.active() || iiSocietyHelper::Sync::Replica::ChunkBytes < 1) return 10;
     QTemporaryDir fixture(QStringLiteral(HELPER_TEST_DIRECTORY "/merged-api-XXXXXX"));
     if (!fixture.isValid()) return 1;
     // Neither account restoration nor default storage selection touches live data.

@@ -105,6 +105,10 @@ public:
     // this QObject's thread; daemonRunning becomes false for stale heartbeats.
     [[nodiscard]] QVariantMap containerState() const;
     Q_INVOKABLE bool synchronize();
+    // Nonblocking native mirror scan, coalesced to one active and one pending
+    // request. Results are published on this object's thread. Explicit open()
+    // and synchronize() invalidate older replies and remain synchronous.
+    Q_INVOKABLE void requestSynchronization();
     // Alias snapshots are provided by the storage owner. Applications do not
     // probe paths or persist payloads through the read-only Container object.
     Q_INVOKABLE QVariantMap alias(const QString &sectionKey, const QString &relativePath);
@@ -154,6 +158,7 @@ public:
 
 signals:
     void storageChanged();
+    void synchronizationFinished(bool success);
     void containerStateChanged();
     void errorChanged();
 
@@ -235,3 +240,7 @@ IISOCIETYHELPER_EXPORT bool migrateLegacyCache(const QString &source, const QStr
 
 Q_DECLARE_METATYPE(iiSocietyHelper::Peer)
 Q_DECLARE_METATYPE(iiSocietyHelper::ObjectSnapshot)
+
+// Consolidated remote generation and device synchronization APIs.
+#include <iiSocietyHelper/Generation/Remote.h>
+#include <iiSocietyHelper/Sync/Sync.h>

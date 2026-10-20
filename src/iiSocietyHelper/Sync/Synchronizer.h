@@ -1,0 +1,36 @@
+#pragma once
+#include "Replica.h"
+#include <QObject>
+
+namespace iiSocietyHelper::Sync {
+// Bidirectional pull/push over a supplied authenticated request/reply channel.
+// Changes and checkpoints survive restarts; sockets and login policy do not.
+class IISOCIETYHELPER_EXPORT Synchronizer final : public QObject {
+    Q_OBJECT
+public:
+    explicit Synchronizer(Replica *replica, QObject *parent = nullptr);
+    ~Synchronizer() override;
+    bool start(const QString &peer);
+    void stop();
+    void setExpectedHost(QString host, QString container);
+    bool busy() const;
+    // FullReplica remains available for explicit backup/replica consumers.
+    // Society interactive clients use MetadataFirst.
+    enum class ContentPolicy { FullReplica, MetadataFirst };
+    bool setContentPolicy(ContentPolicy policy);
+    // Bound memory and outstanding chunk requests. Negotiated down to one for
+    // older hosts; may only change while idle. TCP preserves upload order.
+    bool setTransferWindow(int chunks);
+    void receive(const QString &requestId, const QJsonObject &response);
+signals:
+    void mirrorChanged(QJsonObject binding);
+    // Current authenticated host matches a ready mirror; payload queues may remain busy.
+    void hostValidated(QString peer);
+    void requestReady(QString id, QString peer, QJsonObject payload);
+    void progress(QString path, qint64 completedBytes, qint64 totalBytes);
+    void finished(QString peer, bool success, QString error);
+private:
+    class Private;
+    std::unique_ptr<Private> d;
+};
+}

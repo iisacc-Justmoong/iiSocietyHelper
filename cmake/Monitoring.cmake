@@ -1,0 +1,59 @@
+# Native monitoring stays available without importing the Qt-based Core facade.
+find_package(iiSDKCore 0.11 CONFIG REQUIRED)
+find_package(iiFileProviderCoreIO 0.1.1 CONFIG REQUIRED)
+find_package(iiSocietyContainer 0.16 CONFIG REQUIRED COMPONENTS FileTree)
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS" OR EMSCRIPTEN)
+    set(helper_monitor_type STATIC)
+else()
+    set(helper_monitor_type SHARED)
+endif()
+add_library(iiSocietyHelperMonitoring ${helper_monitor_type}
+    src/iiSocietyHelper/Monitoring/Monitor.cpp src/iiSocietyHelper/Monitoring/Monitor.h)
+add_library(iiSocietyHelper::Monitoring ALIAS iiSocietyHelperMonitoring)
+set_target_properties(iiSocietyHelperMonitoring PROPERTIES EXPORT_NAME Monitoring
+    AUTOMOC OFF CXX_EXTENSIONS OFF VERSION ${PROJECT_VERSION} SOVERSION 0
+    INSTALL_RPATH_USE_LINK_PATH TRUE)
+target_compile_features(iiSocietyHelperMonitoring PUBLIC cxx_std_23)
+target_compile_definitions(iiSocietyHelperMonitoring PRIVATE IISOCIETYHELPER_MONITORING_BUILDING_LIBRARY)
+if(helper_monitor_type STREQUAL "STATIC")
+    target_compile_definitions(iiSocietyHelperMonitoring PUBLIC IISOCIETYHELPER_MONITORING_STATIC)
+endif()
+target_include_directories(iiSocietyHelperMonitoring PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+target_link_libraries(iiSocietyHelperMonitoring PRIVATE iiSDKCore::iiSDKCore
+    iiFileProvider::CoreIO iiSocietyContainer::FileTree Threads::Threads)
+if(APPLE)
+    set_property(TARGET iiSocietyHelperMonitoring APPEND PROPERTY INSTALL_RPATH
+        "$<TARGET_FILE_DIR:iiSDKCore::iiSDKCore>" "$<TARGET_FILE_DIR:iiSocietyContainer::FileTree>")
+endif()
+install(TARGETS iiSocietyHelperMonitoring EXPORT iiSocietyHelperMonitoringTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(EXPORT iiSocietyHelperMonitoringTargets NAMESPACE iiSocietyHelper::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper)
+if(NOT IOS AND NOT ANDROID AND NOT EMSCRIPTEN)
+    add_executable(SocietyContainerDaemon tools/container-daemon.cpp)
+    target_link_libraries(SocietyContainerDaemon PRIVATE iiSocietyHelper::Monitoring)
+    target_compile_definitions(SocietyContainerDaemon PRIVATE IISOCIETYHELPER_VERSION="${PROJECT_VERSION}")
+    set_target_properties(SocietyContainerDaemon PROPERTIES AUTOMOC OFF MACOSX_BUNDLE FALSE INSTALL_RPATH_USE_LINK_PATH TRUE)
+    if(APPLE)
+        set_property(TARGET SocietyContainerDaemon APPEND PROPERTY INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
+    elseif(UNIX)
+        set_property(TARGET SocietyContainerDaemon APPEND PROPERTY INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+    endif()
+    install(TARGETS SocietyContainerDaemon RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+if(BUILD_TESTING)
+    add_executable(iiSocietyHelperMonitoringTests tests/monitoring/monitor.cpp)
+    target_link_libraries(iiSocietyHelperMonitoringTests PRIVATE iiSocietyHelper::Monitoring Threads::Threads iiFileProvider::Native)
+    set_target_properties(iiSocietyHelperMonitoringTests PROPERTIES AUTOMOC OFF)
+    add_test(NAME iiSocietyHelper.Monitoring.monitor COMMAND iiSocietyHelperMonitoringTests "${CMAKE_CURRENT_BINARY_DIR}")
+    set_tests_properties(iiSocietyHelper.Monitoring.monitor PROPERTIES RESOURCE_LOCK iiSocietyHelperStorage)
+    if(TARGET SocietyContainerDaemon AND NOT CMAKE_CROSSCOMPILING)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        add_test(NAME iiSocietyHelper.Monitoring.process COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/monitoring/process.py" "$<TARGET_FILE:SocietyContainerDaemon>" "${CMAKE_CURRENT_BINARY_DIR}" "${PROJECT_VERSION}")
+        set_tests_properties(iiSocietyHelper.Monitoring.process PROPERTIES TIMEOUT 30)
+        set_tests_properties(iiSocietyHelper.Monitoring.process PROPERTIES RESOURCE_LOCK iiSocietyHelperStorage)
+    endif()
+endif()

@@ -1,5 +1,9 @@
 #include <iiFileProviderDevice.h>
 #include "FilePresentation_p.h"
+#include "PresenceWorker_p.h"
+#include <QSet>
+#include <QPointer>
+#include <utility>
 #include "iiSocietyHelper.h"
 #include <SharedStorage.h>
 #include <QDir>
@@ -15,7 +19,7 @@
 #include <iiFileProviderPresentation.h>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <iiSocietyMonitor/Monitor.h>
+#include <iiSocietyHelper/Monitoring/Monitor.h>
 #ifdef Q_OS_ANDROID
 #include <AndroidStorage.h>
 #include <QJsonDocument>
@@ -27,16 +31,120 @@ namespace iiSocietyHelper {
 using iiSocietyContainer::SharedStorage;
 using iiSocietyContainer::StoreSection;
 
+namespace {
+QVariantMap fileAlias(const SharedStorage &storage, StoreSection section,
+                      const QString &sectionKey, const QString &relativePath,
+                      const QString &native, const QJsonObject &object = {})
+{
+    const QFileInfo info(native);
+    const bool available = info.isFile() && !info.isSymLink() && !info.isJunction() && info.canonicalFilePath() == native;
+    const auto key = sectionKey + '/' + relativePath;
+    const bool exists = available || (!object.isEmpty() && object.value("kind").toString() == "file");
+    const auto size = available ? info.size() : object.value("size").toVariant().toLongLong();
+    const auto suffix = info.suffix().toLower();
+    const bool image = QStringList{"png","jpg","jpeg","webp","bmp","gif","tif","tiff","avif","heic","heif"}.contains(suffix);
+    const auto source = available ? QUrl::fromLocalFile(native) : QUrl{};
+    auto preview = image ? source : QUrl{};
+    if (!preview.isEmpty()) preview.setQuery(QString("v=%1-%2").arg(info.lastModified().toMSecsSinceEpoch()).arg(info.size()));
+    QVariantMap value{{"id", storage.drive().identifier() + '/' + key}, {"containerId", storage.drive().identifier()}, {"key", key},
+        {"informationKey", key}, {"informationAvailable", exists},
+        {"section", sectionKey}, {"relativePath", relativePath}, {"name", info.fileName()},
+        {"exists", exists}, {"available", available}, {"path", available ? native : QString{}},
+        {"source", source}, {"previewSource", preview}, {"thumbnailSource", preview},
+        {"isImage", image}, {"size", size},
+        {"modified", info.lastModified().toUTC()}, {"folderPath", info.absolutePath()},
+        {"history", sectionKey == "generation-history"},
+        {"iconName", image ? "fileTypesimage" : suffix == "iisc" ? "application" : "fileTypestext"},
+        {"description", iiSocietyContainer::storeSectionName(section) + " · " + (image ? "Image" : suffix == "iisc" ? "Canvas" : "Document")},
+        {"metadata1", suffix.toUpper() + " · " + QLocale().formattedDataSize(size)},
+        {"metadata2", "Society / " + iiSocietyContainer::storeSectionName(section)}};
+    if (available) value["version"] = QString::number(info.lastModified().toMSecsSinceEpoch()) + ':' + QString::number(info.size());
+    else if (!object.isEmpty()) value["version"] = object.value("version").toString();
+    if (!available && !object.isEmpty()) {
+        const auto remotePreview = iiSocietyContainer::StorageMap(storage.drive()).previewPath(object);
+        value["previewSource"] = remotePreview.isEmpty() ? QUrl{} : QUrl::fromLocalFile(remotePreview);
+        value["thumbnailSource"] = value["previewSource"];
+    }
+    return value;
+}
+
+struct MirrorSnapshot {
+    QString id, root, error;
+    QVariantList aliases;
+    bool available = false;
+};
+
+// This is value-only I/O. No QObject, timer or application binding is accessed.
+MirrorSnapshot scanMirror(const std::optional<SharedStorage> &storage)
+{
+    MirrorSnapshot result;
+    if (!storage || !storage->drive().isValid()) {
+        result.error = QStringLiteral("The selected Society drive is unavailable or changed.");
+        return result;
+    }
+    result.id = storage->drive().identifier();
+    result.root = storage->drive().rootPath();
+    QSet<QString> residentKeys;
+    for (const auto section : {StoreSection::Files, StoreSection::Published, StoreSection::GenerationHistory}) {
+        const auto key = iiSocietyContainer::storeSectionKey(section);
+        const auto directory = storage->filePath(section);
+        if (directory.isEmpty()) continue;
+        QDirIterator files(directory, QDir::Files | QDir::NoSymLinks,
+            key == "generation-history" ? QDirIterator::NoIteratorFlags : QDirIterator::Subdirectories);
+        while (files.hasNext() && result.aliases.size() < 25000) {
+            const auto native = files.next();
+            if (files.fileName().startsWith('.')) continue;
+            const auto relative = QDir(directory).relativeFilePath(native);
+            // The batch pins and checks the drive once at each boundary. Each
+            // resident leaf still rejects traversal and redirected ancestors.
+            const auto logical = key + '/' + relative;
+            if (iiSocietyContainer::StorageMap::physicalPath(logical).isEmpty()) continue;
+            const auto row = fileAlias(*storage, section, key, relative, native);
+            if (row.value("available").toBool()) {
+                residentKeys.insert(logical);
+                result.aliases.append(row);
+            }
+        }
+    }
+    const iiSocietyContainer::StorageMap map(storage->drive());
+    if (!map.isLocalAuthority()) for (const auto &entry : map.objects()) {
+        if (result.aliases.size() >= 25000) break;
+        const auto object = entry.toObject();
+        const auto key = object.value("path").toString();
+        const auto sectionKey = key.section('/', 0, 0);
+        if (object.value("kind") != "file" || residentKeys.contains(key)
+            || iiSocietyContainer::StorageMap::physicalPath(key).isEmpty()) continue;
+        const auto section = sectionKey == "files" ? StoreSection::Files
+            : sectionKey == "published" ? StoreSection::Published : StoreSection::GenerationHistory;
+        if (sectionKey != "files" && sectionKey != "published" && sectionKey != "generation-history") continue;
+        const auto relative = key.mid(sectionKey.size() + 1);
+        const auto native = QDir(storage->drive().sectionPath(section)).filePath(relative);
+        result.aliases.append(fileAlias(*storage, section, sectionKey, relative, native, object));
+        residentKeys.insert(key);
+    }
+    // A package replaced during a scan must not publish another drive's rows.
+    result.available = storage->drive().isValid();
+    if (!result.available) {
+        result.id.clear(); result.root.clear(); result.aliases.clear();
+        result.error = QStringLiteral("The selected Society drive changed during synchronization.");
+    }
+    return result;
+}
+} // namespace
+
 class FileSystem::Private {
 public:
     explicit Private(FileSystem *owner) : q(owner), container(owner) {}
     FileSystem *q;
     iiSocietyContainer::Container container;
     QTimer synchronization;
+    std::unique_ptr<detail::PresenceWorker> mirrorWorker;
+    quint64 mirrorEpoch = 0;
+    bool mirrorInFlight = false, mirrorPending = false;
     QString selection;
     QString error;
     std::optional<SharedStorage> storage;
-    iiSocietyMonitor::Subscription monitor;
+    iiSocietyHelper::Monitoring::Subscription monitor;
     QVariantMap containerState;
     quint64 monitorEpoch = 0;
     std::filesystem::path monitorRoot;
@@ -66,8 +174,8 @@ public:
         auto *owner = q;
         // Subscription owns a native worker. Only the queued adapter touches
         // QObject state, and selection epochs discard obsolete queued events.
-        (void)monitor.start(root, id, [owner, epoch](const iiSocietyMonitor::State &state) {
-            const auto json = iiSocietyMonitor::toJson(state);
+        (void)monitor.start(root, id, [owner, epoch](const iiSocietyHelper::Monitoring::State &state) {
+            const auto json = iiSocietyHelper::Monitoring::toJson(state);
             const auto value = QJsonDocument::fromJson(QByteArray::fromStdString(json)).object().toVariantMap();
             QMetaObject::invokeMethod(owner, [owner, epoch, value] {
                 auto &self = *owner->d;
@@ -82,7 +190,7 @@ public:
                 // refresh the existing read-only mirror and app bindings.
                 if (value.value("available").toBool() &&
                     (previous.value("revision") != value.value("revision") || previous.value("instanceId") != value.value("instanceId"))) {
-                    owner->synchronize();
+                    owner->requestSynchronization();
                     emit owner->storageChanged();
                 }
                 emit owner->containerStateChanged();
@@ -138,16 +246,22 @@ public:
 FileSystem::FileSystem(QObject *parent) : QObject(parent), d(std::make_unique<Private>(this))
 {
     detail::installCanvasPresentation();
-    connect(&d->container, &iiSocietyContainer::Container::refreshRequested, this, &FileSystem::synchronize);
+    connect(&d->container, &iiSocietyContainer::Container::refreshRequested, this, &FileSystem::requestSynchronization);
     d->synchronization.setInterval(2000);
-    connect(&d->synchronization, &QTimer::timeout, this, &FileSystem::synchronize);
+    connect(&d->synchronization, &QTimer::timeout, this, &FileSystem::requestSynchronization);
     d->synchronization.start();
     open();
 }
-FileSystem::~FileSystem() { ++d->monitorEpoch; d->monitor.stop(); }
+FileSystem::~FileSystem() {
+    ++d->monitorEpoch; ++d->mirrorEpoch;
+    d->monitor.stop();
+    // The receiver remains alive until its native I/O worker has stopped.
+    d->mirrorWorker.reset();
+}
 
 bool FileSystem::open(const QString &containerPath)
 {
+    ++d->mirrorEpoch;
     d->selection = containerPath;
 #ifdef Q_OS_ANDROID
     d->remote = !iiSocietyContainer::androidIsStorageOwner();
@@ -233,37 +347,7 @@ QVariantMap FileSystem::alias(const QString &sectionKey, const QString &relative
         }
     }
     if (!section || native.isEmpty()) return {};
-    const QFileInfo info(native);
-    const bool available = info.isFile() && !info.isSymLink() && !info.isJunction() && info.canonicalFilePath() == native;
-    const auto key = sectionKey + '/' + relativePath;
-    const auto object = declared;
-    const bool exists = available || (!object.isEmpty() && object.value("kind").toString() == "file");
-    const auto size = available ? info.size() : object.value("size").toVariant().toLongLong();
-    const auto suffix = info.suffix().toLower();
-    const bool image = QStringList{"png","jpg","jpeg","webp","bmp","gif","tif","tiff","avif","heic","heif"}.contains(suffix);
-    const auto source = available ? QUrl::fromLocalFile(native) : QUrl{};
-    auto preview = image ? source : QUrl{};
-    if (!preview.isEmpty()) preview.setQuery(QString("v=%1-%2").arg(info.lastModified().toMSecsSinceEpoch()).arg(info.size()));
-    QVariantMap value{{"id", containerId() + '/' + key}, {"containerId", containerId()}, {"key", key},
-        {"informationKey", key}, {"informationAvailable", exists},
-        {"section", sectionKey}, {"relativePath", relativePath}, {"name", info.fileName()},
-        {"exists", exists}, {"available", available}, {"path", available ? native : QString{}},
-        {"source", source}, {"previewSource", preview}, {"thumbnailSource", preview},
-        {"isImage", image}, {"size", size},
-        {"modified", info.lastModified().toUTC()}, {"folderPath", info.absolutePath()},
-        {"history", sectionKey == "generation-history"},
-        {"iconName", image ? "fileTypesimage" : suffix == "iisc" ? "application" : "fileTypestext"},
-        {"description", iiSocietyContainer::storeSectionName(*section) + " · " + (image ? "Image" : suffix == "iisc" ? "Canvas" : "Document")},
-        {"metadata1", suffix.toUpper() + " · " + QLocale().formattedDataSize(size)},
-        {"metadata2", "Society / " + iiSocietyContainer::storeSectionName(*section)}};
-    if (available) value["version"] = QString::number(info.lastModified().toMSecsSinceEpoch()) + ':' + QString::number(info.size());
-    else if (!object.isEmpty()) value["version"] = object.value("version").toString();
-    if (!available && d->storage && !object.isEmpty()) {
-        const auto remotePreview = iiSocietyContainer::StorageMap(d->storage->drive()).previewPath(object);
-        value["previewSource"] = remotePreview.isEmpty() ? QUrl{} : QUrl::fromLocalFile(remotePreview);
-        value["thumbnailSource"] = value["previewSource"];
-    }
-    return value;
+    return fileAlias(*d->storage, *section, sectionKey, relativePath, native, declared);
 }
 QVariantMap FileSystem::aliasForPath(const QString &source) {
 #ifdef Q_OS_ANDROID
@@ -339,33 +423,44 @@ bool FileSystem::synchronize() {
         d->container.synchronize(d->remoteId, d->remoteRoot, values, true); return true;
     }
 #endif
-    if (!isAvailable() || !d->storage) {
-        d->container.synchronize({}, {}, {}, false, errorString()); return false;
-    }
-    QVariantList values;
-    for (const auto &entry : sections()) {
-        const auto section = entry.toMap(); const auto key = section["key"].toString();
-        if (key != "files" && key != "published" && key != "generation-history") continue;
-        const auto directory = section["path"].toString();
-        QDirIterator files(directory, QDir::Files | QDir::NoSymLinks, key == "generation-history" ? QDirIterator::NoIteratorFlags : QDirIterator::Subdirectories);
-        while (files.hasNext() && values.size() < 25000) {
-            const auto file = files.next();
-            if (files.fileName().startsWith('.')) continue;
-            const auto row = alias(key, QDir(directory).relativeFilePath(file));
-            if (row.value("available").toBool()) values.append(row);
-        }
-    }
-    const iiSocietyContainer::StorageMap map(d->storage->drive());
-    if (!map.isLocalAuthority()) for (const auto &entry : map.objects()) {
-        const auto object = entry.toObject(); const auto key = object.value("path").toString();
-        const auto section = key.section('/', 0, 0);
-        if (object.value("kind").toString() != "file" || (section != "files" && section != "published" && section != "generation-history")) continue;
-        if (std::none_of(values.begin(), values.end(), [&](const QVariant &value) { return value.toMap()["key"].toString() == key; })) {
-            const auto row = alias(section, key.mid(section.size() + 1)); if (!row.isEmpty()) values.append(row);
-        }
-    }
-    d->setError({});
-    d->container.synchronize(containerId(), rootPath(), values, true); return true;
+    const auto epoch = ++d->mirrorEpoch; // Invalidate replies queued before an explicit save/refresh.
+    const auto snapshot = scanMirror(d->storage);
+    const QPointer<FileSystem> guard(this);
+    d->setError(snapshot.error);
+    if (!guard || epoch != d->mirrorEpoch) return false;
+    d->container.synchronize(snapshot.id, snapshot.root, snapshot.aliases, snapshot.available, snapshot.error);
+    return snapshot.available;
+}
+
+void FileSystem::requestSynchronization()
+{
+#ifdef Q_OS_ANDROID
+    // The existing provider adapter owns its Android request context.
+    if (d->remote) { const auto ok = synchronize(); emit synchronizationFinished(ok); return; }
+#endif
+    if (d->mirrorInFlight) { d->mirrorPending = true; return; }
+    d->mirrorInFlight = true;
+    const auto epoch = d->mirrorEpoch;
+    const auto storage = d->storage;
+    if (!d->mirrorWorker) d->mirrorWorker = std::make_unique<detail::PresenceWorker>();
+    d->mirrorWorker->post([this, epoch, storage] {
+        MirrorSnapshot snapshot;
+        try { snapshot = scanMirror(storage); }
+        catch (const std::exception &error) { snapshot.error = QString::fromUtf8(error.what()); }
+        QMetaObject::invokeMethod(this, [this, epoch, snapshot = std::move(snapshot)] {
+            const QPointer<FileSystem> guard(this);
+            d->mirrorInFlight = false;
+            if (epoch == d->mirrorEpoch) {
+                d->setError(snapshot.error);
+                if (!guard) return;
+                if (epoch == d->mirrorEpoch)
+                    d->container.synchronize(snapshot.id, snapshot.root, snapshot.aliases, snapshot.available, snapshot.error);
+                if (!guard) return;
+            }
+            emit synchronizationFinished(epoch == d->mirrorEpoch && snapshot.available);
+            if (guard && std::exchange(d->mirrorPending, false)) requestSynchronization();
+        }, Qt::QueuedConnection);
+    });
 }
 
 QList<iiSocietyContainer::StoredModel> FileSystem::models()

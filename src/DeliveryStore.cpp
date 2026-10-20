@@ -89,37 +89,55 @@ bool DeliveryStore::open(const QString &observationDirectory, QString *error)
     QString protectionError;
     if (!applePrepareDeliveryDirectory(d->root, &protectionError)) return fail(protectionError);
 #endif
-    // Changing journal mode/schema concurrently can return SQLITE_BUSY immediately,
-    // even with SQLite's busy timeout. Serialize initialization, not normal delivery.
     const auto initializationPath = iiFileProvider::Directory(d->root).filePath("initialization.lock");
     if (QFileInfo(initializationPath).isSymLink()) return fail(QStringLiteral("Invalid Society delivery initialization lock."));
-    iiFileProvider::LockFile initialization(initializationPath);
-    initialization.setStaleLockTime(0);
-    if (!initialization.tryLock(3000)) return fail(QStringLiteral("Society delivery storage is being initialized by another app."));
-    for (const auto *name : {"delivery.sqlite", "delivery.sqlite-wal", "delivery.sqlite-shm"})
-        if (QFileInfo(iiFileProvider::Directory(d->root).filePath(QString::fromLatin1(name))).isSymLink())
-            return fail(QStringLiteral("Society delivery files cannot be symbolic links."));
+    const auto validFiles = [&] {
+        for (const auto *name : {"delivery.sqlite", "delivery.sqlite-wal", "delivery.sqlite-shm"})
+            if (QFileInfo(iiFileProvider::Directory(d->root).filePath(QString::fromLatin1(name))).isSymLink()) return false;
+        return true;
+    };
+    if (!validFiles()) return fail(QStringLiteral("Society delivery files cannot be symbolic links."));
+    // Load the connection/driver before taking the cross-process schema lease.
     d->connection = "society-delivery-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
     d->database = QSqlDatabase::addDatabase("QSQLITE", d->connection);
     d->database.setDatabaseName(iiFileProvider::Directory(d->root).filePath("delivery.sqlite"));
     d->database.setConnectOptions("QSQLITE_BUSY_TIMEOUT=1000");
+    const auto schemaVersion = [&] {
+        QSqlQuery query(d->database);
+        return query.exec("PRAGMA user_version") && query.next() ? query.value(0).toInt() : -1;
+    };
+    const auto journal = [&] {
+        QSqlQuery query(d->database);
+        return query.exec("PRAGMA journal_mode") && query.next() ? query.value(0).toString() : QString();
+    };
+    const auto configureConnection = [&] {
+        if (!QFile::setPermissions(d->database.databaseName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner))
+            return fail(QStringLiteral("Cannot restrict the Society delivery database to its owner."));
+        return d->exec("PRAGMA synchronous=FULL") || fail(d->error);
+    };
+    // user_version is committed with all schema changes. Existing WAL stores
+    // need only connection-local settings, not journal/schema initialization.
+    const QFileInfo existing(d->database.databaseName());
+    if (existing.isFile() && existing.size() > 0 && d->database.open()) {
+        const int schema = schemaVersion();
+        if (schema > 1) return fail(QStringLiteral("Unsupported Society delivery database schema."));
+        if (schema == 1 && journal() == "wal") return configureConnection();
+        d->database.close();
+    }
+    // Journal transitions and first schema creation still serialize. Re-read
+    // after acquisition: another process may have initialized while we waited.
+    iiFileProvider::LockFile initialization(initializationPath);
+    initialization.setStaleLockTime(0);
+    if (!initialization.tryLock(3000)) return fail(QStringLiteral("Society delivery storage is being initialized by another app."));
+    if (QFileInfo(initializationPath).isSymLink() || !validFiles())
+        return fail(QStringLiteral("Society delivery files cannot be symbolic links."));
     if (!iiFileProvider::File::prepareDatabase(d->database.databaseName())) return fail(QStringLiteral("Cannot create delivery database."));
     if (!d->database.open()) return fail(d->database.lastError().text());
-    if (!QFile::setPermissions(d->database.databaseName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner))
-        return fail(QStringLiteral("Cannot restrict the Society delivery database to its owner."));
-    int schema = -1;
-    {
-        QSqlQuery query(d->database);
-        if (query.exec("PRAGMA user_version") && query.next()) schema = query.value(0).toInt();
-    }
+    const int schema = schemaVersion();
     if (schema != 0 && schema != 1) return fail(QStringLiteral("Unsupported Society delivery database schema."));
-    QString journalMode;
-    {
-        QSqlQuery query(d->database);
-        if (query.exec("PRAGMA journal_mode") && query.next()) journalMode = query.value(0).toString();
-    }
+    const auto journalMode = journal();
     if (journalMode != "wal" && !d->exec("PRAGMA journal_mode=WAL")) return fail(d->error);
-    if (!d->exec("PRAGMA synchronous=FULL")) return fail(d->error);
+    if (!configureConnection()) return false;
     if (schema == 0) {
         if (!d->exec("BEGIN IMMEDIATE")) return fail(d->error);
         const QStringList statements{

@@ -8,7 +8,7 @@
 
 namespace iiSocietyHelper::detail {
 
-// Presence has one active filesystem operation and at most one pending update.
+// Native presence and mirror I/O have one active operation and one pending update.
 // No QObject or application event loop is owned by this worker.
 class PresenceWorker final {
 public:

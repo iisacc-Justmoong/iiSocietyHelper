@@ -1,4 +1,8 @@
-# Client and Helper consolidation in 0.9.0
+# Society Helper API migration
+
+Version 0.10.0 also consolidates generation, monitoring and synchronization.
+See [the component and namespace migration](Consolidation.md).
+The Client migration described below remains applicable.
 
 `iiSocietyHelper` is the single application-facing SDK for Society storage,
 accounts, discovery, pairing and same-device collaboration. The former
@@ -6,7 +10,7 @@ accounts, discovery, pairing and same-device collaboration. The former
 library. There is no separate Client package or Client library to build or link.
 
 ```cmake
-find_package(iiSocietyHelper 0.9.0 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -52,11 +56,12 @@ host. Network credentials and filesystem-private state never enter local IPC.
 The selected container's encrypted state locations and keychain services do not
 change during this source consolidation.
 
-Dependency direction is `Helper -> Sync -> Container/ServerHost` and
-`Helper -> AccountManager/SharedCanvas/Monitor`. Sync, Container and account
-packages never depend on Helper. Local presence and delivery remain usable
-without starting network discovery or signing in. The package resolves Sync at
-configure time; it no longer promises independence from that package.
+Dependency direction is `Helper Core -> Container/ServerHost/AccountManager/SharedCanvas`
+and `Helper Core -> Monitoring -> FileTree/Core/CoreIO`. Sync and Remote are
+implementations in Core. GenerationHost depends on Core and iiLocalDiffusion.
+Container, account and Monitoring never depend on the Helper Core facade.
+Local presence and delivery remain usable without starting network discovery
+or signing in. No separate Sync, Generation or Monitor package is discovered.
 
 Desktop builds keep the existing shared Helper library; iOS keeps a native
 static library and its private CryptoKit bridge. Android retains its native
@@ -68,7 +73,8 @@ not introduce a VM, interpreter, new transport or credential format.
 The original local delivery, object, filesystem, observation and account tests
 run alongside the imported account, state, discovery and host-drive session
 tests. `tests/consumer` rebuilds against the installed package and checks that
-no Client package is imported and Sync does not acquire a reverse dependency.
+no retired Client/Sync/Generation/Monitor package is imported. A native Monitoring
+consumer independently rejects Qt, Core and inference targets.
 `SDK/tests/SocietyHelperConsumers` also compiles Society's real account wrapper
 and encrypted-state tests and Dreamscapes' real generation controller against
 the installed SDK, without creating app bundles or changing product build caches.

@@ -1,4 +1,5 @@
 #include <iiSocietyHelper.h>
+#include <iiSocietyHelper/MediaExport.h>
 #include <SharedStorage.h>
 #include <StorageMap.h>
 #include <QJsonArray>
@@ -20,10 +21,15 @@
 #include <iiSharedCanvas/Bitmap/BitmapCodec.h>
 #include <iiFileProviderPresentation.h>
 #include <iiSharedCanvas/Serialization/IiscCodec.h>
-#include <iiSocietyMonitor/Monitor.h>
+#include <iiSharedCanvas/File/DocumentFile.h>
+#include <iiSocietyHelper/Monitoring/Monitor.h>
 #include <File.h>
 #include <QImage>
+#include <QImageReader>
 #include <QBuffer>
+#include <QElapsedTimer>
+#include <QCryptographicHash>
+#include <QDirIterator>
 
 using namespace iiSocietyHelper;
 using namespace iiSocietyContainer;
@@ -39,6 +45,184 @@ class FileSystemTests : public QObject
         return path;
     }
 private slots:
+    void statelessCanvasExportRetainsDestinationRulesAndDriveState() {
+        const auto root=createDrive("canvas-export-selected");QVERIFY(!root.isEmpty());
+        iiFileProvider::native::Presentation::unwatch(std::filesystem::path(root.toStdU16String()));
+        QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(20)));
+        {QFile marker(root+"/Files/untouched.txt");QVERIFY(marker.open(QIODevice::WriteOnly));marker.write("preserve selected drive");}
+        const auto previous=qgetenv("SOCIETY_CONTAINER_PATH");qputenv("SOCIETY_CONTAINER_PATH",root.toUtf8());
+        const auto restore=qScopeGuard([&]{if(previous.isNull())qunsetenv("SOCIETY_CONTAINER_PATH");else qputenv("SOCIETY_CONTAINER_PATH",previous);});
+        const auto manifest=[&] {
+            QVariantMap result;QDirIterator entries(root,QDir::Files|QDir::Hidden|QDir::System,QDirIterator::Subdirectories);
+            while(entries.hasNext()){const auto path=entries.next();QFile file(path);if(!file.open(QIODevice::ReadOnly))return QVariantMap{};
+                result.insert(QDir(root).relativeFilePath(path),QCryptographicHash::hash(file.readAll(),QCryptographicHash::Sha256));}
+            return result;
+        };
+        const auto original=manifest();QVERIFY(!original.isEmpty());
+        iiSharedCanvas::Document document;document.extent={3,2};
+        document.assets.emplace_back(iiSharedCanvas::RasterAsset{"pixels",makeRasterLayer(3,2,0xff4080c0U)});
+        document.layers.emplace_back(iiSharedCanvas::StaticBitmapLayer{{"layer","Frame"},iiSharedCanvas::StaticSource{"pixels"}});
+        const auto target=m_fixture.filePath("external-frame.iisc");
+        const auto exported=iiSocietyHelper::exportCanvasCopy(document,QUrl::fromLocalFile(target));
+        QVERIFY2(exported.success,qPrintable(exported.error));
+        iiSharedCanvas::DocumentFile reopened;QVERIFY(reopened.open(target.toStdString()).ok());
+        QCOMPARE(reopened.document()->extent.width,3);QCOMPARE(reopened.document()->extent.height,2);reopened.close();
+        const auto originalFile=iiFileProvider::File::read(target);
+        QVERIFY(!iiSocietyHelper::exportCanvasCopy(document,QUrl::fromLocalFile(target)).success);
+        QCOMPARE(iiFileProvider::File::read(target),originalFile);
+        QVERIFY(!iiSocietyHelper::exportCanvasCopy(document,QUrl::fromLocalFile(root+"/Generation History/forbidden.iisc")).success);
+        QVERIFY(!iiSocietyHelper::mediaExportDestination(QUrl::fromLocalFile(root+"/wrong.png")).error.isEmpty());
+        QVERIFY(!iiSocietyHelper::mediaExportDestination(QUrl::fromLocalFile(root+"/Files/not-media.iisc")).error.isEmpty());
+        QVERIFY(iiSocietyHelper::mediaExportDestination(QUrl::fromLocalFile(root+"/Files/allowed.png")).error.isEmpty());
+        QVERIFY(!iiSocietyHelper::mediaExportDestination(QUrl("https://example.invalid/output.png")).error.isEmpty());
+        QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(20)));
+        QCOMPARE(manifest(),original);
+        const auto inside=root+"/Files/frame.iisc";
+        const auto insideResult=iiSocietyHelper::exportCanvasCopy(document,QUrl::fromLocalFile(inside));
+        QVERIFY2(insideResult.success,qPrintable(insideResult.error));
+        QVERIFY(reopened.open(inside.toStdString()).ok());QCOMPARE(reopened.document()->layers.size(),std::size_t(1));
+    }
+    void statelessMediaExportDoesNotOpenOrChangeTheSelectedDrive() {
+        const auto root = createDrive("export-must-not-open"); QVERIFY(!root.isEmpty());
+        // Drive creation starts its own presentation watcher. Quiesce this
+        // fixture-owned producer before attributing any changes to export.
+        iiFileProvider::native::Presentation::unwatch(std::filesystem::path(root.toStdU16String()));
+        QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(20)));
+        { QFile marker(root + "/Files/untouched.txt"); QVERIFY(marker.open(QIODevice::WriteOnly)); marker.write("preserve selected drive"); }
+        const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
+        qputenv("SOCIETY_CONTAINER_PATH", root.toUtf8());
+        const auto restore = qScopeGuard([&] {
+            if (previous.isNull()) qunsetenv("SOCIETY_CONTAINER_PATH");
+            else qputenv("SOCIETY_CONTAINER_PATH", previous);
+        });
+        const auto manifest = [&] {
+            QVariantMap files;
+            QDirIterator entries(root, QDir::Files | QDir::Hidden | QDir::System, QDirIterator::Subdirectories);
+            while (entries.hasNext()) {
+                const auto path = entries.next(); QFile file(path);
+                if (!file.open(QIODevice::ReadOnly)) return QVariantMap{};
+                files.insert(QDir(root).relativeFilePath(path), QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha256));
+            }
+            return files;
+        };
+        const auto original = manifest(); QVERIFY(!original.isEmpty());
+        const auto source = m_fixture.filePath("stateless-source.png"), target = m_fixture.filePath("stateless-target.png");
+        QImage image(80, 40, QImage::Format_ARGB32); image.fill(Qt::red); QVERIFY(image.save(source));
+        const auto exported = iiSocietyHelper::exportMedia(QUrl::fromLocalFile(source), QUrl::fromLocalFile(target));
+        QVERIFY2(exported.success, qPrintable(exported.error));
+        QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(20)));
+        QCOMPARE(iiFileProvider::File::read(target), iiFileProvider::File::read(source));
+        QCOMPARE(manifest(), original);
+        iiSharedCanvas::Document canvas;canvas.extent={3,2};
+        canvas.assets.emplace_back(iiSharedCanvas::RasterAsset{"pixels",makeRasterLayer(3,2,0x80ff0000U)});
+        canvas.layers.emplace_back(iiSharedCanvas::StaticBitmapLayer{{"layer","Native"},iiSharedCanvas::StaticSource{"pixels"}});
+        const auto encoded=iiSharedCanvas::encodeIisc(canvas);QVERIFY(encoded.ok());
+        const auto native=m_fixture.filePath("stateless-native.iisc"),png=m_fixture.filePath("stateless-native.png");
+        iiFileProvider::File::create(native,QByteArray(reinterpret_cast<const char *>(encoded.bytes.data()),qsizetype(encoded.bytes.size())));
+        const auto nativeExport=iiSocietyHelper::exportMedia(QUrl::fromLocalFile(native),QUrl::fromLocalFile(png));
+        QVERIFY2(nativeExport.success,qPrintable(nativeExport.error));
+        QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(20)));
+        QCOMPARE(QImage(png).size(),QSize(3,2));QCOMPARE(manifest(),original);
+        const auto invalid = m_fixture.filePath("stateless-invalid.png");
+        { QFile file(invalid); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("invalid image"); }
+        const auto rejected = iiSocietyHelper::exportMedia(QUrl::fromLocalFile(invalid), QUrl::fromLocalFile(target));
+        QVERIFY(!rejected.success); QVERIFY(!rejected.error.isEmpty());
+        QVERIFY(iiFileProvider::native::Presentation::waitForIdle(std::chrono::seconds(20)));
+        QCOMPARE(iiFileProvider::File::read(target), iiFileProvider::File::read(source));
+        QCOMPARE(manifest(), original);
+    }
+    void nativeCanvasMediaExportUsesFullReadOnlyFrame_data() {
+        QTest::addColumn<QString>("storage");
+        for(const auto &kind:{"legacy19","snapshot","working","readonly-working","live-working"})QTest::newRow(kind)<<QString(kind);
+    }
+    void nativeCanvasMediaExportUsesFullReadOnlyFrame() {
+        QFETCH(QString,storage);using namespace iiSharedCanvas;
+        Document d;d.extent={5001,2};d.timeline={{24,1},2};
+        auto pixels=makeRasterLayer(5001,2,0xff123456U);
+        pixels.pixels[5000]=0x80ff0000U;pixels.pixels[5001]=0;
+        d.assets.emplace_back(RasterAsset{"base",std::move(pixels)});
+        d.assets.emplace_back(RasterAsset{"first",makeRasterLayer(1,1,0xff00ff00U)});
+        d.assets.emplace_back(RasterAsset{"second",makeRasterLayer(1,1,0xffff0000U)});
+        d.layers.emplace_back(StaticBitmapLayer{{"base-layer","Base"},StaticSource{"base"}});
+        DynamicBitmapLayer animated;animated.properties.id="animated";animated.properties.name="Frame source";
+        animated.content.frameIndices={0,1};d.layers.emplace_back(std::move(animated));
+        d.frames={{0,{{"animated","first"}}},{1,{{"animated","second"}}}};
+        StableDiffusionMetadata metadata;metadata.positivePrompt="Full native canvas";
+        metadata.generationParametersText="Full native canvas\nSteps: 20, Seed: 7";
+        metadata.comfyUi.promptJson="{\"7\":{\"class_type\":\"KSampler\"}}";
+        metadata.comfyUi.workflowJson="{\"nodes\":[]}";
+        metadata.comfyUi.extraPngInfo={{"Comment","\"native source\""}};
+        metadata.extraParameters={{"custom","preserved"}};d.stableDiffusionMetadata=metadata;
+        if(storage=="legacy19")d.formatVersion.minor=19;
+        const auto source=m_fixture.filePath(storage+"-full.IISC"),target=m_fixture.filePath(storage+"-full.png");
+        DocumentFile writer;
+        if(storage.contains("working")) {
+            const auto created=writer.create(source.toStdString(),d);QVERIFY2(created.ok(),created.message.c_str());
+            if(storage!="live-working")writer.close();
+            if(storage=="readonly-working")QVERIFY(QFile::setPermissions(source,QFileDevice::ReadOwner|QFileDevice::ReadGroup|QFileDevice::ReadOther));
+        } else {
+            const auto encoded=encodeIisc(d);QVERIFY2(encoded.ok(),encoded.error.message.c_str());
+            iiFileProvider::File::create(source,QByteArray(reinterpret_cast<const char *>(encoded.bytes.data()),qsizetype(encoded.bytes.size())));
+        }
+        const auto bytes=iiFileProvider::File::read(source);
+        const auto modified=QFileInfo(source).lastModified();const auto revision=writer.revision();
+        const auto exported=iiSocietyHelper::exportMedia(QUrl::fromLocalFile(source),QUrl::fromLocalFile(target));
+        QVERIFY2(exported.success,qPrintable(exported.error));
+        QImageReader reader(target);const auto image=reader.read();QVERIFY2(!image.isNull(),qPrintable(reader.errorString()));
+        QCOMPARE(image.size(),QSize(5001,2));QCOMPARE(image.pixel(0,0),0xff00ff00U);
+        QCOMPARE(image.pixel(5000,0),0x80ff0000U);QCOMPARE(qAlpha(image.pixel(0,1)),0);
+        QCOMPARE(image.text("parameters"),QString::fromStdString(metadata.generationParametersText));
+        QCOMPARE(image.text("prompt"),QString::fromStdString(metadata.comfyUi.promptJson));
+        QCOMPARE(image.text("workflow"),QString::fromStdString(metadata.comfyUi.workflowJson));
+        QCOMPARE(image.text("Comment"),QString("\"native source\""));QCOMPARE(image.text("custom"),QString("preserved"));
+        QCOMPARE(iiFileProvider::File::read(source),bytes);QCOMPARE(QFileInfo(source).lastModified(),modified);
+        QCOMPARE(writer.revision(),revision);
+        // Native reads use the same detached snapshot contract, including an open authoring owner.
+        FileSystem files;const auto loaded=files.readCanvas(source);QVERIFY2(loaded.ok(),loaded.result.message.c_str());
+        QCOMPARE(encodeIisc(loaded.document).bytes,encodeIisc(d).bytes);
+        QCOMPARE(iiFileProvider::File::read(source),bytes);QCOMPARE(QFileInfo(source).lastModified(),modified);
+        const auto output=iiFileProvider::File::read(target);
+        const auto unsupported=m_fixture.filePath(storage+"-occupied.jpg");
+        iiFileProvider::File::create(unsupported,"preserve existing destination");
+        QVERIFY(!iiSocietyHelper::exportMedia(QUrl::fromLocalFile(source),QUrl::fromLocalFile(unsupported)).success);
+        QCOMPARE(iiFileProvider::File::read(unsupported),QByteArray("preserve existing destination"));
+        QVERIFY(!iiSocietyHelper::exportMedia(QUrl::fromLocalFile(source),QUrl::fromLocalFile(source)).success);
+        QVERIFY(!iiSocietyHelper::exportMedia(QUrl::fromLocalFile(source),QUrl::fromLocalFile(target),true).success);
+        const auto invalid=m_fixture.filePath(storage+"-corrupt.iisc");iiFileProvider::File::create(invalid,"corrupt canvas");
+        QVERIFY(!iiSocietyHelper::exportMedia(QUrl::fromLocalFile(invalid),QUrl::fromLocalFile(target)).success);
+        QCOMPARE(iiFileProvider::File::read(target),output);QCOMPARE(iiFileProvider::File::read(source),bytes);
+    }
+    void backgroundMirrorCoalescesWithoutBlockingInputAndRejectsOldSelections() {
+        const auto root = createDrive("background-mirror"); QVERIFY(!root.isEmpty());
+        FileSystem files; QVERIFY(files.open(root));
+        for (int index = 0; index < 600; ++index) {
+            QFile output(root + "/Files/item-" + QString::number(index) + ".txt");
+            QVERIFY(output.open(QIODevice::WriteOnly)); output.write("inventory");
+        }
+        QSignalSpy completed(&files, &FileSystem::synchronizationFinished);
+        int inputs = 0;
+        QTimer input; input.setInterval(1);
+        connect(&input, &QTimer::timeout, this, [&] { ++inputs; }); input.start();
+        QElapsedTimer dispatch; dispatch.start();
+        for (int request = 0; request < 300; ++request) files.requestSynchronization();
+        const auto dispatchMs = dispatch.elapsed();
+        // The owner publishes only a completed worker snapshot on its event loop.
+        QVERIFY(files.container()->alias("files/item-599.txt").isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!files.container()->alias("files/item-599.txt").isEmpty(), 10000);
+        QVERIFY2(dispatchMs < 100, qPrintable(QString("300 asynchronous requests took %1 ms").arg(dispatchMs)));
+        QVERIFY(inputs > 0);
+        QVERIFY(completed.count() >= 1);
+        const auto expected = files.alias("files", "item-599.txt");
+        QCOMPARE(files.container()->alias("files/item-599.txt"), expected);
+
+        files.requestSynchronization();
+        const auto other = createDrive("background-mirror-other"); QVERIFY(!other.isEmpty());
+        QVERIFY(files.open(other));
+        QTRY_VERIFY_WITH_TIMEOUT(completed.count() >= 2, 10000);
+        QCOMPARE(files.container()->rootPath(), other);
+        QVERIFY(files.container()->alias("files/item-599.txt").isEmpty());
+        QVERIFY(files.synchronize()); // The explicit durability/refresh contract remains synchronous.
+    }
     void richInformationUsesTheSelectedContainerAndPreservesOriginals() {
         const auto root = createDrive("rich-information"); QVERIFY(!root.isEmpty());
         FileSystem files; QVERIFY(files.open(root));
@@ -81,7 +265,7 @@ private slots:
         const auto root = createDrive("Partial monitor"); QVERIFY(!root.isEmpty());
         QVERIFY(QDir(root + "/Files").mkdir("nested"));
         const auto drive = SocietyDrive::open(root); QVERIFY(drive);
-        iiSocietyMonitor::Publisher publisher;
+        iiSocietyHelper::Monitoring::Publisher publisher;
         QVERIFY(publisher.start(std::filesystem::path(root.toStdU16String()), drive->identifier().toStdString(), {0, 9}));
         QVERIFY(publisher.poll()); QVERIFY(!publisher.state().complete);
         FileSystem files; QVERIFY(files.open(root));
@@ -100,7 +284,7 @@ private slots:
     void containerDaemonUpdatesTwoGuiConsumersAndSurvivesSelectionChanges() {
         const auto root = createDrive("Monitor state"); QVERIFY(!root.isEmpty());
         const auto drive = SocietyDrive::open(root); QVERIFY(drive);
-        iiSocietyMonitor::Publisher publisher;
+        iiSocietyHelper::Monitoring::Publisher publisher;
         QVERIFY(publisher.start(std::filesystem::path(root.toStdU16String()), drive->identifier().toStdString()));
         QVERIFY(publisher.poll());
         Helper society, dreamscapes;
@@ -119,7 +303,9 @@ private slots:
         QVERIFY(publisher.poll());
         QTRY_VERIFY_WITH_TIMEOUT(files->containerState().value("revision").toString() != revision, 5000);
         QTRY_COMPARE_WITH_TIMEOUT(dreamscapes.fileSystem()->containerState().value("revision"), files->containerState().value("revision"), 5000);
-        QVERIFY(files->container()->alias("files/monitor.txt")["exists"].toBool());
+        // Daemon status is immediate; the independent native mirror worker
+        // publishes its completed metadata through Container::stateChanged.
+        QTRY_VERIFY(files->container()->alias("files/monitor.txt")["exists"].toBool());
         QVERIFY(uiThread);
         const auto other = createDrive("Monitor other"); QVERIFY(!other.isEmpty());
         QVERIFY(files->open(other));
@@ -159,7 +345,7 @@ private slots:
         StorageMap map(*ready);
         QVERIFY(map.publish({QJsonObject{{"path", "files/not-downloaded/document.iisc"}, {"kind", "file"},
             {"size", "1024"}, {"version", QString(64, 'a')}}}));
-        iiSocietyMonitor::Publisher publisher;
+        iiSocietyHelper::Monitoring::Publisher publisher;
         QVERIFY(publisher.start(std::filesystem::path(root.toStdU16String()), ready->identifier().toStdString()));
         QVERIFY(publisher.poll());
         FileSystem files; QVERIFY(files.open(root)); QVERIFY(files.synchronize());

@@ -2,7 +2,7 @@
 
 iiSocietyHelper 0.9.0 exposes the registered host's container object and live
 filesystem through its existing authenticated LAN TLS or account relay session.
-The host must link iiSocietySync 0.8.1 or later. Client uses the public Container
+The host links iiSocietyHelper 0.10.1 Core, which includes the Sync implementation. Client uses the public Container
 SDK 0.16.0 interface; Container remains independent of Client and higher layers.
 
 ## Connection and container object
@@ -94,7 +94,7 @@ The `drive.*` messages travel inside `society.sync` protocol 2 / namespace versi
 1. Controller verifies authorized peer, account scope, container UUID and exact
 request token, then performs I/O on its replica worker. A mirror cannot be the
 primary host. Existing Society dispatch through `Controller::handle()` works when
-the host links the updated Sync SDK; there is no additional listener or weaker
+the host links the updated Helper Core; there is no additional listener or weaker
 pairing mode. Pending polls reuse the exact envelope/token.
 
 Explicit `sync_store_busy` and `sync_endpoint_busy` rejections occur before
@@ -122,3 +122,37 @@ tests cover orphan reclamation and preservation of the published file.
 The combined client integration suite allows 120 seconds for direct and replica
 sessions over both LAN and relay. This aggregate runner limit does not extend
 the 30-second SDK request deadline or individual transfer/test assertions.
+
+
+## Read-only canvas images and stateless export (0.10.1)
+
+`FileSystem::readCanvas` reads native legacy snapshots and SQLite working files
+through iiSharedCanvas 0.31.3 `DocumentFile::readSnapshot`. It returns detached
+native document data without keeping an authoring binding or configuring the
+original journal. Open authoring owners and read-only files remain usable;
+committed WAL reads are part of the frozen lower SDK snapshot contract.
+
+The free `exportMedia` GUI adapter accepts native IISC as an image source. It
+exports frame zero at the complete `documentViewRegion` extent as PNG, preserving
+alpha and nonempty available PNG text: original generation parameters, ComfyUI
+prompt/workflow/extensions and imported text entries. Other file formats retain
+their original byte-copy path. A PNG image is flattened; the native input and all
+of its editable data remain unchanged. Native image export requires a PNG local
+destination (Android system document URIs use the PNG picker contract); `.iisc`
+destinations still require native canvas saving. Video export does not accept a
+canvas image. Media limits reject oversized input/output rather than rescaling.
+
+The caller schedules the synchronous operation. The adapter never constructs a
+FileSystem, selects a drive, starts its observer or refreshes a mirror. Local
+encoding borrows the one rendered tile and writes directly into the provider's
+atomic stream, avoiding another complete pixel copy or encoded byte buffer. An
+Android picker URI uses a private provider-owned PNG until its URI copy ends.
+Malformed native input, unsupported destinations and codec failures preserve an
+existing output. The existing FileSystem-owned export method deliberately keeps
+its explicit owning synchronization behavior.
+
+Native export tests include 5,001-pixel legacy/current snapshots, working,
+read-only and live-authoring sources, frame-zero composition, alpha, PNG text,
+unchanged source bytes/time/revision, rejected native/video/unsupported output,
+and a selected-drive manifest unaffected by stateless export. The complete
+installed filesystem consumer runs the same cases against the installed SDK.

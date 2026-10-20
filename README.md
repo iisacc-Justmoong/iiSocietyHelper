@@ -1,10 +1,20 @@
 # iiSocietyHelper
 
+Version 0.10.1 is the single Society integration SDK: account/client access,
+local IPC, storage/media operations, device synchronization, native monitoring
+and local/remote generation. See [consolidation and component usage](docs/Consolidation.md).
+
+The default `iiSocietyHelper::iiSocietyHelper` target includes synchronization and
+remote generation. `iiSocietyHelper::Monitoring` remains a Qt-free C++23 native
+component. Desktop hosts select `iiSocietyHelper::GenerationHost`; mobile clients
+use the remote generation API without linking the desktop inference host.
+
+
 [Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
 
-Package release: **0.9.4** (2026-10-19). This patch packages the current
-source snapshot; build, test and installation evidence is recorded in the SDK
-patch-release report. Earlier versioned feature notes remain historical.
+Package release: **0.10.1**. Earlier versioned feature and verification notes
+below describe their original releases. Current package ownership and build
+components are defined in [Consolidation.md](docs/Consolidation.md).
 
 
 Version 0.9.3 adds `FileDownload` for explicit native `.societycontainer`
@@ -24,7 +34,8 @@ The session integration tests exercise LAN TLS and account relay downloads while
 another replica-session lease is held, cancellation/retry, integrity failure,
 drive changes and native offline reads without a Society application process.
 
-Version 0.9.3 requires iiFileProvider 0.7.1 and iiSocietySync 0.8.3. Media export validates the source
+The current package requires iiFileProvider 0.7.1 or newer; synchronization is
+included in Helper Core. Media export validates the source
 format here, then delegates opening and final native URL publication to
 `iiFileProvider::File`. Android document-picker destinations use the provider's
 granted `content:` stream adapter. Existing destinations remain intact when
@@ -50,6 +61,26 @@ owned by the bridge. It contains read-only Alias snapshots instead of applicatio
 copies of stored payloads. The bridge synchronizes the selected drive every two
 seconds, on `synchronize()`/`Container::refresh()`, and after publication or save.
 The selection remains pinned to the drive identity until explicitly reopened.
+Since 0.9.5 the periodic desktop/native scan, monitor-triggered refresh and
+`Container::refresh()` run on a bounded C++ I/O worker. Applications can request
+the same nonblocking scan with `requestSynchronization()` and observe
+`synchronizationFinished(bool)`. Repeated requests coalesce to one active scan
+and one pending scan. Completed Alias values are published only on the owning
+QObject thread; reopening the drive or calling synchronous `synchronize()`
+invalidates earlier replies. Destruction joins the worker before releasing its
+receiver. `open()`, explicit `synchronize()` and save/publication APIs keep their
+synchronous success and durability contracts. Android's existing ContentProvider
+adapter keeps its synchronous request context.
+`containerStateChanged` reports daemon status independently of mirror completion;
+observe `Container::stateChanged` or `synchronizationFinished` for completed Alias
+snapshots instead of assuming that a daemon revision means a scan has finished.
+
+Native mirror scans validate the pinned drive at both boundaries, resolve each
+public section once, reject redirected resident leaves and read replica catalog
+objects once per batch. They do not reopen and revalidate the drive for every
+Alias or perform a linear duplicate search for every remote entry. The mirror is
+still metadata only; original payloads and download-on-demand semantics remain
+owned by the selected container.
 Android clients synchronize this mirror through Society's existing ContentProvider
 listing and retain its readable `content:` source/preview addresses. They do not
 interpret provider addresses as native filesystem paths.
@@ -78,15 +109,35 @@ Model resolution, file download requests, generation-input cleanup and legacy
 cache/queue migration also pass through this bridge. Native canvas writes inside
 Society belong to Files. Explicit external export remains supported.
 
+`<iiSocietyHelper/MediaExport.h>` also exposes the stateless
+`iiSocietyHelper::exportMedia(source, destination, video)` GUI file-picker adapter.
+It validates image/MP4 input and copies the original bytes through iiFileProvider,
+including Android document URLs. Its `MediaExportResult` contains success/error;
+the caller owns scheduling. It never creates a FileSystem, opens a selected drive,
+starts observation or refreshes a mirror. Use it for external Save to File work
+that has no drive-state owner. The existing FileSystem member remains compatible
+and refreshes its explicitly owned drive after a successful export.
+
+The same GUI adapter header exposes `mediaExportDestination(destination,
+nativeCanvas)` for checked file-picker paths and `exportCanvasCopy(document,
+destination)` for detached native data. The former retains Society section and
+redirect checks without constructing a FileSystem; native copies remain limited
+to Files inside Society. The latter creates a new SDK authoring file directly,
+rejects occupied names, and requests only that file's provider preview. It does
+not round-trip through encoded canvas bytes, activate the selected FileSystem, start a
+directory observer, or refresh a mirror. Callers own worker scheduling and must
+report its terminal success/error separately from accepting the request.
+
 Canvas operations depend on iiSharedCanvas 0.31.0 and iiSocietyContainer 0.16.0.
 Supply the installed iiSharedCanvas codec dependencies, including libzip, in the
 CMake prefix when configuring a standalone Helper consumer. Filesystem tests
 exercise two independent bridges, Alias deletion, remote-only objects, real native
 save/reopen/preview and conflicting document versions.
 
-A C++23/Qt 6.8.3 library for **native app collaboration with local or remote Society storage**. Version 0.8.0 adds container Alias synchronization and Helper-owned canvas persistence and previews to C++ object delivery, account-object references, local Society file-system access, app observation, and persistent IPC. Society communication and container replication across devices are the responsibility of iiSocietySync. The Client API in this library performs account-scoped discovery, pairing and host requests; iiSocietySync owns the underlying replication and transport protocol.
+A C++23/Qt 6.8.3 library for **native app collaboration with local or remote Society storage**. Version 0.8.0 adds container Alias synchronization and Helper-owned canvas persistence and previews to C++ object delivery, account-object references, local Society file-system access, app observation, and persistent IPC. Society communication and container replication across devices are the responsibility of iiSocietyHelper::Sync. The Client API in this library performs account-scoped discovery, pairing and host requests; iiSocietyHelper::Sync owns the underlying replication and transport protocol.
 
-The local app can queue messages and use files even while Society is stopped. Society or the device's daemon receives the message. Account references and object snapshots are not network authenticated and are not automatically propagated via Sync. Helper depends on iiSocietySync for host sessions; Sync never depends on Helper. Local observation and delivery do not start a network session.
+The local app can queue messages and use files even while Society is stopped. Society or the device's daemon receives the message. Account references and object snapshots are not network authenticated and are not automatically propagated via Sync. Host sessions use the Sync implementation inside Helper Core. Native Monitoring
+is a separate component of this same package and never imports the Core facade. Local observation and delivery do not start a network session.
 
 Survival signals, delivery SQLite ·ACK are not replication targets. Specifying observation and message directory inside a Society container or a known network file system causes rejection before file creation. `delivery` regression inspection checks this boundary and existing same-device delivery and re-execution behavior.
 
@@ -95,7 +146,7 @@ Survival signals, delivery SQLite ·ACK are not replication targets. Specifying 
 ## Use from app
 
 ```cmake
-find_package(iiSocietyHelper 0.9.0 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.10.1 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -334,6 +385,15 @@ The Helper also automatically records events `helper.started`, `helper.activity`
 
 Even if the first execution of multiple apps overlaps, process-level locking is used only for initialization to avoid conflicts with the initial schema and WAL settings. Normal send and receive use SQLite transactions.
 
+Opening a committed schema-1 WAL store does not acquire the initialization lease.
+It applies connection-local FULL synchronization and owner-only permissions, while
+retaining path and DB/WAL/SHM symlink validation. First creation and journal/schema
+setup still use the bounded initialization lease and re-read database state after
+acquisition. Driver loading occurs before that lease. Delivery regressions hold
+an initialization lease over an already ready store and require successful open
+with retained data; they also verify that a new schema cannot be created under
+another initializer's lease and that unsupported schemas remain rejected.
+
 The `delivery/delivery.sqlite` of the shared location contains the outbox, inbox, consumer acknowledgment location, and the last daemon snapshot. `DeliveryStore::receivePending()` moves the send data to receive by means of a single SQLite transaction. WAL and FULL synchronization and message ID uniqueness constraints are used, and if the transaction fails, the send data is held. Even if the process is terminated and processed again, the same ID is not stored redundantly. Errors returned by the Qt SQL driver and file system are passed to the caller.
 
 Society product's standalone executable `SocietyDaemon` performs this task. The app body receives data in sequence through `SocietyInbox`, and provides `dataReceived(QVariantMap)` ·recent 100 messages and page read API. `DeliveryStore::readAfter(sequence, limit)` allows reading past data received by the daemon as well. The daemon's last snapshot is the state at the recorded time and is not proof of current survival.
@@ -374,7 +434,11 @@ References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpath
 
 ## Build·Verify·Install
 
-Requires CMake 3.24 or later, C++20, iiSocietyContainer **0.9.0** or later, iiAcountManager **0.2.x**, Qt **6.8.3** Core/Sql/Network, and the QSQLITE driver. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
+Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,
+iiAcountManager **0.2.8** or later, iiSharedCanvas **0.31.3** Core,
+iiServerHost **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,
+Qt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.
+BLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
 
 ```sh
 CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAcountManager/build/install" \
@@ -417,7 +481,9 @@ The `iisacc.society.helper` Qt logs in the SDK record the start of observation a
 
 The runtime path of the Helper and DeliveryStore must be on the device's local location. Before starting, inspect all parent paths containing a Society manifest and known network file systems such as SMB / NFS, and do not create observation or message directories within those paths. Since the boundary is rechecked during execution, if the location of an already opened queue becomes a synchronization container, the next operation is rejected. The Helper runtime for an App Group maintains a separate location from the Society data area.
 
-File transfer, change logs, conflict resolution, and receiving from other devices are the responsibility of [iiSocietySync](../iiSocietySync/README.md). The Helper's SQLite outbox/inbox/ ACK, running instances, object snapshots, and account references are not part of the network synchronization protocol. The Helper does not link to Sync or ServerHost. The install consumer check also verifies this dependency boundary. The `delivery` check inspects for container boundary violations before starting and during execution, in addition to existing persistence transfer and duplicate prevention.
+File transfer, change logs, conflict resolution, and receiving from other devices are the responsibility of [the Sync component](docs/Sync/README.md). The Helper's SQLite outbox/inbox/ ACK, running instances, object snapshots, and account references are not part of the network synchronization protocol. Sync now resides in Helper Core and uses ServerHost. Local IPC retains its
+separate persistence and network authorization boundaries; package tests reject
+imports of the retired SDK targets. The `delivery` check inspects for container boundary violations before starting and during execution, in addition to existing persistence transfer and duplicate prevention.
 
 ## License
 
@@ -453,7 +519,7 @@ continue to verify native save/reopen and stale-version rejection.
 
 ### Container monitor subscription
 
-`FileSystem` automatically subscribes to the Qt-free `iiSocietyMonitor` service
+`FileSystem` automatically subscribes to the Qt-free `iiSocietyHelper::Monitoring` service
 for its pinned container. `containerState()` / the QML `containerState` property
 contains the daemon identity, container UUID, revision, availability, heartbeat
 liveness, completeness, nine section inventories and changed section keys.
@@ -477,7 +543,8 @@ QObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerSta
                  &app, [&] { const auto state = helper.fileSystem()->containerState(); });
 ```
 
-Install `iiSocietyMonitor` 0.1 or newer before building this SDK. Its native
+Monitoring is built and installed by this SDK; there is no separate monitoring
+package to install first. Its native
 process and independent-consumer tests cover publication and late subscribers;
 `iiSocietyHelper.filesystem` covers two GUI consumers, queued delivery, same-drive
 reopening, selection changes and graceful daemon shutdown.
@@ -485,3 +552,12 @@ reopening, selection changes and graceful daemon shutdown.
 The filesystem suite allows 120 seconds for durable writes on external storage,
 including the mask-stack storage/preview regression. This is a test deadline;
 production storage transaction and conflict behavior remain unchanged.
+
+
+### Native image export in 0.10.1
+
+The stateless media-export adapter now reads native IISC without authoring the
+source and exports its complete frame-zero document view to PNG. Original raster
+and MP4 export still copy their bytes. Native read-only snapshots, source
+preservation, alpha/PNG text, atomic output and selected-drive isolation are
+covered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.md).

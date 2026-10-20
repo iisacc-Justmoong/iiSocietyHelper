@@ -7,12 +7,64 @@
 #include <QUuid>
 #include <SocietyDrive.h>
 #include <QDir>
+#include <iiFileProviderDevice.h>
+#include <QElapsedTimer>
 
 using namespace iiSocietyHelper;
 
 class DeliveryTests : public QObject {
     Q_OBJECT
 private slots:
+    void initializedStoreDoesNotWaitForAnotherInitializationLease()
+    {
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/ready-delivery-XXXXXX");
+        DeliveryStore initial;
+        QVERIFY(initial.open(root.path()));
+        const QVariantMap marker{{"instanceId", "existing-daemon"}, {"sequence", 42}};
+        QVERIFY(initial.setDaemonSnapshot(marker));
+        initial.close();
+        iiFileProvider::LockFile initializer(root.filePath("delivery/initialization.lock"));
+        initializer.setStaleLockTime(0);
+        QVERIFY(initializer.tryLock(0));
+        DeliveryStore reader;
+        QElapsedTimer timer; timer.start();
+        QString error;
+        QVERIFY2(reader.open(root.path(), &error), qPrintable(error));
+        qInfo() << "ready_delivery_open_ms=" << timer.elapsed();
+        QCOMPARE(reader.daemonSnapshot(), marker);
+        QCOMPARE(reader.pendingCount(), 0);
+    }
+    void firstSchemaCreationStillRequiresItsInitializationLease()
+    {
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/new-delivery-XXXXXX");
+        QVERIFY(QDir().mkpath(root.filePath("delivery")));
+        iiFileProvider::LockFile initializer(root.filePath("delivery/initialization.lock"));
+        initializer.setStaleLockTime(0); QVERIFY(initializer.tryLock(0));
+        DeliveryStore store;
+        QVERIFY(!store.open(root.path()));
+        QVERIFY(!QFileInfo::exists(root.filePath("delivery/delivery.sqlite")));
+        initializer.unlock();
+        QVERIFY(store.open(root.path()));
+    }
+    void unsupportedSchemaIsNotAcceptedByReadyOpen()
+    {
+        QTemporaryDir root(HELPER_TEST_DIRECTORY "/unsupported-delivery-XXXXXX");
+        DeliveryStore initial; QVERIFY(initial.open(root.path())); initial.close();
+        const auto connection = QUuid::createUuid().toString();
+        {
+            auto database = QSqlDatabase::addDatabase("QSQLITE", connection);
+            database.setDatabaseName(root.filePath("delivery/delivery.sqlite"));
+            QVERIFY(database.open());
+            { QSqlQuery query(database); QVERIFY(query.exec("PRAGMA user_version=2")); }
+            database.close();
+        }
+        QSqlDatabase::removeDatabase(connection);
+        iiFileProvider::LockFile initializer(root.filePath("delivery/initialization.lock"));
+        initializer.setStaleLockTime(0); QVERIFY(initializer.tryLock(0));
+        DeliveryStore reader; QString error;
+        QVERIFY(!reader.open(root.path(), &error));
+        QCOMPARE(error, QString("Unsupported Society delivery database schema."));
+    }
     void localMessagesNeverLiveInsideAReplicatedDrive()
     {
         QTemporaryDir root(HELPER_TEST_DIRECTORY "/local-boundary-XXXXXX.societycontainer");

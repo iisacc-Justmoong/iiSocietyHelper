@@ -1,20 +1,17 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiSocietyHelperConsumer LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 enable_testing()
-find_package(iiSocietyHelper 0.9.3 CONFIG REQUIRED)
-find_package(iiSharedCanvas 0.31.0 EXACT CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.10.1 CONFIG REQUIRED)
+find_package(iiSharedCanvas 0.31.3 EXACT CONFIG REQUIRED COMPONENTS Core)
 get_target_property(helper_dependencies iiSocietyHelper::iiSocietyHelper INTERFACE_LINK_LIBRARIES)
-if(helper_dependencies MATCHES "iiSocietyClient" OR TARGET iiSocietyClient::iiSocietyClient)
-    message(FATAL_ERROR "The merged Helper must not load a separate Client package")
+if(helper_dependencies MATCHES "iiSociety(Client|Sync|Monitor|Generation)::")
+    message(FATAL_ERROR "The consolidated Helper must not import a retired SDK target")
 endif()
-if(NOT helper_dependencies MATCHES "iiSocietySync::iiSocietySync")
-    message(FATAL_ERROR "Helper must resolve its native synchronization dependency")
-endif()
-get_target_property(sync_dependencies iiSocietySync::iiSocietySync INTERFACE_LINK_LIBRARIES)
-if(sync_dependencies MATCHES "iiSocietyHelper|iiSocietyClient")
-    message(FATAL_ERROR "Synchronization must not depend on the application Helper")
-endif()
-find_package(iiSocietyMonitor 0.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyMonitor")
+
+find_package(iiSocietyHelper 0.10.1 CONFIG REQUIRED COMPONENTS Monitoring OPTIONAL_COMPONENTS GenerationHost)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test Qml)
 set(CMAKE_AUTOMOC ON)
 add_executable(iiSocietyHelper_consumer ../hello_world.cpp)
@@ -53,7 +50,7 @@ target_link_libraries(iiSocietyHelper_installed_filesystem_peer PRIVATE iiSociet
 add_executable(iiSocietyHelper_installed_filesystem ../filesystem.cpp)
 find_program(helper_installed_diagnostic ii-society-helper
     PATHS "${iiSocietyHelper_DIR}/../../../bin" NO_DEFAULT_PATH REQUIRED)
-target_link_libraries(iiSocietyHelper_installed_filesystem PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyMonitor::iiSocietyMonitor iiFileProvider::iiFileProvider Qt6::Test Qt6::Qml)
+target_link_libraries(iiSocietyHelper_installed_filesystem PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyHelper::Monitoring iiFileProvider::iiFileProvider Qt6::Test Qt6::Qml)
 target_compile_definitions(iiSocietyHelper_installed_filesystem PRIVATE
     HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}"
     HELPER_FILESYSTEM_PEER="$<TARGET_FILE:iiSocietyHelper_installed_filesystem_peer>"
@@ -81,3 +78,22 @@ add_test(NAME iiSocietyHelper.installed_local_drive COMMAND iiSocietyHelper_inst
     applicationsOnTheRegisteredHostUseItsNativeDriveWithoutASelfPeer)
 set_tests_properties(iiSocietyHelper.installed_local_drive PROPERTIES TIMEOUT 45
     ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
+
+find_package(iiSocietyContainer 0.16.1 CONFIG REQUIRED COMPONENTS Maintenance)
+add_executable(iiSocietyHelper_installed_sync ../sync/replica.cpp)
+target_link_libraries(iiSocietyHelper_installed_sync PRIVATE iiSocietyHelper::iiSocietyHelper
+    iiSocietyContainer::Maintenance iiFileProvider::Temporary Qt6::Test)
+target_compile_definitions(iiSocietyHelper_installed_sync PRIVATE SYNC_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
+add_test(NAME iiSocietyHelper.installed_sync COMMAND iiSocietyHelper_installed_sync)
+set_tests_properties(iiSocietyHelper.installed_sync PROPERTIES TIMEOUT 90)
+if(TARGET iiSocietyHelper::GenerationHost)
+    add_executable(iiSocietyHelper_installed_generation ../generation/generation.cpp)
+    target_link_libraries(iiSocietyHelper_installed_generation PRIVATE iiSocietyHelper::GenerationHost Qt6::Test Qt6::Gui)
+    target_compile_definitions(iiSocietyHelper_installed_generation PRIVATE GENERATION_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
+    add_test(NAME iiSocietyHelper.installed_generation COMMAND iiSocietyHelper_installed_generation)
+    set_tests_properties(iiSocietyHelper.installed_generation PROPERTIES TIMEOUT 45)
+endif()
+
+# Keep storage-heavy integration cases from competing for fixture-volume I/O.
+get_property(_helper_consumer_tests DIRECTORY PROPERTY TESTS)
+set_tests_properties(${_helper_consumer_tests} PROPERTIES RESOURCE_LOCK iiSocietyHelperStorage)

@@ -1,7 +1,7 @@
 #include "FileDownload.h"
 #include "Client.h"
 #include <iiSocietyHelper.h>
-#include <iiSocietySync.h>
+#include <iiSocietyHelper/Sync/Sync.h>
 #include <StorageMap.h>
 #include <QElapsedTimer>
 #include <QPointer>
@@ -15,7 +15,7 @@ namespace {
 QJsonObject failure(const QString &error) { return {{"ok", false}, {"error", error}}; }
 class DownloadWorker final : public QObject {
 public:
-    std::unique_ptr<iiSocietySync::Replica> replica;
+    std::unique_ptr<iiSocietyHelper::Sync::Replica> replica;
     QJsonObject entry, binding;
     std::shared_ptr<std::atomic_bool> cancellation;
     void close() { replica.reset(); entry = {}; binding = {}; }
@@ -36,9 +36,9 @@ public:
     }
     QJsonObject prepare(const QString &root, const QString &id, const QString &key,
                         const QString &version, const std::shared_ptr<std::atomic_bool> &cancelled) {
-        close(); cancellation = cancelled; binding = iiSocietySync::Replica::binding(root);
+        close(); cancellation = cancelled; binding = iiSocietyHelper::Sync::Replica::binding(root);
         if (binding.value("container") != id || !binding.value("complete").toBool()) return failure("download_replica_unavailable");
-        replica = std::make_unique<iiSocietySync::Replica>();
+        replica = std::make_unique<iiSocietyHelper::Sync::Replica>();
         replica->setCancellation([cancelled] { return cancelled->load(); });
         if (!replica->open(root, binding.value("scope").toString())) return failure(replica->errorString());
         if (replica->containerId() != id || replica->binding() != binding) return failure("remote_container_changed");
@@ -95,10 +95,10 @@ public:
                 bool validOffset = false;
                 const auto position = response.value("offset").toString().toLongLong(&validOffset);
                 const auto encoded = response.value("data").toString().toLatin1();
-                if (encoded.size() > ((iiSocietySync::Replica::ChunkBytes + 2) / 3) * 4) { finish("failed", "invalid_download_chunk"); return; }
+                if (encoded.size() > ((iiSocietyHelper::Sync::Replica::ChunkBytes + 2) / 3) * 4) { finish("failed", "invalid_download_chunk"); return; }
                 const auto bytes = QByteArray::fromBase64Encoding(encoded, QByteArray::AbortOnBase64DecodingErrors);
                 if (!validOffset || position != offset || !response.value("data").isString() || !bytes
-                    || bytes.decoded.size() != qMin(iiSocietySync::Replica::ChunkBytes, total - offset)
+                    || bytes.decoded.size() != qMin(iiSocietyHelper::Sync::Replica::ChunkBytes, total - offset)
                     || bytes.decoded.toBase64() != encoded || !response.value("eof").isBool()
                     || response.value("eof").toBool() != (offset + bytes.decoded.size() == total)) {
                     finish("failed", "invalid_download_chunk"); return;

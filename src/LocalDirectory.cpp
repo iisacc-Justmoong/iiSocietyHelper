@@ -29,7 +29,7 @@ bool validateDirectory(const QString &path, QString *error) {
     const auto type = QStorageInfo(existing).fileSystemType().toLower();
     for (const auto *remote : {"nfs", "smb", "cifs", "afp", "sshfs", "webdav", "9p"})
         if (type.contains(remote))
-            return fail(QStringLiteral("Society Helper does not transport messages through a network filesystem. Use iiSocietySync between devices."));
+            return fail(QStringLiteral("Society Helper does not transport messages through a network filesystem. Use iiSocietyHelper::Sync between devices."));
     return true;
 }
 }
