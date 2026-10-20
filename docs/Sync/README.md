@@ -237,9 +237,9 @@ The real loopback TLS test allows up to five seconds for the initial client uplo
 
 ## License
 
-SPDX-License-Identifier: AGPL-3.0-only
+SPDX-License-Identifier: MIT
 
-The self-written code and documentation of iiSocietyHelper::Sync are exclusively under the GNU Affero General Public License v3.0. The full terms follow [preserved Sync license](../../licenses/Sync.LICENSE). Licenses for Qt and other external components are maintained separately.
+The self-written code and documentation of iiSocietyHelper::Sync are under the MIT License. The full terms follow [preserved Sync license](../../licenses/Sync.LICENSE). Licenses for Qt and other external components are maintained separately.
 
 Regression checks verify if 0.4.0 multi-manifest ACKs precede the first byte, if byte transmission from incorrect ACKs occurs 140 times, if actual TLS propagation of creation/modification/host changes without manual calls happens 0 times, and if it ends within the 1.8 second inspection limit. Period and inspection limits are not completion times guaranteed by the network or OS.
 
