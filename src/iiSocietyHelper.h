@@ -76,6 +76,19 @@ public:
     [[nodiscard]] static QVariant decode(const QVariantMap &payload, QString *error = nullptr);
 };
 
+// Immutable storage selection and already discovered Alias values. No QObject,
+// worker, timer, account session or writable file binding is retained. A default
+// value is invalid; isValid() means captured, not that the drive is still mounted.
+class IISOCIETYHELPER_EXPORT PreparedStorage final {
+public:
+    PreparedStorage() = default;
+    [[nodiscard]] bool isValid() const noexcept { return bool(d); }
+private:
+    class Data;
+    std::shared_ptr<const Data> d;
+    friend class FileSystem;
+};
+
 // Access to the original Society drive using ordinary native paths. Independent
 // of observation and delivery; owned by Helper and usable without start().
 class IISOCIETYHELPER_EXPORT FileSystem final : public QObject {
@@ -88,12 +101,21 @@ class IISOCIETYHELPER_EXPORT FileSystem final : public QObject {
     Q_PROPERTY(iiSocietyContainer::Container *container READ container CONSTANT)
     Q_PROPERTY(QVariantMap containerState READ containerState NOTIFY containerStateChanged)
 public:
+    enum class Initialization { Discover, Deferred };
     explicit FileSystem(QObject *parent = nullptr);
+    // Deferred creates only the binding adapter. No selection, mirror scan,
+    // timer or storage-monitor worker starts until an explicit storage command.
+    FileSystem(Initialization initialization, QObject *parent = nullptr);
     ~FileSystem() override;
 
     // Empty discovers Society's configured drive. Pins its canonical path and
     // UUID until open()/refresh(); a failed selection clears the previous one.
     Q_INVOKABLE bool open(const QString &containerPath = {});
+    // Capture on this object's owning thread, then transfer the values to a new
+    // owner. Adoption checks the pinned drive identity and publishes the saved
+    // mirror; it does not reopen selection, walk directories or read payloads.
+    [[nodiscard]] PreparedStorage preparedStorage() const;
+    bool adoptStorage(const PreparedStorage &storage);
     Q_INVOKABLE bool refresh();
     [[nodiscard]] bool isAvailable() const;
     [[nodiscard]] QString rootPath() const;

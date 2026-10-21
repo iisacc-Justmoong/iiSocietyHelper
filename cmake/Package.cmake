@@ -1,4 +1,8 @@
 set(iiSocietyHelper_PACKAGE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper")
+if(NOT iiFileProviderNative_VERSION)
+    message(FATAL_ERROR "The compiled Native provider version is required for package export")
+endif()
+set(IISOCIETYHELPER_NATIVE_VERSION "${iiFileProviderNative_VERSION}")
 configure_package_config_file(cmake/iiSocietyHelperConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfig.cmake" INSTALL_DESTINATION "${iiSocietyHelper_PACKAGE_DIR}")
 write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfigVersion.cmake"

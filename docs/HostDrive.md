@@ -2,7 +2,7 @@
 
 iiSocietyHelper 0.9.0 exposes the registered host's container object and live
 filesystem through its existing authenticated LAN TLS or account relay session.
-The host links iiSocietyHelper 0.10.1 Core, which includes the Sync implementation. Client uses the public Container
+The host links iiSocietyHelper 0.10.2 Core, which includes the Sync implementation. Client uses the public Container
 SDK 0.16.0 interface; Container remains independent of Client and higher layers.
 
 ## Connection and container object

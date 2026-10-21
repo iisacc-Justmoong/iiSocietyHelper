@@ -4,6 +4,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QCryptographicHash>
+#include <QScopeGuard>
 using namespace iiSocietyHelper::Sync;
 class BootstrapTests : public QObject {
     Q_OBJECT
@@ -37,9 +38,23 @@ private slots:
         const auto decoded = NearbyBootstrap::decode(value.encode()); QVERIFY(decoded);
         QCOMPARE(decoded->record.value("proof").toString(), QString(64, '0')); // Consumer must verify HMAC.
     }
+    void stopIsIdempotentWithoutStartingRadio_data() {
+        QTest::addColumn<bool>("disabled");
+        QTest::newRow("invalid-endpoint")<<false;
+        QTest::newRow("disabled")<<true;
+    }
     void stopIsIdempotentWithoutStartingRadio() {
+        QFETCH(bool,disabled);
+        const auto previous=qgetenv("IISOCIETYSYNC_DISABLE_BLE");
+        const auto restore=qScopeGuard([&] {
+            if(previous.isNull())qunsetenv("IISOCIETYSYNC_DISABLE_BLE");else qputenv("IISOCIETYSYNC_DISABLE_BLE",previous);
+        });
+        qputenv("IISOCIETYSYNC_DISABLE_BLE",disabled?"1":"0");
         BleDiscovery discovery; QCOMPARE(discovery.status(), "stopped"); discovery.stop(); discovery.stop();
-        discovery.start({}, 0); QVERIFY(discovery.status().startsWith("unavailable"));
+        // An invalid endpoint returns before radio creation or permission calls.
+        discovery.start({}, 0);
+        if(disabled)QCOMPARE(discovery.status(),"disabled");
+        else QVERIFY(discovery.status().startsWith("unavailable"));
         discovery.stop(); QCOMPARE(discovery.status(), "stopped");
     }
 };

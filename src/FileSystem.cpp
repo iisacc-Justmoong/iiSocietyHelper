@@ -132,6 +132,18 @@ MirrorSnapshot scanMirror(const std::optional<SharedStorage> &storage)
 }
 } // namespace
 
+class PreparedStorage::Data {
+public:
+    std::optional<SharedStorage> storage;
+    QString selection,error,id,root;
+    QVariantList aliases;
+    bool available=false;
+#ifdef Q_OS_ANDROID
+    bool remote=false;
+    QString remoteId,remoteRoot;
+#endif
+};
+
 class FileSystem::Private {
 public:
     explicit Private(FileSystem *owner) : q(owner), container(owner) {}
@@ -243,14 +255,17 @@ public:
     }
 };
 
-FileSystem::FileSystem(QObject *parent) : QObject(parent), d(std::make_unique<Private>(this))
+FileSystem::FileSystem(QObject *parent) : FileSystem(Initialization::Discover,parent) {}
+FileSystem::FileSystem(Initialization initialization,QObject *parent)
+    : QObject(parent), d(std::make_unique<Private>(this))
 {
     detail::installCanvasPresentation();
     connect(&d->container, &iiSocietyContainer::Container::refreshRequested, this, &FileSystem::requestSynchronization);
     d->synchronization.setInterval(2000);
     connect(&d->synchronization, &QTimer::timeout, this, &FileSystem::requestSynchronization);
-    d->synchronization.start();
-    open();
+    if(initialization==Initialization::Discover) {
+        d->synchronization.start();open();
+    }
 }
 FileSystem::~FileSystem() {
     ++d->monitorEpoch; ++d->mirrorEpoch;
@@ -292,6 +307,34 @@ bool FileSystem::open(const QString &containerPath)
     return available;
 }
 
+PreparedStorage FileSystem::preparedStorage() const {
+    PreparedStorage result;auto data=std::make_shared<PreparedStorage::Data>();
+    data->storage=d->storage;data->selection=d->selection;data->error=d->error;
+    data->id=d->container.containerId();data->root=d->container.rootPath();
+    data->aliases=d->container.aliases();data->available=d->container.available();
+#ifdef Q_OS_ANDROID
+    data->remote=d->remote;data->remoteId=d->remoteId;data->remoteRoot=d->remoteRoot;
+#endif
+    result.d=std::move(data);return result;
+}
+bool FileSystem::adoptStorage(const PreparedStorage &prepared) {
+    if(!prepared.d){setError(QStringLiteral("Capture a storage selection before adopting it."));return false;}
+    const auto state=prepared.d;
+    if(state->storage&&!state->storage->drive().isValid()) {
+        setError(QStringLiteral("The prepared Society drive is unavailable or changed."));return false;
+    }
+    const QPointer<FileSystem> guard(this);const auto epoch=++d->mirrorEpoch;
+    d->mirrorPending=false;d->stopMonitor();if(!guard||d->mirrorEpoch!=epoch)return false;
+    d->storage=state->storage;d->selection=state->selection;
+#ifdef Q_OS_ANDROID
+    d->remote=state->remote;d->remoteId=state->remoteId;d->remoteRoot=state->remoteRoot;
+#endif
+    d->setError(state->error);if(!guard||d->mirrorEpoch!=epoch)return false;
+    d->container.synchronize(state->id,state->root,state->aliases,state->available,state->error);
+    if(!guard||d->mirrorEpoch!=epoch)return false;
+    d->startMonitor();if(!guard||d->mirrorEpoch!=epoch)return false;
+    emit storageChanged();return true;
+}
 bool FileSystem::refresh() { return open(d->selection); }
 bool FileSystem::isAvailable() const {
 #ifdef Q_OS_ANDROID

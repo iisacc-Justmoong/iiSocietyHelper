@@ -1,6 +1,6 @@
 # iiSocietyHelper
 
-Version 0.10.1 is the single Society integration SDK: account/client access,
+Version 0.10.2 is the single Society integration SDK: account/client access,
 local IPC, storage/media operations, device synchronization, native monitoring
 and local/remote generation. See [consolidation and component usage](docs/Consolidation.md).
 
@@ -12,7 +12,11 @@ use the remote generation API without linking the desktop inference host.
 
 [Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
 
-Package release: **0.10.1**. Earlier versioned feature and verification notes
+Package release: **0.10.2**. This package pins iiSharedCanvas 0.31.4 Core
+so exported package discovery and the compiled storage adapter use the same
+native contract. Prepared storage, detached image reads and stateless export
+retain their existing interfaces.
+ Earlier versioned feature and verification notes
 below describe their original releases. Current package ownership and build
 components are defined in [Consolidation.md](docs/Consolidation.md).
 
@@ -74,6 +78,29 @@ adapter keeps its synchronous request context.
 `containerStateChanged` reports daemon status independently of mirror completion;
 observe `Container::stateChanged` or `synchronizationFinished` for completed Alias
 snapshots instead of assuming that a daemon revision means a scan has finished.
+
+For a view/document owner that does not need storage yet, construct
+`FileSystem(FileSystem::Initialization::Deferred)`. This creates the adapter
+without discovering a default drive, scanning a mirror, starting its timer or
+starting a storage monitor. The existing default constructor retains discovery;
+explicit `open()`/`openForSource()` and storage commands retain their contracts.
+Reading one detached canvas with `readCanvas()` does not require discovery.
+
+An I/O owner can capture `preparedStorage()` after selecting/scanning a drive and
+pass the immutable value to another thread. `adoptStorage()` pins that captured
+selection and publishes its already discovered Alias values without repeating
+directory scans, selection discovery or payload reads. It checks the captured
+drive identity before replacing a selection, rejects a default/invalid value,
+invalidates older mirror replies and starts the existing monitor on the receiver.
+The source FileSystem may be destroyed first. Timers, workers, QObject owners,
+credentials and writable document bindings are not transferred. Mirror values
+remain snapshots: later filesystem changes arrive through explicit or ordinary
+asynchronous synchronization. Adoption still performs the bounded drive identity
+check and mirror value publication on its owning thread.
+
+The bootstrap lifecycle tests cover both explicit BLE disablement and an invalid
+endpoint. Both paths stop before radio creation or permission requests; `disabled`
+and `unavailable` remain distinct status values.
 
 Native mirror scans validate the pinned drive at both boundaries, resolve each
 public section once, reject redirected resident leaves and read replica catalog
@@ -146,7 +173,7 @@ Survival signals, delivery SQLite ·ACK are not replication targets. Specifying 
 ## Use from app
 
 ```cmake
-find_package(iiSocietyHelper 0.10.1 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.10.2 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -435,7 +462,7 @@ References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpath
 ## Build·Verify·Install
 
 Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,
-iiAcountManager **0.2.8** or later, iiSharedCanvas **0.31.3** Core,
+iiAcountManager **0.2.8** or later, iiSharedCanvas **0.31.4** Core,
 iiServerHost **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,
 Qt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.
 BLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.

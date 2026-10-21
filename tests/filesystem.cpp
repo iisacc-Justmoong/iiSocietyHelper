@@ -30,6 +30,7 @@
 #include <QElapsedTimer>
 #include <QCryptographicHash>
 #include <QDirIterator>
+#include <future>
 
 using namespace iiSocietyHelper;
 using namespace iiSocietyContainer;
@@ -38,6 +39,9 @@ class FileSystemTests : public QObject
 {
     Q_OBJECT
     QTemporaryDir m_fixture{QStringLiteral(HELPER_TEST_DIRECTORY "/filesystem-XXXXXX")};
+    static bool createText(const QString &path,const QByteArray &bytes) {
+        QFile file(path);return file.open(QIODevice::WriteOnly)&&file.write(bytes)==bytes.size();
+    }
     QString createDrive(const QString &name)
     {
         const auto path = m_fixture.filePath(name + ".societycontainer");
@@ -428,6 +432,47 @@ private slots:
         QVERIFY(files.saveCanvas(encode(document), root + "/Generation History/document.iisc").isEmpty());
         QVERIFY(!QFileInfo::exists(root + "/Generation History/document.iisc"));
         QVERIFY(files.saveCanvas(encode(document), destination).isEmpty()); // Existing document is preserved.
+    }
+    void deferredStorageDoesNotDiscoverTheDefaultDrive() {
+        const auto root=createDrive("Deferred storage");QVERIFY(!root.isEmpty());QVERIFY(SharedStorage::setDefaultContainer(root));
+        FileSystem deferred(FileSystem::Initialization::Deferred);
+        QVERIFY(!deferred.isAvailable());QVERIFY(deferred.rootPath().isEmpty());QVERIFY(deferred.container()->aliases().isEmpty());
+        QVERIFY(deferred.containerState().isEmpty());QVERIFY(deferred.errorString().isEmpty());
+        FileSystem discovered;QVERIFY(discovered.isAvailable());QCOMPARE(discovered.rootPath(),root);
+        QVERIFY(deferred.open(root));QVERIFY(deferred.isAvailable());QCOMPARE(deferred.rootPath(),root);
+    }
+    void preparedStorageSurvivesItsWorkerAndDoesNotRescanOnAdoption() {
+        const auto root=createDrive("Prepared storage");QVERIFY(!root.isEmpty());
+        QVERIFY(createText(root+"/Files/captured.txt","captured"));
+        std::promise<PreparedStorage> prepared;
+        auto future=prepared.get_future();
+        auto *worker=QThread::create([root,&prepared] {
+            FileSystem files(FileSystem::Initialization::Deferred);
+            if(!files.open(root)){prepared.set_value({});return;}
+            prepared.set_value(files.preparedStorage());
+        });
+        worker->start();QVERIFY(worker->wait(10000));delete worker;
+        const auto state=future.get();QVERIFY(state.isValid());
+        // The source owner is gone. A newly added file must not be discovered
+        // until an explicit/asynchronous refresh of the transferred selection.
+        QVERIFY(createText(root+"/Files/later.txt","later"));
+        FileSystem adopted(FileSystem::Initialization::Deferred);QSignalSpy changed(&adopted,&FileSystem::storageChanged);
+        QVERIFY(adopted.adoptStorage(state));QCOMPARE(changed.count(),1);
+        QCOMPARE(adopted.rootPath(),root);QCOMPARE(adopted.container()->aliases().size(),1);
+        QVERIFY(adopted.container()->alias("files/captured.txt")["available"].toBool());
+        QVERIFY(adopted.container()->alias("files/later.txt").isEmpty());
+        QVERIFY(adopted.synchronize());QCOMPARE(adopted.container()->aliases().size(),2);
+        FileSystem independent(FileSystem::Initialization::Deferred);QVERIFY(independent.adoptStorage(state));QCOMPARE(independent.container()->aliases().size(),1);
+    }
+    void invalidPreparedStoragePreservesTheSelectedDrive() {
+        const auto root=createDrive("Keep selected storage");QVERIFY(!root.isEmpty());
+        FileSystem files;QVERIFY(files.open(root));const auto id=files.containerId();
+        QVERIFY(!files.adoptStorage({}));QCOMPARE(files.rootPath(),root);QCOMPARE(files.containerId(),id);
+        QVERIFY(!files.errorString().isEmpty());
+        const auto captured=files.preparedStorage();
+        const auto moved=root+".previous";QVERIFY(QDir().rename(root,moved));QVERIFY(QDir().mkdir(root));
+        QVERIFY(SocietyDrive::create(root));QVERIFY(!files.adoptStorage(captured));
+        QCOMPARE(files.container()->containerId(),id);
     }
     void generatedPngIsPublishedToThePinnedDriveWithoutRunningSociety() {
         const auto root = createDrive("Generated PNG"); QVERIFY(!root.isEmpty());
