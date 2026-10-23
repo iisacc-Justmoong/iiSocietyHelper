@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(iiSocietyHelper VERSION 0.10.2 LANGUAGES CXX)
+project(iiSocietyHelper VERSION 0.11.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -30,7 +30,7 @@ if(NOT IISOCIETYHELPER_BUILD_CORE)
     include(cmake/Package.cmake)
     return()
 endif()
-find_package(iiServerHost 0.6.0 CONFIG REQUIRED)
+find_package(iiWebServer 0.6.0 CONFIG REQUIRED)
 find_package(iiFileProviderTemporary CONFIG REQUIRED)
 find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Core Gui Sql Network)
 if(APPLE AND NOT IOS AND TARGET WrapOpenGL::WrapOpenGL)
@@ -42,7 +42,11 @@ if(APPLE AND NOT IOS AND TARGET WrapOpenGL::WrapOpenGL)
 endif()
 find_package(iiFileProvider 0.7 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiFileProvider")
 find_package(iiSocietyContainer 0.16.1 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiSocietyContainer")
-find_package(iiSharedCanvas 0.31.4 EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
+if(NOT iiSocietyContainer_HAS_MANAGED_FILES)
+    message(FATAL_ERROR "Install iiSocietyContainer with managed iiFileProvider storage before building iiSocietyHelper")
+endif()
+set(IISOCIETYHELPER_CANVAS_VERSION "0.32.0" CACHE STRING "Exact Canvas ABI shared by this Helper profile and its consumers")
+find_package(iiSharedCanvas ${IISOCIETYHELPER_CANVAS_VERSION} EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
 find_package(iiAcountManager 0.2.8 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiAcountManager")
 set(CMAKE_AUTOMOC ON)
 
@@ -51,7 +55,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
 else()
     set(helper_library_type SHARED)
 endif()
-add_library(iiSocietyHelper ${helper_library_type} src/iiSocietyHelper.cpp src/iiSocietyHelper.h src/Helper.cpp src/FileSystem.cpp src/CanvasStorage.cpp src/GenerationStorage.cpp src/MediaExport.cpp src/DeliveryStore.cpp src/DeliveryStore.h src/ObjectCodec.cpp src/LocalDirectory.cpp src/LocalDirectory.h)
+add_library(iiSocietyHelper ${helper_library_type} src/iiSocietyHelper.cpp src/iiSocietyHelper.h src/Helper.cpp src/FileSystem.cpp src/ManagedStorage.cpp src/ManagedFileOperation_p.h src/CanvasStorage.cpp src/GenerationStorage.cpp src/MediaExport.cpp src/DeliveryStore.cpp src/DeliveryStore.h src/ObjectCodec.cpp src/LocalDirectory.cpp src/LocalDirectory.h)
 target_sources(iiSocietyHelper PRIVATE
     src/iiSocietyHelper/FileDownload.h src/iiSocietyHelper/FileDownload.cpp
     src/iiSocietyHelper/Client.h src/iiSocietyHelper/Client.cpp src/iiSocietyHelper/AccountSession.h src/iiSocietyHelper/AccountSession.cpp src/iiSocietyHelper/DeviceInfo.h src/iiSocietyHelper/DeviceInfo.cpp
@@ -65,7 +69,7 @@ if(helper_library_type STREQUAL "STATIC")
     target_compile_definitions(iiSocietyHelper PUBLIC IISOCIETYHELPER_STATIC)
 endif()
 target_link_libraries(iiSocietyHelper PUBLIC Qt6::Core Qt6::Sql
-    iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core iiAcountManager::iiAcountManager Qt6::Network Qt6::Gui iiServerHost::iiServerHost)
+    iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core iiAcountManager::iiAcountManager Qt6::Network Qt6::Gui iiWebServer::iiWebServer)
 target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::iiFileProvider iiSocietyHelper::Monitoring iiFileProvider::Temporary)
 target_link_libraries(iiSocietyHelper PRIVATE Threads::Threads)
 target_sources(iiSocietyHelper PRIVATE src/FilePresentation.cpp src/FilePresentation_p.h)
@@ -75,7 +79,7 @@ target_include_directories(iiSocietyHelper PUBLIC
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 set_target_properties(iiSocietyHelper PROPERTIES
     VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
+    SOVERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
     CXX_EXTENSIONS OFF
     CXX_VISIBILITY_PRESET hidden
     VISIBILITY_INLINES_HIDDEN YES
@@ -149,6 +153,11 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT ANDROID AND NOT EMSCRIPTEN)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(iiSocietyHelper_managed_storage_tests tests/managed_storage.cpp)
+    target_link_libraries(iiSocietyHelper_managed_storage_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::iiFileProvider)
+    target_compile_definitions(iiSocietyHelper_managed_storage_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
+    add_test(NAME iiSocietyHelper.managed_storage COMMAND iiSocietyHelper_managed_storage_tests)
+    set_tests_properties(iiSocietyHelper.managed_storage PROPERTIES TIMEOUT 120)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
     add_executable(iiSocietyHelper_presence_worker_tests tests/presence_worker.cpp)
     target_compile_features(iiSocietyHelper_presence_worker_tests PRIVATE cxx_std_23)
@@ -228,7 +237,9 @@ if(BUILD_TESTING)
             HELPER_DIAGNOSTIC_EXECUTABLE="$<TARGET_FILE:ii-society-helper>")
         add_dependencies(iiSocietyHelper_filesystem_tests iiSocietyHelper_filesystem_peer ii-society-helper)
         add_test(NAME iiSocietyHelper.filesystem COMMAND iiSocietyHelper_filesystem_tests)
-        set_tests_properties(iiSocietyHelper.filesystem PROPERTIES TIMEOUT 120)
+        # Includes durable original capture and cancellation/drain on teardown.
+        # Keep the individual UI dispatch and selection deadlines unchanged.
+        set_tests_properties(iiSocietyHelper.filesystem PROPERTIES TIMEOUT 300)
         add_executable(iiSocietyHelper_process_tests tests/process_observation.cpp)
         target_link_libraries(iiSocietyHelper_process_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
         target_compile_definitions(iiSocietyHelper_process_tests PRIVATE
@@ -251,7 +262,7 @@ install(TARGETS iiSocietyHelper EXPORT iiSocietyHelperTargets
 install(FILES src/iiSocietyHelper.h src/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(DIRECTORY src/iiSocietyHelper/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h"
     PATTERN "ConfinedFiles.h" EXCLUDE PATTERN "NamespaceJournal.h" EXCLUDE
-    PATTERN "WatchPaths.h" EXCLUDE PATTERN "FilePresentation_p.h" EXCLUDE)
+    PATTERN "WatchPaths.h" EXCLUDE PATTERN "FilePresentation_p.h" EXCLUDE PATTERN "NativeControlPaths_p.h" EXCLUDE)
 install(EXPORT iiSocietyHelperTargets NAMESPACE iiSocietyHelper:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper)
 include(cmake/Package.cmake)
 

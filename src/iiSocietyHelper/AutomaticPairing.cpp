@@ -2,17 +2,17 @@
 #include <QScopedValueRollback>
 #include <algorithm>
 
-AutomaticPairing::AutomaticPairing(NearbyDevices *nearby, iiServerHost::LanPeer *peer,
+AutomaticPairing::AutomaticPairing(NearbyDevices *nearby, iiWebServer::LanPeer *peer,
     std::function<bool()> host, std::function<bool(const QString &)> join, std::function<void()> stop, QObject *parent)
     : QObject(parent), m_nearby(nearby), m_peer(peer), m_host(std::move(host)), m_join(std::move(join)), m_stop(std::move(stop)) {
     m_timer.setInterval(500);
     connect(&m_timer, &QTimer::timeout, this, &AutomaticPairing::pump); m_timer.start();
     connect(nearby, &NearbyDevices::changed, this, &AutomaticPairing::schedule);
-    connect(peer, &iiServerHost::LanPeer::changed, this, &AutomaticPairing::schedule);
+    connect(peer, &iiWebServer::LanPeer::changed, this, &AutomaticPairing::schedule);
     connect(nearby, &NearbyDevices::identityEnding, this, &AutomaticPairing::reset);
     connect(nearby, &NearbyDevices::authenticationEnding, this, &AutomaticPairing::reset);
     connect(nearby, &NearbyDevices::invitationEnded, this, [this] { if (active()) finish(false); });
-    connect(peer, &iiServerHost::LanPeer::paired, this, [this](const QString &id) {
+    connect(peer, &iiWebServer::LanPeer::paired, this, [this](const QString &id) {
         if (id == m_current) finish(true);
     });
 }

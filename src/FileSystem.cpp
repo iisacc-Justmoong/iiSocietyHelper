@@ -1,6 +1,7 @@
 #include <iiFileProviderDevice.h>
 #include "FilePresentation_p.h"
 #include "PresenceWorker_p.h"
+#include "ManagedFileOperation_p.h"
 #include <QSet>
 #include <QPointer>
 #include <utility>
@@ -32,6 +33,11 @@ using iiSocietyContainer::SharedStorage;
 using iiSocietyContainer::StoreSection;
 
 namespace {
+bool providerControl(const QString &relative) {
+    for (const auto &part : relative.split('/'))
+        if (iiFileProvider::native::Presentation::isControlFile(std::filesystem::path(part.toStdU16String()))) return true;
+    return false;
+}
 QVariantMap fileAlias(const SharedStorage &storage, StoreSection section,
                       const QString &sectionKey, const QString &relativePath,
                       const QString &native, const QJsonObject &object = {})
@@ -93,7 +99,7 @@ MirrorSnapshot scanMirror(const std::optional<SharedStorage> &storage)
             key == "generation-history" ? QDirIterator::NoIteratorFlags : QDirIterator::Subdirectories);
         while (files.hasNext() && result.aliases.size() < 25000) {
             const auto native = files.next();
-            if (files.fileName().startsWith('.')) continue;
+            if (files.fileName().startsWith('.') || providerControl(files.fileName())) continue;
             const auto relative = QDir(directory).relativeFilePath(native);
             // The batch pins and checks the drive once at each boundary. Each
             // resident leaf still rejects traversal and redirected ancestors.
@@ -112,7 +118,7 @@ MirrorSnapshot scanMirror(const std::optional<SharedStorage> &storage)
         const auto object = entry.toObject();
         const auto key = object.value("path").toString();
         const auto sectionKey = key.section('/', 0, 0);
-        if (object.value("kind") != "file" || residentKeys.contains(key)
+        if (object.value("kind") != "file" || residentKeys.contains(key) || providerControl(key)
             || iiSocietyContainer::StorageMap::physicalPath(key).isEmpty()) continue;
         const auto section = sectionKey == "files" ? StoreSection::Files
             : sectionKey == "published" ? StoreSection::Published : StoreSection::GenerationHistory;
@@ -151,6 +157,8 @@ public:
     iiSocietyContainer::Container container;
     QTimer synchronization;
     std::unique_ptr<detail::PresenceWorker> mirrorWorker;
+    std::unique_ptr<detail::PresenceWorker> intakeWorker;
+    std::stop_source intakeCancellation;
     quint64 mirrorEpoch = 0;
     bool mirrorInFlight = false, mirrorPending = false;
     QString selection;
@@ -268,14 +276,17 @@ FileSystem::FileSystem(Initialization initialization,QObject *parent)
     }
 }
 FileSystem::~FileSystem() {
+    d->intakeCancellation.request_stop();
     ++d->monitorEpoch; ++d->mirrorEpoch;
     d->monitor.stop();
     // The receiver remains alive until its native I/O worker has stopped.
     d->mirrorWorker.reset();
+    d->intakeWorker.reset();
 }
 
 bool FileSystem::open(const QString &containerPath)
 {
+    d->intakeCancellation.request_stop(); d->intakeCancellation = std::stop_source{};
     ++d->mirrorEpoch;
     d->selection = containerPath;
 #ifdef Q_OS_ANDROID
@@ -370,6 +381,7 @@ bool FileSystem::selectDefaultContainer(const QString &source) {
 }
 
 QVariantMap FileSystem::alias(const QString &sectionKey, const QString &relativePath) {
+    if (providerControl(relativePath)) { setError(QStringLiteral("Provider control documents are private.")); return {}; }
     const auto section = d->section(sectionKey);
 #ifdef Q_OS_ANDROID
     if (d->remote) return section ? d->container.alias(sectionKey + '/' + relativePath) : QVariantMap{};
@@ -416,7 +428,7 @@ QVariantMap FileSystem::aliasForPath(const QString &source) {
     // Explicit external imports/exports have no container key. They are never
     // inserted into its mirror; automatic native documents still belong to Files.
     const QFileInfo info(absolute);
-    if (!info.isFile() || info.isSymLink() || info.isJunction() || info.canonicalFilePath() != absolute) return {};
+    if (!info.isFile() || info.isSymLink() || info.isJunction() || !detail::samePathSpelling(info.canonicalFilePath(), absolute)) return {};
     QVariantMap value{{"path", absolute}, {"source", QUrl::fromLocalFile(absolute)}, {"exists", true}, {"available", true},
         {"name", info.fileName()}, {"size", info.size()}, {"version", QString::number(info.lastModified().toMSecsSinceEpoch()) + ':' + QString::number(info.size())}};
     if (info.suffix().compare("iisc", Qt::CaseInsensitive) == 0)
@@ -441,7 +453,7 @@ bool FileSystem::synchronize() {
                 }
                 for (const auto &entry : response.value("entries").toArray()) {
                     const auto object = entry.toObject(); const auto name = object.value("name").toString();
-                    if (name.isEmpty() || name.startsWith('.') || name.contains('/') || name.contains('\\') || name.contains(QChar::Null)) continue;
+                    if (name.isEmpty() || name.startsWith('.') || providerControl(name) || name.contains('/') || name.contains('\\') || name.contains(QChar::Null)) continue;
                     const auto relative = directory.isEmpty() ? name : directory + '/' + name;
                     if (object.value("isDirectory").toBool()) {
                         if (section != "generation-history" && relative.count('/') < 64) pending.append(relative);
@@ -485,12 +497,15 @@ void FileSystem::requestSynchronization()
     d->mirrorInFlight = true;
     const auto epoch = d->mirrorEpoch;
     const auto storage = d->storage;
+    const auto intakeStop = d->intakeCancellation.get_token();
     if (!d->mirrorWorker) d->mirrorWorker = std::make_unique<detail::PresenceWorker>();
-    d->mirrorWorker->post([this, epoch, storage] {
+    d->mirrorWorker->post([this, epoch, storage, intakeStop] {
         MirrorSnapshot snapshot;
         try { snapshot = scanMirror(storage); }
         catch (const std::exception &error) { snapshot.error = QString::fromUtf8(error.what()); }
-        QMetaObject::invokeMethod(this, [this, epoch, snapshot = std::move(snapshot)] {
+        // Mirror discovery and RAW capture have independent coalesced owners.
+        // Switching a selection must not wait for the previous archive.
+        QMetaObject::invokeMethod(this, [this, epoch, storage, intakeStop, snapshot = std::move(snapshot)] {
             const QPointer<FileSystem> guard(this);
             d->mirrorInFlight = false;
             if (epoch == d->mirrorEpoch) {
@@ -499,6 +514,17 @@ void FileSystem::requestSynchronization()
                 if (epoch == d->mirrorEpoch)
                     d->container.synchronize(snapshot.id, snapshot.root, snapshot.aliases, snapshot.available, snapshot.error);
                 if (!guard) return;
+                if (storage && snapshot.available && !intakeStop.stop_requested()) {
+                    if (!d->intakeWorker) d->intakeWorker = std::make_unique<detail::PresenceWorker>();
+                    d->intakeWorker->post([this, epoch, storage, intakeStop] {
+                        if (intakeStop.stop_requested()) return;
+                        QString error; storage->reconcileFiles(&error, intakeStop);
+                        if (!error.isEmpty() && !intakeStop.stop_requested())
+                            QMetaObject::invokeMethod(this, [this, epoch, error] {
+                                if (epoch == d->mirrorEpoch) d->setError(error);
+                            }, Qt::QueuedConnection);
+                    });
+                }
             }
             emit synchronizationFinished(epoch == d->mirrorEpoch && snapshot.available);
             if (guard && std::exchange(d->mirrorPending, false)) requestSynchronization();
@@ -658,13 +684,13 @@ QString FileSystem::publishFile(const QString &source, const QString &sectionKey
     if (QFileInfo(relativePath).suffix().compare("iisc", Qt::CaseInsensitive) == 0 && sectionKey != "files") {
         setError("Society canvas documents belong to Files."); return {};
     }
-    try { iiFileProvider::File::copy(source, destination, false); synchronize(); return destination; }
+    try { detail::ManagedFileOperation operation(destination, "Import file"); iiFileProvider::File::copy(source, destination, false); operation.published(); synchronize(); return destination; }
     catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return {}; }
 }
 bool FileSystem::removeFile(const QString &sectionKey, const QString &relativePath) {
     const auto selected = alias(sectionKey, relativePath);
     if (!selected.value("available").toBool()) return false;
-    try { const bool removed = iiFileProvider::File::remove(selected["path"].toString()); synchronize(); return removed; }
+    try { detail::ManagedFileOperation operation(selected["path"].toString(), "Remove file"); const bool removed = iiFileProvider::File::remove(selected["path"].toString()); if (removed) operation.removed(); synchronize(); return removed; }
     catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return false; }
 }
 QVariantMap FileSystem::saveFile(const QString &destination, const QByteArray &bytes, bool overwrite) {
@@ -676,11 +702,13 @@ QVariantMap FileSystem::saveFile(const QString &destination, const QByteArray &b
             bool accepted = false;
             for (const auto &entry : sections()) {
                 const auto section = entry.toMap(); const auto root = section["path"].toString();
-                if (selected.startsWith(root + '/') && path(section["key"].toString(), QDir(root).relativeFilePath(selected)) == selected) accepted = true;
+                if (selected.startsWith(root + '/') && detail::samePathSpelling(path(section["key"].toString(), QDir(root).relativeFilePath(selected)), selected)) accepted = true;
             }
             if (!accepted) { setError("Choose a file in a Society section."); return {}; }
         }
+        detail::ManagedFileOperation operation(selected, "Save file");
         if (overwrite) iiFileProvider::File::write(selected, bytes); else iiFileProvider::File::create(selected, bytes);
+        operation.published();
         synchronize(); setError({}); return aliasForPath(selected);
     } catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return {}; }
 }

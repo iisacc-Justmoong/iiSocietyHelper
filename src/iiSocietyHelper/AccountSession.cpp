@@ -12,7 +12,7 @@
 #include <QJsonDocument>
 #include <QHostAddress>
 #include <QCryptographicHash>
-#include <iiServerHost.h>
+#include <iiWebServer.h>
 
 using iisacc::accounts::AccountManager;
 
@@ -215,7 +215,7 @@ bool AccountSession::rememberHostConnection(const QString &host, const QString &
     for (const auto &value : routes) {
         const auto route = value.toObject();
         const auto address = route.value("address").toString(); const int port = route.value("port").toInt();
-        if (iiServerHost::LanLink::localAddress(address) && port > 0 && port <= 65535 && safe.size() < 8)
+        if (iiWebServer::LanLink::localAddress(address) && port > 0 && port <= 65535 && safe.size() < 8)
             safe.append(QJsonObject{{"address", address}, {"port", port}});
     }
     if (safe.isEmpty()) safe = savedHostConnection().value("routes").toArray();

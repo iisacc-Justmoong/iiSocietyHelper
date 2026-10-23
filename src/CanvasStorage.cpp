@@ -1,5 +1,6 @@
 #include <iiFileProviderDevice.h>
 #include "iiSocietyHelper.h"
+#include "ManagedFileOperation_p.h"
 #include "iiSocietyHelper/MediaExport.h"
 #include <iiSharedCanvas/Bitmap/BitmapCodec.h>
 #include <iiSharedCanvas/File/DocumentFile.h>
@@ -34,8 +35,8 @@ QString checkedDestination(const QString &destination) {
     if (const auto drive = iiSocietyContainer::FileOperations::containingDrive(absolute)) {
         QString error; const auto storage = iiSocietyContainer::SharedStorage::open(drive->rootPath(), &error);
         const auto files = storage ? storage->filePath(iiSocietyContainer::StoreSection::Files, {}, &error) : QString{};
-        if (files.isEmpty() || !absolute.startsWith(files + '/') || storage->filePath(iiSocietyContainer::StoreSection::Files,
-            QDir(files).relativeFilePath(absolute), &error) != absolute)
+        if (files.isEmpty() || !absolute.startsWith(files + '/') || !detail::samePathSpelling(storage->filePath(iiSocietyContainer::StoreSection::Files,
+            QDir(files).relativeFilePath(absolute), &error), absolute))
             throw std::runtime_error("Save Society canvas documents in Files.");
     }
     return absolute;
@@ -44,14 +45,18 @@ QString lockPath(const QString &destination) {
     const QFileInfo file(destination);
     return QDir(file.absolutePath()).filePath('.' + file.fileName() + ".lock");
 }
-void createOrReuse(const QString &destination, const QByteArray &bytes) {
+void createOrReuse(const QString &destination, const QByteArray &bytes, bool track = true) {
     iiFileProvider::LockFile lock(lockPath(destination));
     if (!lock.tryLock()) throw std::runtime_error("The canvas is being written by another operation.");
     if (QFileInfo::exists(destination) || QFileInfo(destination).isSymLink()) {
-        if (!QFileInfo(destination).isSymLink() && iiFileProvider::File::read(destination, bytes.size() + 1) == bytes) return;
+        if (!QFileInfo(destination).isSymLink() && iiFileProvider::File::read(destination, bytes.size() + 1) == bytes) {
+            if (track) { detail::ManagedFileOperation operation(destination, "Reuse canvas"); operation.published(); } return;
+        }
         throw std::runtime_error("An existing canvas differs and has been preserved.");
     }
-    iiFileProvider::File::create(destination, bytes);
+    std::unique_ptr<detail::ManagedFileOperation> operation;
+    if (track) operation = std::make_unique<detail::ManagedFileOperation>(destination, "Create canvas");
+    iiFileProvider::File::create(destination, bytes); if (operation) operation->published();
 }
 }
 MediaExportDestination mediaExportDestination(const QUrl &destination, bool nativeCanvas) {
@@ -69,7 +74,7 @@ MediaExportDestination mediaExportDestination(const QUrl &destination, bool nati
             for (const auto section : iiSocietyContainer::allStoreSections()) {
                 const auto root = storage->filePath(section);
                 if (!root.isEmpty() && selected.startsWith(root + '/')
-                    && storage->filePath(section, QDir(root).relativeFilePath(selected), &error) == selected) { accepted = true; break; }
+                    && detail::samePathSpelling(storage->filePath(section, QDir(root).relativeFilePath(selected), &error), selected)) { accepted = true; break; }
             }
             if (!accepted) throw std::runtime_error("Choose a file in a Society section.");
         }
@@ -82,9 +87,11 @@ MediaExportResult exportCanvasCopy(const Document &document, const QUrl &destina
     try {
         iiFileProvider::LockFile lock(lockPath(selected.path));
         if (!lock.tryLock()) throw std::runtime_error("The canvas is being written by another operation.");
+        detail::ManagedFileOperation operation(selected.path, "Export canvas");
         DocumentFile file; const auto created = file.create(selected.path.toStdString(), document, limits());
         if (!created.ok()) throw std::runtime_error(created.message);
         file.close();
+        operation.published();
         iiFileProvider::native::Presentation::enqueue(std::filesystem::path(selected.path.toStdU16String()));
         return {true, {}};
     } catch (const std::exception &e) { return {false, QString::fromUtf8(e.what())}; }
@@ -124,7 +131,7 @@ QVariantMap FileSystem::importCanvas(const QString &source) {
         const QFileInfo info(source); const auto canonical = info.canonicalFilePath();
         const auto files = path("files"); if (files.isEmpty()) return {};
         const bool native = info.suffix().compare("iisc", Qt::CaseInsensitive) == 0;
-        if (native && canonical.startsWith(files + '/')) return aliasForPath(canonical);
+        if (native && canonical.startsWith(files + '/')) { detail::ManagedFileOperation operation(canonical, "Open canvas"); operation.published(); return aliasForPath(canonical); }
         const auto bytes = native ? iiFileProvider::File::read(canonical, limits().maximumContainerBytes) : bytesOf(imported.document);
         const auto digest = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex();
         const auto name = (native ? info.completeBaseName() : info.fileName()) + '.' + QString::fromLatin1(digest) + ".iisc";
@@ -150,6 +157,7 @@ QVariantMap FileSystem::saveCanvas(const QByteArray &encoded, const QString &des
         if (!decoded.ok()) throw std::runtime_error(decoded.error.message);
         iiFileProvider::LockFile lock(lockPath(selected));
         if (!lock.tryLock()) throw std::runtime_error("The canvas is being written by another operation.");
+        detail::ManagedFileOperation operation(selected, "Save canvas");
         DocumentFile file;
         if (expectedVersion.isEmpty()) {
             const auto created = file.create(selected.toStdString(), decoded.document, limits());
@@ -171,6 +179,7 @@ QVariantMap FileSystem::saveCanvas(const QByteArray &encoded, const QString &des
             }
         }
         file.close();
+        operation.published();
         iiFileProvider::native::Presentation::enqueue(std::filesystem::path(selected.toStdU16String()));
         const auto saved = aliasForPath(selected);
         lock.unlock(); synchronize(); setError({}); return saved;
@@ -190,7 +199,7 @@ QUrl FileSystem::preview(const QString &source) {
             const auto record = iiFileProvider::native::Presentation::prepare(std::filesystem::path(source.toStdU16String()));
             if (record.preview.kind != "image" || record.preview.mimeType != "image/png")
                 throw std::runtime_error("A canvas content preview is unavailable.");
-            createOrReuse(destination, {record.preview.bytes.data(), qsizetype(record.preview.bytes.size())});
+            createOrReuse(destination, {record.preview.bytes.data(), qsizetype(record.preview.bytes.size())}, false);
         }
         setError({}); return QUrl::fromLocalFile(destination);
     } catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return {}; }

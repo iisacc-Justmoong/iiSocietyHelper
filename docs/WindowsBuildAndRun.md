@@ -7,7 +7,7 @@ No separate Generation, Monitor or Sync SDK is configured or linked.
 ## Dependencies and components
 
 Build the lower-level iiSDKCore, iiFileProvider (including CoreIO and Temporary),
-iiSocietyContainer 0.16.1, iiServerHost 0.6.0, iiSharedCanvas Core 0.31.4 EXACT and
+iiSocietyContainer 0.16.1, iiWebServer 0.6.0, iiSharedCanvas Core 0.31.4 EXACT and
 iiAcountManager 0.2.8 packages for the same architecture and compiler first.
 The default Core facade uses Qt 6.8.3 EXACT Core/Gui/Sql/Network, optional Bluetooth,
 OpenSSL Crypto and DNS-SD. Native Monitoring uses only Core, CoreIO and FileTree.

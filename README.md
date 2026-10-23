@@ -1,6 +1,11 @@
 # iiSocietyHelper
 
-Version 0.10.2 is the single Society integration SDK: account/client access,
+Storage operations and background intake now use iiFileProvider's RAW originals,
+revision journal, work sessions and ontology filesystem through the container
+repository. `FileSystem` exposes indexed search, metadata edits, journal/session
+pages and typed ontology changes. See [managed files](docs/ManagedFiles.md).
+
+Version 0.11.0 is the single Society integration SDK: account/client access,
 local IPC, storage/media operations, device synchronization, native monitoring
 and local/remote generation. See [consolidation and component usage](docs/Consolidation.md).
 
@@ -12,7 +17,7 @@ use the remote generation API without linking the desktop inference host.
 
 [Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
 
-Package release: **0.10.2**. This package pins iiSharedCanvas 0.31.4 Core
+Package release: **0.11.0**. This package pins iiSharedCanvas 0.32.0 Core
 so exported package discovery and the compiled storage adapter use the same
 native contract. Prepared storage, detached image reads and stateless export
 retain their existing interfaces.
@@ -173,7 +178,7 @@ Survival signals, delivery SQLite ·ACK are not replication targets. Specifying 
 ## Use from app
 
 ```cmake
-find_package(iiSocietyHelper 0.10.2 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.11.0 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -462,8 +467,8 @@ References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpath
 ## Build·Verify·Install
 
 Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,
-iiAcountManager **0.2.8** or later, iiSharedCanvas **0.31.4** Core,
-iiServerHost **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,
+iiAcountManager **0.2.8** or later, iiSharedCanvas **0.32.0** Core,
+iiWebServer **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,
 Qt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.
 BLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
 
@@ -588,3 +593,7 @@ source and exports its complete frame-zero document view to PNG. Original raster
 and MP4 export still copy their bytes. Native read-only snapshots, source
 preservation, alpha/PNG text, atomic output and selected-drive isolation are
 covered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.md).
+
+## Native publication metadata (0.11.0)
+
+The package and its by-value canvas storage boundary rebuild against iiSharedCanvas 0.32.0 / ABI 0.32. The Helper library uses ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts.

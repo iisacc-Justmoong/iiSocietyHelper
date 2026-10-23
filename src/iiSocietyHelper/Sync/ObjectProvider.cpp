@@ -74,7 +74,7 @@ bool DirectoryObjectProvider::put(const ObjectIdentity &o, const QString &source
 bool DirectoryObjectProvider::get(const ObjectIdentity &o, const QString &target, QString *error, ProviderCancellation cancelled) {
     const auto source = path(o, error, false); return !source.isEmpty() && verifiedCopy(o, source, target, error, cancelled);
 }
-RemoteObjectProvider::RemoteObjectProvider(QString id, QString kind, QString prefix, iiServerHost::StorageBridgeOptions backend)
+RemoteObjectProvider::RemoteObjectProvider(QString id, QString kind, QString prefix, iiWebServer::StorageBridgeOptions backend)
     : m_id(std::move(id)), m_kind(std::move(kind)), m_prefix(std::move(prefix)), m_backend(std::move(backend)) {
     while (m_prefix.endsWith('/')) m_prefix.chop(1);
 }
@@ -85,14 +85,14 @@ bool RemoteObjectProvider::copy(const QString &source, const QString &target, QS
         || !QRegularExpression("\\A[A-Za-z0-9_][A-Za-z0-9_-]*:[^\\x00-\\x1f]*\\z").match(m_prefix).hasMatch())
         return fail(error, "invalid_remote_provider");
     if (cancelled && cancelled()) return fail(error, "provider_cancelled");
-    iiServerHost::StorageResult result;
+    iiWebServer::StorageResult result;
     // A separate event loop prevents re-entering Replica while its worker waits
     // for the existing asynchronous bridge. No shell or ambient cloud secrets.
     auto thread = QThread::create([&] {
-        QEventLoop loop; iiServerHost::StorageBridge bridge(m_backend); QTimer timer;
-        QObject::connect(&bridge, &iiServerHost::StorageBridge::finished, &loop, [&](auto, auto value) { result = value; loop.quit(); });
-        iiServerHost::StorageRequest request;
-        request.operation = iiServerHost::StorageOperation::CopyFile; request.source = source; request.destination = target;
+        QEventLoop loop; iiWebServer::StorageBridge bridge(m_backend); QTimer timer;
+        QObject::connect(&bridge, &iiWebServer::StorageBridge::finished, &loop, [&](auto, auto value) { result = value; loop.quit(); });
+        iiWebServer::StorageRequest request;
+        request.operation = iiWebServer::StorageOperation::CopyFile; request.source = source; request.destination = target;
         request.overwrite = true;
         const auto id = bridge.start(request);
         QObject::connect(&timer, &QTimer::timeout, &loop, [&] { if (cancelled && cancelled()) bridge.cancel(id); });

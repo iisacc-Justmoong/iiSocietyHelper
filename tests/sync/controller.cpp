@@ -1,6 +1,7 @@
 #include "iiSocietyHelper/Sync/Sync.h"
 #include "TestLink.h"
 #include <SocietyDrive.h>
+#include <SharedStorage.h>
 #include <QDir>
 #include <QFile>
 #include <QSignalSpy>
@@ -196,13 +197,13 @@ private slots:
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(mobile.path()));
         QFile file(root.filePath("Models/host.bin")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QByteArray(700000, 'h')); file.close();
         QFile local(mobile.filePath("Files/mobile.txt")); QVERIFY(local.open(QIODevice::WriteOnly)); local.write("mobile edit"); local.close();
-        iiServerHost::LanPeer host, client;
+        iiWebServer::LanPeer host, client;
         Controller hosting({}), syncing([&](const auto &peer, const auto &message) { return client.request(peer, message); });
         syncing.setContentPolicy(Synchronizer::ContentPolicy::FullReplica);
         const auto files = filesHandler(root.path());
         QVERIFY(host.startHost("desktop", "Desktop", [&](const auto &peer, const auto &message) {
             return message.value("op") == "society.sync" ? hosting.handle(peer, message) : files(peer, message);
-        }, {"127.0.0.1"}, QHostAddress::LocalHost));
+        }, {"127.0.0.1"}, iiWebServer::Address::loopback()));
         QVERIFY2(client.join(host.createOffer(), "phone", "Phone"), qPrintable(client.errorString()));
         QTRY_VERIFY2(client.connected(), qPrintable(client.errorString()));
         hosting.open(root.path(), QString(64, 'a')); syncing.open(mobile.path(), QString(64, 'a'));
@@ -210,7 +211,7 @@ private slots:
         // The product obtains these peers from account-authenticated pairing.
         // This transport test supplies an isolated synthetic authorization set.
         hosting.setPeers({"phone"}, {});
-        connect(&client, &iiServerHost::LanPeer::completed, &syncing, [&](auto id, auto result, auto transport) {
+        connect(&client, &iiWebServer::LanPeer::completed, &syncing, [&](auto id, auto result, auto transport) {
             QCOMPARE(transport, "local"); syncing.receive(id, result);
         });
         QSignalSpy completed(&syncing, &Controller::synchronized);
@@ -240,6 +241,19 @@ private slots:
         QVERIFY(!client.hosting());
         QVERIFY(!files("phone", {{"op", "list"}, {"path", "../Models"}}).value("ok").toBool());
         syncing.close(); hosting.close(); client.stop(); host.stop();
+    }
+    void anIdleHostArchivesExternalFilesAfterPublishingItsNamespace() {
+        QTemporaryDir root(SYNC_TEST_DIRECTORY "/provider-intake-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
+        QFile file(root.filePath("Files/external.txt")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("external input"); file.close();
+        Controller controller({}); controller.open(root.path(), QString(64, 'a'));
+        QTRY_VERIFY(controller.available());
+        const auto storage = iiSocietyContainer::SharedStorage::open(root.path()); QVERIFY(storage);
+        QJsonObject tracked;
+        QTRY_VERIFY_WITH_TIMEOUT((tracked = storage->fileTracking(iiSocietyContainer::StoreSection::Files, "external.txt")).value("status") == "ready", 30000);
+        QVERIFY(!tracked.value("rawKey").toString().isEmpty());
+        QVERIFY(!tracked.value("sessionKey").toString().isEmpty());
+        controller.close();
     }
 };
 QTEST_GUILESS_MAIN(ControllerTests)

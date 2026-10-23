@@ -1,6 +1,6 @@
 #include "NearbyDevices.h"
 #include "PairingCredentials.h"
-#include <iiServerHost.h>
+#include <iiWebServer.h>
 #include <QCryptographicHash>
 #include <QMessageAuthenticationCode>
 #include <QJsonDocument>
@@ -122,7 +122,7 @@ void NearbyDevices::advertiseAuthentication() {
     m_record = record; m_service->start(m_record, m_socket.localPort()); emit changed();
 }
 bool NearbyDevices::localAddress(const QHostAddress &address) const {
-    return iiServerHost::LanLink::localAddress(address.toString()) && (!address.isLoopback() || m_bindAddress.isLoopback());
+    return iiWebServer::LanLink::localAddress(address.toString()) && (!address.isLoopback() || m_bindAddress.isLoopback());
 }
 void NearbyDevices::found(const QString &service, const QJsonObject &record, const QHostAddress &address, quint16 port, bool freshProof) {
     if (!active() || service.size() > 512 || !validRecord(record) || !port || !localAddress(address)
@@ -255,8 +255,8 @@ bool NearbyDevices::receiveResume(const QJsonObject &p, const QHostAddress &addr
     return true;
 }
 bool NearbyDevices::invite(const QString &id, const QString &text, bool automatic) {
-    const auto peer = endpoint(id); iiServerHost::LanLink link;
-    if (!active() || m_record.value("host") != "1" || !peer || !iiServerHost::LanLink::decode(text, &link)
+    const auto peer = endpoint(id); iiWebServer::LanLink link;
+    if (!active() || m_record.value("host") != "1" || !peer || !iiWebServer::LanLink::decode(text, &link)
         || link.hostId != deviceId() || link.expiresAt.toMSecsSinceEpoch() <= now()
         || (automatic && !verify(peer->record))) return false;
     cancel();
@@ -304,9 +304,9 @@ void NearbyDevices::receive() {
             continue;
         }
         if (op == "invite") {
-            iiServerHost::LanLink link; const auto request = p.value("request").toString();
+            iiWebServer::LanLink link; const auto request = p.value("request").toString();
             if (peer->record.value("host") != "1" || p.value("nonce") != m_record.value("nonce") || m_seenRequests.contains(request)
-                || !m_incoming.isEmpty() || !iiServerHost::LanLink::decode(p.value("link").toString(), &link)
+                || !m_incoming.isEmpty() || !iiWebServer::LanLink::decode(p.value("link").toString(), &link)
                 || link.hostId != peer->record.value("id") || link.expiresAt.toMSecsSinceEpoch() <= now()
                 || link.expiresAt.toMSecsSinceEpoch() > now() + 65000) { trace("invitation identity, lifetime or duplicate rejected"); continue; }
             // A discovered peer cannot redirect this device to another LAN host.

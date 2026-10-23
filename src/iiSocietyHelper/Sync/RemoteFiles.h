@@ -1,6 +1,6 @@
 #pragma once
 #include "Controller.h"
-#include <iiServerHost.h>
+#include <iiWebServer.h>
 #include <QUrl>
 #include <QVariantList>
 
@@ -8,7 +8,7 @@ namespace iiSocietyHelper::Sync {
 // Remote drive browsing/downloads share the authenticated Society transport.
 // This public file service exposes Files only. Full replication is Controller's
 // separate, explicitly authorized protocol and includes all eight sections.
-IISOCIETYHELPER_EXPORT iiServerHost::RequestHandler filesHandler(const QString &container);
+IISOCIETYHELPER_EXPORT iiWebServer::RequestHandler filesHandler(const QString &container);
 class IISOCIETYHELPER_EXPORT RemoteFiles final : public QObject {
     Q_OBJECT
 public:

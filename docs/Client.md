@@ -54,7 +54,7 @@ Implementation of AccountSession, NearbyDevices, AutomaticPairing, and GroupSess
 
 
 Synchronization is included in Helper Core. Dependencies include iiSocietyContainer
-0.16.1, iiServerHost 0.6.0, iiAcountManager 0.2.8, iiSharedCanvas Core 0.31.4,
+0.16.1, iiWebServer 0.6.0, iiAcountManager 0.2.8, iiSharedCanvas Core 0.31.4,
 iiFileProvider and the existing Qt adapters. Desktop state encryption uses OpenSSL Crypto and iOS uses CryptoKit. The consolidated SDK does not depend on higher-level Product sources. See Migration.md for the single Helper package and dependency direction. Headers are installed via the `iiSocietyHelper/Client.h` path. The consumer app calls start when creating the repository object, explicitly downloads/file publishes after synchronizeNow, and calls stop on background transition/termination.
 
 `AccountSession::storageScope()` is calculated using the authentication service origin and account sub, and LAN proof and server replication use the same namespace. Replicas of other accounts are not opened. If the initial Society configuration is not complete, a new host is not arbitrarily selected. `client-session.lock` occupancy failure is retried after waiting, and connections from other processes are not forcibly terminated.

@@ -44,7 +44,7 @@ Society Namespace (컨테이너 UUID)
 | --- | --- | --- |
 | 기본 local 투영 | Society 호스트의 로컬 디렉터리 | 네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용 |
 | `DirectoryObjectProvider` | 별도 Mac 디렉터리 또는 마운트한 NAS | 스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요 |
-| `RemoteObjectProvider` | 명시적으로 설정한 NAS/S3 rclone remote | iiServerHost StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사 |
+| `RemoteObjectProvider` | 명시적으로 설정한 NAS/S3 rclone remote | iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사 |
 
 `Replica::placeObject(path, provider)`는 파일을 저장·검증한 다음 해당 **버전**에 공급자 위치를 기록한다. 공급자 추가나 장애는 namespace UUID와 리비전을 변경하지 않는다. 원격 I/O 동안 journal lock을 잡지 않는다. `restoreObject`는 아직 삭제 커밋이 되지 않은 누락된 로컬 투영을 복구하며, 수정된 파일과 대기 중 편집을 덮지 않는다. 이미 삭제를 확정한 파일은 보관한 ObjectIdentity로 provider `get`을 사용해 복구한 뒤 새 편집으로 확정할 수 있다.
 
@@ -59,7 +59,7 @@ auto nas = std::make_shared<iiSocietyHelper::Sync::DirectoryObjectProvider>(
 sync.placeObject("models/model.safetensors", nas);
 // providerFinished(path, id, restored, success, error)로 완료 확인
 
-iiServerHost::StorageBridgeOptions backend;
+iiWebServer::StorageBridgeOptions backend;
 backend.executable = trustedRcloneExecutable;
 backend.configFile = ownerOnlyRcloneConfig;
 backend.runtimeDirectory = ownerOnlyLocalRuntime;
@@ -78,4 +78,4 @@ SQLite schema 2에서 3으로 이전할 때 기존 호스트의 최신 레코드
 
 리비전 그래프는 메타데이터 이력이다. 기본 로컬 투영이 모든 과거 파일 바이트를 보관하는 것은 아니다. 특정 버전을 provider에 배치하면 그 해시의 바이트를 별도로 보관한다. 여러 파일이나 열려 있는 앱 DB 전체를 하나의 스냅샷으로 묶지는 않는다.
 
-`iiSocietyHelper::Sync.Namespace`는 오프라인 확정, 3개 노드의 호스트 결정 수렴, 메타데이터/작업 상태 분리, 이력·상한 스냅샷, 위조·재전송 롤백, schema 이전, 공급자 장애·손상·복구를 검사한다. `IISERVERHOST_TEST_RCLONE`을 설정하면 로컬의 인증된 S3 호환 서버로 실제 저장·읽기·SHA-256 왕복을 실행한다. 이는 AWS 실계정이나 실제 NAS·모바일 무선 전송 검증과 구분한다.
+`iiSocietyHelper::Sync.Namespace`는 오프라인 확정, 3개 노드의 호스트 결정 수렴, 메타데이터/작업 상태 분리, 이력·상한 스냅샷, 위조·재전송 롤백, schema 이전, 공급자 장애·손상·복구를 검사한다. `IIWEBSERVER_TEST_RCLONE`을 설정하면 로컬의 인증된 S3 호환 서버로 실제 저장·읽기·SHA-256 왕복을 실행한다. 이는 AWS 실계정이나 실제 NAS·모바일 무선 전송 검증과 구분한다.

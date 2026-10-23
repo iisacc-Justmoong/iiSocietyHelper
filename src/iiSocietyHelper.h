@@ -177,6 +177,15 @@ public:
     // classification. GUI code can copy SharedStorage to its I/O worker or use
     // Client::inspectHostFile's asynchronous host inspection.
     Q_INVOKABLE QVariantMap fileInformation(const QString &sectionKey, const QString &relativePath);
+    // Blocking native Provider operations; use an I/O owner for large intake.
+    Q_INVOKABLE bool indexFiles();
+    Q_INVOKABLE QVariantMap searchFiles(const QVariantMap &request = {});
+    Q_INVOKABLE QVariantList fileJournal(const QString &afterSequence = {}, int limit = 128,
+        const QString &objectKey = {});
+    Q_INVOKABLE QVariantList workSessions(const QString &afterSequence = {}, int limit = 64);
+    Q_INVOKABLE bool setFileMetadata(const QString &sectionKey, const QString &relativePath, const QVariantMap &metadata);
+    // Typed native ontology edits use the same provider session and CAS contract.
+    bool applyOntology(const std::vector<iiFileProvider::OntologyChange> &changes, std::uint64_t expectedRevision);
 
 signals:
     void storageChanged();

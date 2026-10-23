@@ -109,7 +109,7 @@ Photo aliases and previews, each no larger than 512 KiB, and the model's `model_
 
 At most 16 previews are processed per round. The next round handles new model requests and generated-result uploads before all previews for a large gallery are received. `iiSocietyHelper.Sync.OnDemand` checks this processing order, initial lists and previews without original transfers, downloading only selected models, generated-result uploads, preventing false deletions after restart, rejecting changed versions, and cancellation and resumption during transfer.
 
-`BleDiscovery`/`NearbyBootstrap` exchange small connection information with nearby devices. Authenticated Wi-Fi/LAN file transfers process at most 4 chunks concurrently and use binary-body negotiation from iiServerHost 0.6. Refer to [connection flow, API, platform support, and verification scope](NearbySync.md). Host permissions, committed revisions, and provider separation follow the [Namespace contract](Namespace.md). Resumption and SHA-256 verification are retained.
+`BleDiscovery`/`NearbyBootstrap` exchange small connection information with nearby devices. Authenticated Wi-Fi/LAN file transfers process at most 4 chunks concurrently and use binary-body negotiation from iiWebServer 0.6. Refer to [connection flow, API, platform support, and verification scope](NearbySync.md). Host permissions, committed revisions, and provider separation follow the [Namespace contract](Namespace.md). Resumption and SHA-256 verification are retained.
 
 It uses `iiSocietyContainer` 0.14.0 and above. Files have no default directory. Documents, Audios, 3D objects are also regular user items and are treated identically for remote deletion, file replacement, and retransmission. Unsynchronized content in non-empty local directories follows existing conflict preservation rules. Initial host adoption preserves the entire existing user folder as a recovery area and leaves no empty default folder in Files. `Replica` and `Controller` tests validate this contract. The top-level `Photos/` is an independent `photos` section.
 
@@ -124,11 +124,11 @@ C++23/Qt SDK synchronizes Society container data running on different devices. I
 | Helper Core | Same-device IPC, account/client access, storage and synchronization | Uses Container, Account, ServerHost and native Monitoring. |
 | `iiSocietyHelper::Sync` | Container replication and authenticated host file access | Implementation within Helper Core; no separate SDK package. |
 | iiSocietyContainer |Container UUID, 9 areas, and local shared OS provider|Does not know the synchronization protocol.|
-| iiServerHost |Authenticated general request/response, LAN TLS legacy relay, limited file service|Society  does not know change history and conflict policy.|
+| iiWebServer |Authenticated general request/response, LAN TLS legacy relay, limited file service|Society  does not know change history and conflict policy.|
 | `iiSocietyHelper::Client` | Account discovery, pairing and host access | Uses Core Sync and Account; never references Product sources. |
 |Society  app|First login/host selection, app lifecycle/screen|Connects Client's shared authentication configuration and Sync and manages host roles.|
 
-Reuses the existing Qt 6.8.3 Core/Gui/Network/Sql, SQLite, and TLS from iiServerHost 0.6.0. No new external library, server, or paid service is added. Hashing uses Qt's [QCryptographicHash](https://doc.qt.io/qt-6.8/qcryptographichash.html), inter-process work exclusion uses [QLockFile](https://doc.qt.io/qt-6.8/qlockfile.html), and the persistent journal uses [SQLite WAL](https://sqlite.org/wal.html). Maintenance and licensing follow the terms of the existing Qt/SQLite/SDK configuration. Only the version and conflict policies specific to Society are implemented in this SDK.
+Reuses the existing Qt 6.8.3 Core/Gui/Network/Sql, SQLite, and TLS from iiWebServer 0.6.0. No new external library, server, or paid service is added. Hashing uses Qt's [QCryptographicHash](https://doc.qt.io/qt-6.8/qcryptographichash.html), inter-process work exclusion uses [QLockFile](https://doc.qt.io/qt-6.8/qlockfile.html), and the persistent journal uses [SQLite WAL](https://sqlite.org/wal.html). Maintenance and licensing follow the terms of the existing Qt/SQLite/SDK configuration. Only the version and conflict policies specific to Society are implemented in this SDK.
 
 <a id="공개-api"></a>
 
@@ -140,7 +140,7 @@ Reuses the existing Qt 6.8.3 Core/Gui/Network/Sql, SQLite, and TLS from iiServer
 - `Synchronizer` : bidirectional transfer of one remote Society and one session. Separates transfer implementation with `requestReady` and `receive`.
 - `RemoteFiles`, `filesHandler`: Remote Files browsing, atomic download, and Files-only services. Full container replication is a separate authenticated `society.sync` protocol.
 
-Windows `filesHandler` provides Files listing, metadata, read, and new file/directory creation using Sync's native file access. Uploads publish as public hard links after completing private temporary files without overwriting. If the same name already exists, it preserves the existing file and rejects. Universal iiServerHost POSIX FileShare is called from Windows or ServerHost does not back-reference Sync. This Files projection does not open other areas such as Models, and full container changes are handled via the Replica protocol.
+Windows `filesHandler` provides Files listing, metadata, read, and new file/directory creation using Sync's native file access. Uploads publish as public hard links after completing private temporary files without overwriting. If the same name already exists, it preserves the existing file and rejects. Universal iiWebServer POSIX FileShare is called from Windows or ServerHost does not back-reference Sync. This Files projection does not open other areas such as Models, and full container changes are handled via the Replica protocol.
 
 ```cpp
 #include <iiSocietyHelper/Sync/Sync.h>
@@ -225,7 +225,7 @@ cmake --build build/consumer/build --parallel 4
 ctest --test-dir build/consumer/build --output-on-failure
 ```
 
-Public headers are installed in `include/`; source headers reside beside their implementations. iOS uses a static library, while desktop and Android use shared libraries. Install `iiFileProviderTemporary` (target `iiFileProvider::Temporary`), iiSocietyContainer 0.15.0 or later with its `Maintenance` target, and iiServerHost 0.6.0 for each ABI first. The standalone temporary package has no Qt dependency and does not require the higher-level iiFileProvider GUI or provider targets.
+Public headers are installed in `include/`; source headers reside beside their implementations. iOS uses a static library, while desktop and Android use shared libraries. Install `iiFileProviderTemporary` (target `iiFileProvider::Temporary`), iiSocietyContainer 0.15.0 or later with its `Maintenance` target, and iiWebServer 0.6.0 for each ABI first. The standalone temporary package has no Qt dependency and does not require the higher-level iiFileProvider GUI or provider targets.
 
 File access contract checks verify chunk retransmission, hash and partial read, original preservation, actual symbolic link bypass rejection, recovery move retry, and root replacement. Windows generates a reparse fixture with `CreateSymbolicLinkW`, so Developer Mode or symbolic link creation permission is required. The `QFile::link` Windows shortcut is not used for fallback verification. For cross-execution, specify `IISOCIETYHELPER_SYNC_TEST_DIRECTORY` as the path visible to the target runtime `build/`.
 

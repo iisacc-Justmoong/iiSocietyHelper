@@ -16,7 +16,12 @@ int main() {
     try {
         fs::create_directories(root / "visible");
         fs::create_directories(root / ".society-private");
-        fs::create_directories(root / ".iiserverhost-private");
+        fs::create_directories(root / ".iiwebserver-private");
+        fs::create_directories(root / ".iisacc-file-provider");
+        std::ofstream(root / ".iisacc-file-provider" / "catalog.sqlite3-wal") << "private database";
+        std::ofstream(root / ".iisacc-temporary.lock");
+        std::ofstream(root / "visible" / "file.iisacc-preview") << "derived preview";
+        std::ofstream(root / "visible" / "file.iisacc.json") << "user annotation";
         std::ofstream(root / "visible" / "file") << "payload";
         std::ofstream(root / ".society-private" / "secret") << "internal";
         std::ofstream(root / ".hidden") << "visible hidden file";
@@ -27,7 +32,8 @@ int main() {
         fs::create_directory_symlink(root / "visible", root / "link");
 #endif
         const auto all = iiSocietyHelper::Sync::detail::collectWatchPaths({root}, 64, [] { return false; });
-        require(!all.cancelled && all.paths.size() == 4, "exclude internal trees and symlinks, retain hidden files");
+        require(!all.cancelled && all.paths.size() == 5, "exclude internal/provider state and previews, retain user annotations and hidden files");
+        for (const auto &path : all.paths) require(!iiSocietyHelper::Sync::detail::providerIndexControlName(path), "private provider WAL files never trigger synchronization feedback");
         for (int i = 0; i < 100; ++i) fs::create_directory(root / ("directory-" + std::to_string(i)));
         const auto bounded = iiSocietyHelper::Sync::detail::collectWatchPaths({root}, 3, [] { return false; });
         require(bounded.paths.size() == 3 && bounded.visitedEntries <= 24, "stop enumeration at bounded work budget");

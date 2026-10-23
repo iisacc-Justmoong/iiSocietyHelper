@@ -278,9 +278,9 @@ private slots:
         QCOMPARE(routes.size(), 1);
         const auto staleRecord = firstService.record;
         const auto stalePort = firstService.port;
-        iiServerHost::LanPeer transport;
+        iiWebServer::LanPeer transport;
         QVERIFY(transport.startHost("host", "Host", [](const auto &, const auto &) { return QJsonObject{}; },
-            {"127.0.0.1"}, QHostAddress::LocalHost));
+            {"127.0.0.1"}, iiWebServer::Address::loopback()));
         QVERIFY(host.invite("phone", transport.createDeviceOffer("phone"), true));
         QSignalSpy retired(&host, &NearbyDevices::invitationEnded);
         first.clear();
@@ -426,14 +426,14 @@ private slots:
             });
             QVERIFY(initial.start(hostId)); QTRY_COMPARE(done.size(), 1); QVERIFY(done[0][1].toBool());
         }
-        iiServerHost::RelayServer relay([&](const auto &, auto done) { done({authority.profile.value("sub").toString(), QDateTime::currentDateTimeUtc().addSecs(300)}); });
-        QVERIFY(relay.listen(QHostAddress::LocalHost));
+        iiWebServer::RelayServer relay([&](const auto &, auto done) { done({authority.profile.value("sub").toString(), QDateTime::currentDateTimeUtc().addSecs(300)}); });
+        QVERIFY(relay.listen(iiWebServer::Address::loopback()));
         const QUrl endpoint(QString("ws://127.0.0.1:%1").arg(relay.port()));
         if (useRelay) QTRY_VERIFY(account.setServerConfiguration({{"url", endpoint.toString()}, {"host", false}}));
         iiSocietyHelper::Sync::Controller hosting({}); hosting.open(hostRoot.path(), scope); QTRY_VERIFY(hosting.available());
         hosting.setPeers({phoneId}, {});
         QSet<QString> authorizedSessions{phoneId};
-        iiServerHost::Peer host;
+        iiWebServer::Peer host;
         const auto handle = [&](const QString &peer, const QJsonObject &payload) {
             if (payload.value("op") == "society.generation")
                 return QJsonObject{{"ok", true}, {"peer", peer}, {"echo", payload}};
@@ -443,7 +443,7 @@ private slots:
             authorizedSessions.insert(peer); hosting.setPeers(authorizedSessions.values(), {});
             return hosting.handle(peer, payload);
         };
-        iiServerHost::PeerOptions options; options.relayUrl = endpoint; options.credential = "fixture";
+        iiWebServer::PeerOptions options; options.relayUrl = endpoint; options.credential = "fixture";
         options.peerId = hostId; options.name = "Society host"; options.service = "com.iisacc.society.files"; options.localEnabled = false;
         if (useRelay) {
             QVERIFY(host.start(options, handle)); QTRY_VERIFY(host.isReady());
@@ -451,15 +451,15 @@ private slots:
         FakeDiscoveryService discovery, hostDiscovery;
         discovery.publishDepartures = hostDiscovery.publishDepartures = true;
         NearbyDevices hostNearby(&hostDiscovery, QHostAddress::LocalHost);
-        iiServerHost::LanPeer hostLan;
+        iiWebServer::LanPeer hostLan;
         hostLan.setPairingAuthentication([&](const QByteArray &context) { return SocietyPairingCredentials::sign(account.pairingCredentials(), context); },
             [&](const QByteArray &context, const QJsonObject &proof) { return SocietyPairingCredentials::verify(account.pairingCredentials(), context, proof); });
-        connect(&hostLan, &iiServerHost::LanPeer::completed, &hosting, [&](auto id, auto response, auto) { hosting.receive(id, response); });
+        connect(&hostLan, &iiWebServer::LanPeer::completed, &hosting, [&](auto id, auto response, auto) { hosting.receive(id, response); });
         AutomaticPairing hostPairing(&hostNearby, &hostLan, [&] {
             return hostLan.hosting() || hostLan.startHost(hostId, "Society host", [&](auto peer, auto payload) {
                 if (payload.value("op") == "list") return QJsonObject{{"ok", true}, {"entries", QJsonArray()}};
                 return handle(peer, payload);
-            }, {"127.0.0.1"}, QHostAddress::LocalHost);
+            }, {"127.0.0.1"}, iiWebServer::Address::loopback());
         }, [](auto) { return false; }, [&] { hostLan.stop(); });
         QTimer announcements;
         if (!useRelay) {

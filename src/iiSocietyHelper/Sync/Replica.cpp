@@ -46,7 +46,7 @@ QString physical(const QString &key) {
     if (tail.isEmpty() || !key.contains('/') || key.size() > 3500 || !key.isValidUtf16() || key.contains('\\') || key.contains(':') || key.contains(QChar::Null)) return {};
     for (const auto &part : key.split('/'))
         if (part.isEmpty() || part == "." || part == ".." || part.toUtf8().size() > 220 || part.startsWith(".society-")
-            || part.startsWith(".iiserverhost-") || part == ".iisacc-temporary.lock") return {};
+            || part.startsWith(".iiwebserver-") || part == ".iisacc-temporary.lock") return {};
     for (const auto s : iiSocietyContainer::allStoreSections())
         if (section == iiSocietyContainer::storeSectionKey(s)) return iiSocietyContainer::storeSectionName(s) + '/' + tail;
     return {};

@@ -227,13 +227,13 @@ private slots:
         controller.closeAndWait();
     }
     void realS3CompatibleProviderRoundTrip() {
-        const auto rclone = qEnvironmentVariable("IISERVERHOST_TEST_RCLONE"); if (rclone.isEmpty()) QSKIP("Set IISERVERHOST_TEST_RCLONE for the local S3 fixture");
+        const auto rclone = qEnvironmentVariable("IIWEBSERVER_TEST_RCLONE"); if (rclone.isEmpty()) QSKIP("Set IIWEBSERVER_TEST_RCLONE for the local S3 fixture");
         QTemporaryDir dir(SYNC_TEST_DIRECTORY "/s3-provider-XXXXXX"); QVERIFY(QDir(dir.path()).mkdir("runtime")); QVERIFY(QDir(dir.path()).mkpath("buckets/bucket"));
         QVERIFY(QFile::setPermissions(dir.filePath("runtime"), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
         QTcpServer probe; QVERIFY(probe.listen(QHostAddress::LocalHost)); const auto port = probe.serverPort(); probe.close();
-        iiServerHost::StorageBridgeOptions backend{rclone, {}, {}, dir.filePath("runtime")};
-        iiServerHost::FileProtocolServer server(backend); iiServerHost::FileServerOptions options;
-        options.protocol = iiServerHost::FileServerProtocol::S3; options.root = dir.filePath("buckets"); options.port = port;
+        iiWebServer::StorageBridgeOptions backend{rclone, {}, {}, dir.filePath("runtime")};
+        iiWebServer::FileProtocolServer server(backend); iiWebServer::FileServerOptions options;
+        options.protocol = iiWebServer::FileServerProtocol::S3; options.root = dir.filePath("buckets"); options.port = port;
         options.username = "fixture-key"; options.password = "fixture-secret"; options.readOnly = false;
         QVERIFY2(server.start(options), qPrintable(server.errorString()));
         // A TCP connect can precede protocol readiness (and a recycled ephemeral

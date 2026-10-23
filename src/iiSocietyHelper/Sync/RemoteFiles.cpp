@@ -22,7 +22,7 @@ bool sharePath(const QString &path) {
     if (path.isEmpty()) return true;
     if (detail::providerControlPath(path)) return false;
     for (const auto &part : path.split('/'))
-        if (part.isEmpty() || part == "." || part == ".." || part.startsWith(".iiserverhost-") || part.startsWith(".society-")
+        if (part.isEmpty() || part == "." || part == ".." || part.startsWith(".iiwebserver-") || part.startsWith(".society-")
             || part == ".iisacc-temporary.lock") return false;
     return true;
 }
@@ -57,7 +57,7 @@ QJsonObject windowsFiles(detail::ConfinedFiles &files, const QJsonObject &reques
         if (op == "stat") return {{"ok", true}, {"size", QString::number(state.size)}, {"version", state.stamp}};
         bool valid = true; const auto offset = request.contains("offset") ? request.value("offset").toString().toLongLong(&valid) : 0;
         if (!valid || offset < 0 || offset > state.size) return fileError("invalid_offset");
-        const auto bytes = files.read(native, offset, iiServerHost::FileShare::ChunkBytes, state.stamp);
+        const auto bytes = files.read(native, offset, iiWebServer::FileShare::ChunkBytes, state.stamp);
         if (!files.error.isEmpty()) return fileError("file_changed_or_unavailable");
         return {{"ok", true}, {"data", QString::fromLatin1(bytes.toBase64())}, {"offset", QString::number(offset)},
             {"size", QString::number(state.size)}, {"version", state.stamp}, {"eof", offset + bytes.size() == state.size}};
@@ -68,9 +68,9 @@ QJsonObject windowsFiles(detail::ConfinedFiles &files, const QJsonObject &reques
         if (!files.state(native.left(native.lastIndexOf('/')), &parent) || parent.kind != "directory") return fileError("not_directory");
         if (op == "mkdir") return files.mkdir(native) ? QJsonObject{{"ok", true}} : fileError("create_failed_or_exists");
         const auto data = request.value("data");
-        if (!data.isString() || data.toString().size() > ((iiServerHost::FileShare::ChunkBytes + 2) / 3) * 4) return fileError("invalid_data");
+        if (!data.isString() || data.toString().size() > ((iiWebServer::FileShare::ChunkBytes + 2) / 3) * 4) return fileError("invalid_data");
         const auto decoded = QByteArray::fromBase64Encoding(data.toString().toLatin1(), QByteArray::AbortOnBase64DecodingErrors);
-        if (!decoded || decoded.decoded.size() > iiServerHost::FileShare::ChunkBytes) return fileError("invalid_data");
+        if (!decoded || decoded.decoded.size() > iiWebServer::FileShare::ChunkBytes) return fileError("invalid_data");
         const auto temporary = ".society-sync/uploads/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
         if (!files.mkdir(".society-sync/uploads")) return fileError("write_failed_or_exists");
         std::optional<iiFileProvider::TemporaryLease> temporaryLease;
@@ -89,7 +89,7 @@ QJsonObject windowsFiles(detail::ConfinedFiles &files, const QJsonObject &reques
 }
 }
 #endif
-iiServerHost::RequestHandler filesHandler(const QString &container) {
+iiWebServer::RequestHandler filesHandler(const QString &container) {
     const auto storage = iiSocietyContainer::SharedStorage::open(container);
     if (!storage) return [](const auto &, const auto &) { return QJsonObject{{"ok", false}, {"error", "container_unavailable"}}; };
     const auto pinned = *storage;
@@ -98,11 +98,23 @@ iiServerHost::RequestHandler filesHandler(const QString &container) {
     if (!files->open(pinned.drive().rootPath())) return [](const auto &, const auto &) { return fileError("container_unavailable"); };
     return [files, pinned](const auto &, const auto &message) {
         if (!pinned.drive().isReady()) return fileError("container_unavailable");
-        return windowsFiles(*files, message);
+        auto result = windowsFiles(*files, message);
+        if (result.value("ok").toBool() && message.value("op") == "write") {
+            QString error;
+            if (!pinned.recordFile(iiSocietyContainer::StoreSection::Files, message.value("path").toString(), &error)) return fileError(error);
+        }
+        return result;
     };
 #else
-    const auto share = std::make_shared<iiServerHost::FileShare>(pinned.filePath(iiSocietyContainer::StoreSection::Files), [pinned] { return pinned.drive().isValid(); });
-    return [share](const auto &, const auto &message) { return share->handle(message); };
+    const auto share = std::make_shared<iiWebServer::FileShare>(pinned.filePath(iiSocietyContainer::StoreSection::Files), [pinned] { return pinned.drive().isValid(); });
+    return [share, pinned](const auto &, const auto &message) {
+        auto result = share->handle(message);
+        if (result.value("ok").toBool() && message.value("op") == "write") {
+            QString error;
+            if (!pinned.recordFile(iiSocietyContainer::StoreSection::Files, message.value("path").toString(), &error)) return QJsonObject{{"ok", false}, {"error", error}};
+        }
+        return result;
+    };
 #endif
 }
 // Disk operations, chunk decoding and atomic publication are confined to this
@@ -127,7 +139,7 @@ public:
         const auto offset = result.value("offset").toString().toLongLong(&validOffset);
         const auto size = result.value("size").toString().toLongLong(&validSize);
         if (!decoded || !validOffset || !validSize || offset != received || size != expected || result.value("version").toString() != version
-            || decoded.decoded.size() > iiServerHost::FileShare::ChunkBytes || decoded.decoded.size() > expected - received
+            || decoded.decoded.size() > iiWebServer::FileShare::ChunkBytes || decoded.decoded.size() > expected - received
             || (decoded.decoded.isEmpty() && received != expected) || !file
             || file->write(decoded.decoded) != decoded.decoded.size()) {
             fail(RemoteFiles::tr("The file changed or the transfer is incomplete.")); return;

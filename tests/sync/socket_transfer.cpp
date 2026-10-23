@@ -25,15 +25,15 @@ private slots:
         QByteArray bytes(8 * 1024 * 1024 + 17, Qt::Uninitialized);
         for (qsizetype i = 0; i < bytes.size(); ++i) bytes[i] = char((i * 37 + i / 251) % 253);
         put(b.filePath("Models/bulk"), bytes); const auto expected = QCryptographicHash::hash(bytes, QCryptographicHash::Sha256);
-        iiServerHost::LanPeer hostPeer, clientPeer;
+        iiWebServer::LanPeer hostPeer, clientPeer;
         Controller host({}), client([&](const auto &peer, const auto &request) { return clientPeer.request(peer, request); });
         client.setContentPolicy(Synchronizer::ContentPolicy::FullReplica);
-        connect(&clientPeer, &iiServerHost::LanPeer::completed, &client, [&](const auto &id, const auto &result, auto) { client.receive(id, result); });
+        connect(&clientPeer, &iiWebServer::LanPeer::completed, &client, [&](const auto &id, const auto &result, auto) { client.receive(id, result); });
         const QString scope(64, 'a'); host.open(b.path(), scope); client.open(a.path(), scope);
         QTRY_VERIFY(host.available() && client.available()); host.setPeers({"phone"}, {});
         QVERIFY(hostPeer.startHost("desktop", "Desktop", [&](const auto &peer, const auto &request) {
             return request.value("op") == "society.sync" ? host.handle(peer, request) : QJsonObject{{"ok", true}, {"entries", QJsonArray()}};
-        }, {"127.0.0.1"}, QHostAddress::LocalHost));
+        }, {"127.0.0.1"}, iiWebServer::Address::loopback()));
         QVERIFY(clientPeer.join(hostPeer.createOffer(), "phone", "Phone")); QTRY_VERIFY(clientPeer.connected()); QVERIFY(clientPeer.binaryTransferEnabled());
         bool stopped = false;
         const auto stop = connect(&client, &Controller::progress, &client, [&](auto, qint64 done, auto) {

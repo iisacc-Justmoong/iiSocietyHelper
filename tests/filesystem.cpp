@@ -222,7 +222,7 @@ private slots:
         files.requestSynchronization();
         const auto other = createDrive("background-mirror-other"); QVERIFY(!other.isEmpty());
         QVERIFY(files.open(other));
-        QTRY_VERIFY_WITH_TIMEOUT(completed.count() >= 2, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(completed.count() >= 2 && completed.last().first().toBool(), 10000);
         QCOMPARE(files.container()->rootPath(), other);
         QVERIFY(files.container()->alias("files/item-599.txt").isEmpty());
         QVERIFY(files.synchronize()); // The explicit durability/refresh contract remains synchronous.
@@ -400,6 +400,13 @@ private slots:
         Document document; document.extent = {3, 2};
         document.assets.emplace_back(RasterAsset{"pixels", {3, 2, std::vector<std::uint32_t>(6, 0xff204080U)}});
         document.layers.emplace_back(StaticBitmapLayer{{"fill", "Canvas"}, StaticSource{"pixels"}});
+#if __has_include(<iiSharedCanvas/Metadata/PublicationMetadata.h>)
+        PublicationMetadata publication;
+        publication.title="Common publication"; publication.description=std::string(80*1024,'x');
+        publication.canvases={{"","Caption 한국어","Alternative text"}};
+        publication.settings={{"adult",false},{"license",std::string("All rights reserved")}};
+        document.publicationMetadata=publication;
+#endif
         const auto encode = [](const Document &value) {
             const auto data = encodeIisc(value); return QByteArray(reinterpret_cast<const char *>(data.bytes.data()), qsizetype(data.bytes.size()));
         };
@@ -426,6 +433,9 @@ private slots:
         QVERIFY(revisedPreview); QVERIFY(revisedPreview->preview.bytes != storedPreview->preview.bytes);
         QVERIFY(files.preview(destination) != preview);
         const auto reopened = files.readCanvas(destination); QVERIFY(reopened.ok());
+#if __has_include(<iiSharedCanvas/Metadata/PublicationMetadata.h>)
+        QVERIFY(reopened.document.publicationMetadata==publication);
+#endif
         QCOMPARE(std::get<RasterAsset>(reopened.document.assets[0]).pixels.pixels[0], 0xff804020U);
         QVERIFY(files.saveCanvas(encode(document), destination, first["version"].toString()).isEmpty());
         QVERIFY(files.errorString().contains("changed"));

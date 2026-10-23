@@ -1,4 +1,5 @@
 #pragma once
+#include "NativeControlPaths_p.h"
 #include <iiFileProviderPresentation.h>
 #include <QString>
 #include <QJsonDocument>
@@ -6,11 +7,7 @@
 
 namespace iiSocietyHelper::Sync::detail {
 inline bool indexControlName(const QString &name) {
-    const auto folded = name.toCaseFolded();
-    return name.startsWith(".society-") || name.startsWith(".iiserverhost-")
-        || name == ".iisacc-temporary.lock" || folded.endsWith(".iisacc-preview")
-        || folded.startsWith(".iifile-stage-") || folded == ".iisacc-file-provider"
-        || folded.endsWith(".iisacc-lock");
+    return providerIndexControlName(std::filesystem::path(name.toStdU16String()));
 }
 inline bool ownedPresentation(const QByteArray &bytes) {
     if(bytes.size() > qsizetype(iiFileProvider::native::Presentation::maximumDocumentBytes)) return false;

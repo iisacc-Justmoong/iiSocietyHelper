@@ -62,7 +62,9 @@ if(BUILD_TESTING)
     target_link_libraries(iiSocietyHelper_sync_controller_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
     target_compile_definitions(iiSocietyHelper_sync_controller_tests PRIVATE SYNC_TEST_DIRECTORY="${IISOCIETYHELPER_SYNC_TEST_DIRECTORY}")
     add_test(NAME iiSocietyHelper.Sync.Controller COMMAND iiSocietyHelper_sync_controller_tests)
-    set_tests_properties(iiSocietyHelper.Sync.Controller PROPERTIES TIMEOUT 60)
+    # Includes a separate durable, delayed Provider intake case. Individual TLS
+    # file-event deadlines remain 1.8 / 5 seconds.
+    set_tests_properties(iiSocietyHelper.Sync.Controller PROPERTIES TIMEOUT 120)
     add_executable(iiSocietyHelper_sync_hello_world tests/sync/hello_world.cpp)
     target_link_libraries(iiSocietyHelper_sync_hello_world PRIVATE iiSocietyHelper::iiSocietyHelper)
     set_target_properties(iiSocietyHelper_sync_hello_world PROPERTIES CXX_EXTENSIONS OFF)

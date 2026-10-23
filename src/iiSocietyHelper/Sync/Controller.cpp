@@ -16,6 +16,7 @@
 #include <QTimer>
 #include <QUuid>
 #include <atomic>
+#include <utility>
 #ifdef Q_OS_UNIX
 #include <sys/resource.h>
 #endif
@@ -50,6 +51,7 @@ public:
     Synchronizer *sync = nullptr;
     QTimer *timer = nullptr;
     QTimer *changedFiles = nullptr;
+    QTimer *archiveTimer = nullptr;
     QFileSystemWatcher *watcher = nullptr;
     QString container;
     QString primaryClaim;
@@ -60,14 +62,48 @@ public:
     QJsonObject namespaceSnapshot;
     QThread *indexThread = nullptr;
     std::shared_ptr<std::atomic<bool>> indexCancelled;
+    std::shared_ptr<std::stop_source> providerCancellation;
+    QThread *archiveThread = nullptr;
+    bool archivePending = false;
     bool indexDirty = true;
     QElapsedTimer indexRefresh;
     ~SyncWorker() override { stopIndexing(); }
     void stopIndexing() {
+        if (archiveTimer) archiveTimer->stop();
+        archivePending = false;
+        if (archiveThread) {
+            providerCancellation->request_stop(); auto task = archiveThread; archiveThread = nullptr;
+            task->wait(); delete task; providerCancellation.reset();
+        }
         if (!indexThread) return;
         indexCancelled->store(true);
         auto task = indexThread; indexThread = nullptr;
         task->wait(); delete task; indexCancelled.reset();
+    }
+    void archiveFiles() {
+        // Namespace publication and active transfers take priority over a new
+        // background archive. Direct SDK writes still record synchronously.
+        if (!store || !store->isOpen()) return;
+        if (indexThread || sync->busy() || !queue.isEmpty() || changedFiles->isActive()) {
+            archiveTimer->start(); return;
+        }
+        if (archiveThread) { archivePending = true; return; }
+        const auto revision = generation; const auto root = container;
+        const auto stop = providerCancellation = std::make_shared<std::stop_source>();
+        struct Result { bool ok = false; QString error; }; const auto result = std::make_shared<Result>();
+        auto task = QThread::create([root, stop, result] {
+            const auto storage = iiSocietyContainer::SharedStorage::open(root, &result->error);
+            result->ok = storage && storage->reconcileFiles(&result->error, stop->get_token());
+        });
+        archiveThread = task; task->setParent(this); task->setObjectName("iiSocietyHelper::Provider-intake");
+        connect(task, &QThread::finished, this, [this, task, revision, result] {
+            if (archiveThread != task || generation != revision) return;
+            archiveThread = nullptr; providerCancellation.reset(); task->deleteLater();
+            if (cancellation->load() != revision || !store || !store->isOpen()) return;
+            if (!result->ok) emit status(generation, true, false, result->error);
+            if (std::exchange(archivePending, false)) archiveTimer->start();
+        });
+        task->start(QThread::LowPriority);
     }
     void indexHost() {
         if (indexThread || !store || !store->isOpen()) return;
@@ -101,6 +137,9 @@ public:
             refreshWatches(); publishNamespace();
             const auto error = result->ok ? store->errorString() : result->error;
             emit status(generation, true, false, ok ? QString() : error);
+            // RAW archival has an independent, coalesced I/O owner. Keeping
+            // this out of the indexer lets the next local edit commit at once.
+            if (ok) archiveTimer->start();
         });
         task->start();
     }
@@ -126,8 +165,10 @@ public:
         });
         timer->setInterval(1000);
         watcher = new QFileSystemWatcher(this); changedFiles = new QTimer(this);
+        archiveTimer = new QTimer(this); archiveTimer->setSingleShot(true); archiveTimer->setInterval(2000);
+        connect(archiveTimer, &QTimer::timeout, this, &SyncWorker::archiveFiles);
         changedFiles->setSingleShot(true); changedFiles->setInterval(75);
-        const auto changed = [this] { indexDirty = true; pending = true; if (!changedFiles->isActive()) changedFiles->start(); };
+        const auto changed = [this] { indexDirty = true; pending = true; archiveTimer->start(); if (!changedFiles->isActive()) changedFiles->start(); };
         connect(watcher, &QFileSystemWatcher::directoryChanged, this, changed);
         connect(watcher, &QFileSystemWatcher::fileChanged, this, changed);
         connect(changedFiles, &QTimer::timeout, this, &SyncWorker::tick);

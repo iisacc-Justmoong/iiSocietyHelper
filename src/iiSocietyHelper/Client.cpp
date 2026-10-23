@@ -29,7 +29,7 @@ bool drivePath(const QString &path, bool root = false) {
     if (path.size() > 3500 || !path.isValidUtf16() || path.contains('\\') || path.contains(':') || path.contains(QChar::Null)) return false;
     for (const auto &part : path.split('/'))
         if (part.isEmpty() || part == "." || part == ".." || part.toUtf8().size() > 220 || part.startsWith(".society-")
-            || part.startsWith(".iiserverhost-") || iiFileProvider::native::Presentation::isControlFile(std::filesystem::path(part.toStdU16String()))) return false;
+            || part.startsWith(".iiwebserver-") || iiFileProvider::native::Presentation::isControlFile(std::filesystem::path(part.toStdU16String()))) return false;
     for (const auto section : iiSocietyContainer::allStoreSections())
         if (path.section('/', 0, 0) == iiSocietyContainer::storeSectionKey(section)) return true;
     return false;
@@ -44,8 +44,8 @@ public:
     QHostAddress bindAddress;
     std::unique_ptr<NearbyDevices> nearby;
     std::unique_ptr<AutomaticPairing> pairing;
-    iiServerHost::LanPeer lan;
-    iiServerHost::Peer relay;
+    iiWebServer::LanPeer lan;
+    iiWebServer::Peer relay;
     iiSocietyHelper::Sync::Controller sync;
     QTimer timer;
     std::unique_ptr<iiFileProvider::LockFile> lease;
@@ -108,15 +108,15 @@ public:
             else if (hostRequests.remove(id)) emit q->hostResponse(id, result);
             else sync.receive(id, result);
         };
-        QObject::connect(&lan, &iiServerHost::LanPeer::completed, q, response);
-        QObject::connect(&relay, &iiServerHost::Peer::completed, q, response);
-        QObject::connect(&lan, &iiServerHost::LanPeer::paired, q, [this](const QString &host) {
+        QObject::connect(&lan, &iiWebServer::LanPeer::completed, q, response);
+        QObject::connect(&relay, &iiWebServer::Peer::completed, q, response);
+        QObject::connect(&lan, &iiWebServer::LanPeer::paired, q, [this](const QString &host) {
             if (account && nearby && host == accountHost())
                 account->rememberHostConnection(host, accountContainer(), nearby->connectionHints(host));
             if (nearby) nearby->complete(); update();
         });
-        QObject::connect(&relay, &iiServerHost::Peer::peersChanged, q, [this] { update(); });
-        QObject::connect(&relay, &iiServerHost::Peer::stateChanged, q, [this] { update(); });
+        QObject::connect(&relay, &iiWebServer::Peer::peersChanged, q, [this] { update(); });
+        QObject::connect(&relay, &iiWebServer::Peer::stateChanged, q, [this] { update(); });
     }
     void clearDrive(const QString &error) {
         snapshot.reset(); refreshAgain = false; sections.clear();
@@ -314,8 +314,8 @@ public:
         if (!account) account = new AccountSession(q);
         nearby = std::make_unique<NearbyDevices>(discovery, bindAddress, q);
         pairing = std::make_unique<AutomaticPairing>(nearby.get(), &lan, [] { return false; }, [this](const QString &link) {
-            iiServerHost::LanLink decoded;
-            return account && iiServerHost::LanLink::decode(link, &decoded) && decoded.hostId == accountHost()
+            iiWebServer::LanLink decoded;
+            return account && iiWebServer::LanLink::decode(link, &decoded) && decoded.hostId == accountHost()
                 && !accountContainer().isEmpty() && lan.join(link, nearby->deviceId(), nearby->deviceName());
         }, [this] { lan.stop(); }, q);
         QObject::connect(account->manager()->account(), &iisacc::accounts::Account::changed, q, [this] { update(); });
@@ -324,7 +324,7 @@ public:
         QObject::connect(account, &AccountSession::pairingStateRestored, q, [this] { update(); });
         QObject::connect(account, &AccountSession::pairingCredentialsRequired, account, &AccountSession::requestPairingCredentials);
         QObject::connect(account, &AccountSession::sessionEnding, q, [this] { transportStop(); });
-        QObject::connect(nearby.get(), &NearbyDevices::identityEnding, &lan, &iiServerHost::LanPeer::stop);
+        QObject::connect(nearby.get(), &NearbyDevices::identityEnding, &lan, &iiWebServer::LanPeer::stop);
         QObject::connect(nearby.get(), &NearbyDevices::changed, q, [this] { peers(); });
     }
     void transportStop() {
@@ -426,7 +426,7 @@ public:
             if (!valid || proof.isEmpty()) { message = "The saved Society server session is unavailable."; emit q->changed(); return; }
             if (server != configured || credential != proof) {
                 lan.stop(); relay.stop(); server = configured; credential = proof;
-                iiServerHost::PeerOptions options;
+                iiWebServer::PeerOptions options;
                 options.relayUrl = server; options.credential = proof; options.peerId = peerId; options.name = name.left(128);
                 options.service = "com.iisacc.society.files"; options.hostFiles = false; options.localHostingEnabled = false;
                 relay.start(options, [this](const QString &peer, const QJsonObject &payload) { return sync.handle(peer, payload); });

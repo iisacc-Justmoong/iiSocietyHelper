@@ -25,7 +25,7 @@ bool valid(const NearbyBootstrap &value) {
         || !QStringList{"0", "1"}.contains(r.value("host").toString())
         || QJsonDocument(r).toJson(QJsonDocument::Compact).size() > 1024) return false;
     for (const auto &address : value.addresses)
-        if (!iiServerHost::LanLink::localAddress(address) || QHostAddress(address).isLoopback()) return false;
+        if (!iiWebServer::LanLink::localAddress(address) || QHostAddress(address).isLoopback()) return false;
     return true;
 }
 }
@@ -64,7 +64,7 @@ QStringList NearbyBootstrap::localAddresses() {
             || flags.testFlag(QNetworkInterface::IsLoopBack) || flags.testFlag(QNetworkInterface::IsPointToPoint)) continue;
         for (const auto &entry : interface.addressEntries()) {
             const auto address = entry.ip().toString();
-            if (!entry.ip().isLoopback() && iiServerHost::LanLink::localAddress(address) && !result.contains(address)) result.append(address);
+            if (!entry.ip().isLoopback() && iiWebServer::LanLink::localAddress(address) && !result.contains(address)) result.append(address);
         }
     }
     return result.mid(0, 8);

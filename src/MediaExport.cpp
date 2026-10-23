@@ -1,4 +1,5 @@
 #include "iiSocietyHelper.h"
+#include "ManagedFileOperation_p.h"
 #include "iiSocietyHelper/MediaExport.h"
 #include <File.h>
 #include <QFileInfo>
@@ -75,9 +76,12 @@ MediaExportResult exportMedia(const QUrl &source, const QUrl &destination, bool 
     if (target.endsWith(".iisc", Qt::CaseInsensitive)) return fail(FileSystem::tr("Use native canvas saving for .iisc documents."));
 
     try {
+        std::unique_ptr<detail::ManagedFileOperation> operation;
+        if (destination.isLocalFile()) operation = std::make_unique<detail::ManagedFileOperation>(target, "Export media");
         if(QFileInfo(source.toLocalFile()).suffix().compare("iisc",Qt::CaseInsensitive)==0) {
             if(video)return fail(FileSystem::tr("Choose a video file to save this result."));
             exportNativePng(source.toLocalFile(),destination,target);
+            if (operation) operation->published();
             return {true,{}};
         }
         auto input = iiFileProvider::File::openRead(source.toLocalFile());
@@ -89,6 +93,7 @@ MediaExportResult exportMedia(const QUrl &source, const QUrl &destination, bool 
             return {true, {}};
         }
         iiFileProvider::File::copyToUrl(*input, destination);
+        if (operation) operation->published();
         return {true, {}};
     } catch (const std::exception &error) {
         return fail(FileSystem::tr("Could not export the file: %1").arg(QString::fromUtf8(error.what())));

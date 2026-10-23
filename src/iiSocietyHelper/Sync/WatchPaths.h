@@ -1,4 +1,5 @@
 #pragma once
+#include "NativeControlPaths_p.h"
 #include <filesystem>
 #include <limits>
 #include <set>
@@ -30,8 +31,6 @@ WatchPaths collectWatchPaths(const std::vector<std::filesystem::path> &roots,
         ? std::numeric_limits<std::size_t>::max() : limit * 8;
     std::set<fs::path> seen;
     std::vector<fs::path> directories;
-    const auto societyPrefix = fs::path(".society-").native();
-    const auto hostPrefix = fs::path(".iiserverhost-").native();
     auto include = [&](const fs::path &path, bool directory) {
         if (!seen.insert(path).second) return;
         result.paths.push_back(path);
@@ -62,8 +61,7 @@ WatchPaths collectWatchPaths(const std::vector<std::filesystem::path> &roots,
                && result.visitedEntries < inspectionLimit) {
             if (cancelled()) { result.cancelled = true; return result; }
             ++result.visitedEntries;
-            const auto name = entry->path().filename().native();
-            if (!name.starts_with(societyPrefix) && !name.starts_with(hostPrefix)) {
+            if (!providerIndexControlName(entry->path().filename())) {
                 std::error_code statusError;
                 const auto status = entry->symlink_status(statusError);
                 if (!statusError && !reparse(entry->path()) && (fs::is_directory(status) || fs::is_regular_file(status)))

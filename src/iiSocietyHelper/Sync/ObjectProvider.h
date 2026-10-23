@@ -41,18 +41,18 @@ private:
     QString path(const ObjectIdentity &, QString *error, bool create);
 };
 
-// Named rclone S3/NAS remote, using iiServerHost's bounded, credential-isolated
+// Named rclone S3/NAS remote, using iiWebServer's bounded, credential-isolated
 // bridge (including S3 multipart). The config and backend stay on the host.
 class IISOCIETYHELPER_EXPORT RemoteObjectProvider final : public ObjectProvider {
 public:
-    RemoteObjectProvider(QString id, QString kind, QString remotePrefix, iiServerHost::StorageBridgeOptions backend);
+    RemoteObjectProvider(QString id, QString kind, QString remotePrefix, iiWebServer::StorageBridgeOptions backend);
     QString id() const override;
     QString kind() const override;
     bool put(const ObjectIdentity &, const QString &, QString *, ProviderCancellation = {}) override;
     bool get(const ObjectIdentity &, const QString &, QString *, ProviderCancellation = {}) override;
 private:
     QString m_id, m_kind, m_prefix;
-    iiServerHost::StorageBridgeOptions m_backend;
+    iiWebServer::StorageBridgeOptions m_backend;
     bool copy(const QString &, const QString &, QString *, const ProviderCancellation &);
 };
 }

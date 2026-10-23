@@ -1,5 +1,5 @@
 #include "DiscoveryService.h"
-#include <iiServerHost.h>
+#include <iiWebServer.h>
 #include <QHostInfo>
 #include <QPointer>
 #include <QSocketNotifier>
@@ -86,7 +86,7 @@ class DnsSdService final : public DiscoveryService {
                                 if (!error && (flags & kDNSServiceFlagsAdd) && address && address->sa_family == AF_INET) {
                                     const auto *ipv4 = reinterpret_cast<const sockaddr_in *>(address);
                                     const QHostAddress ip(qFromBigEndian(ipv4->sin_addr.s_addr));
-                                    if (owner->services.contains(op->key) && iiServerHost::LanLink::localAddress(ip.toString()) && !ip.isLoopback())
+                                    if (owner->services.contains(op->key) && iiWebServer::LanLink::localAddress(ip.toString()) && !ip.isLoopback())
                                         emit owner->found(op->key, op->record, ip, op->port);
                                 }
                                 // Keep the bounded query alive: additional A
@@ -106,7 +106,7 @@ class DnsSdService final : public DiscoveryService {
                             trace(QStringLiteral("address result %1, addresses %2").arg(info.error()).arg(info.addresses().size()));
                             if (current != self->generation || !self->services.contains(key)) return;
                             for (const auto &address : info.addresses()) {
-                                if (iiServerHost::LanLink::localAddress(address.toString()) && !address.isLoopback()) {
+                                if (iiWebServer::LanLink::localAddress(address.toString()) && !address.isLoopback()) {
                                     emit self->found(key, record, address, qFromBigEndian(port));
                                 }
                             }
