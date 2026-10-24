@@ -1,4 +1,5 @@
 #include <iiFileProviderDevice.h>
+#include <iiFileProviderNative.h>
 #include "iiSocietyHelper.h"
 #include "DeliveryStore.h"
 #include "LocalDirectory.h"
@@ -63,10 +64,15 @@ bool readRecord(const QFileInfo &info, Record *result)
     if (!info.isFile() || info.isSymLink() || info.size() > maximumRecordBytes) return false;
     const auto instance = info.completeBaseName();
     if (QUuid(instance).isNull() || QUuid(instance).toString(QUuid::WithoutBraces) != instance) return false;
-    iiFileProvider::FileDevice file(info.absoluteFilePath());
-    if (!file.open(QIODevice::ReadOnly)) return false;
-    const auto bytes = file.read(maximumRecordBytes + 1);
-    if (bytes.size() > maximumRecordBytes) return false;
+    QByteArray bytes;
+    try {
+        iiFileProvider::native::ReadFile file(std::filesystem::path(info.absoluteFilePath().toStdU16String()));
+        // Read the pinned snapshot to its actual EOF. The pathname's size can
+        // belong to the previous heartbeat while atomic replacement is racing.
+        const auto data = file.read(maximumRecordBytes + 1);
+        if (data.size() > maximumRecordBytes) return false;
+        bytes = QByteArray::fromStdString(data);
+    } catch (const iiFileProvider::native::FileError &) { return false; }
     const auto object = QJsonDocument::fromJson(bytes).object();
     if (object.value("protocol").toInt() != 1 || object.value("instanceId").toString() != instance) return false;
     Record record;
@@ -98,6 +104,7 @@ struct PresenceResult {
     QString error;
     QDateTime publishedAt;
     QList<Record> records;
+    QSet<QString> presentRecords;
 };
 
 struct AutomaticMessage {
@@ -123,12 +130,27 @@ PresenceResult inspectPresence(const QString &root, const Peer &local, quint64 s
         object.insert("heartbeat", QString::number(sequence));
         const auto bytes = QJsonDocument(object).toJson(QJsonDocument::Compact);
         const auto path = iiFileProvider::Directory(root).filePath(local.instanceId + ".json");
-        iiFileProvider::SaveFile file(path);
-        file.setDirectWriteFallback(false);
-        if (QFileInfo(path).isSymLink() || !file.open(QIODevice::WriteOnly)
-            || !file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)
-            || file.write(bytes) != bytes.size() || !file.commit()) {
-            result.error = QStringLiteral("Cannot publish Society Helper presence: %1").arg(file.errorString());
+        if (QFileInfo(path).isSymLink()) {
+            result.error = QStringLiteral("Cannot publish Society Helper presence through a redirected path.");
+            return result;
+        }
+        try {
+            iiFileProvider::native::StagedFile staged(std::filesystem::path(path.toStdU16String()));
+            iiFileProvider::FileDevice file(QString::fromStdU16String(staged.path().u16string()));
+            if (!file.open(QIODevice::WriteOnly)
+                || !file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)
+                || file.write(bytes) != bytes.size() || !file.flush()) {
+                result.error = QStringLiteral("Cannot publish Society Helper presence: %1").arg(file.errorString());
+                return result;
+            }
+            file.close();
+            const auto published = staged.publish();
+            if (!published.succeeded) {
+                result.error = QStringLiteral("Cannot publish Society Helper presence: %1").arg(QString::fromStdString(published.message));
+                return result;
+            }
+        } catch (const std::exception &error) {
+            result.error = QStringLiteral("Cannot publish Society Helper presence: %1").arg(QString::fromUtf8(error.what()));
             return result;
         }
         result.publishedAt = QDateTime::currentDateTimeUtc();
@@ -138,6 +160,10 @@ PresenceResult inspectPresence(const QString &root, const Peer &local, quint64 s
             iiFileProvider::Directory::Files | iiFileProvider::Directory::NoSymLinks,
             iiFileProvider::Directory::Name);
         for (const auto &entry : entries) {
+            const auto instance = entry.completeBaseName();
+            if (!QUuid(instance).isNull() && QUuid(instance).toString(QUuid::WithoutBraces) == instance
+                && instance != local.instanceId)
+                result.presentRecords.insert(instance);
             Record record;
             if (readRecord(entry, &record) && record.peer.instanceId != local.instanceId)
                 result.records.append(std::move(record));
@@ -259,7 +285,7 @@ public:
                     return;
                 }
                 if (result.publishedAt.isValid()) local.lastSeenAt = result.publishedAt;
-                scan(result.records);
+                scan(result.records, result.presentRecords);
                 if (!guard || !running || presenceEpoch != epoch) return;
                 if (std::exchange(scanPending, false))
                     requestCycle(std::exchange(publishPending, false));
@@ -324,7 +350,7 @@ public:
         }
     }
 
-    void scan(const QList<Record> &records)
+    void scan(const QList<Record> &records, const QSet<QString> &presentRecords)
     {
         if (!running) return;
         if (!watcher->directories().contains(root)) watcher->addPath(root);
@@ -339,7 +365,9 @@ public:
             observations.clear();
         }
         lastScan = now;
-        QSet<QString> present;
+        // A file which exists but cannot be read during replacement does not
+        // prove withdrawal. Only a valid advancing record refreshes its timeout.
+        QSet<QString> present = presentRecords;
         for (auto record : records) {
             const auto &id = record.peer.instanceId;
             present.insert(id);

@@ -1,5 +1,6 @@
 #include "iiSocietyHelper.h"
 #include "DeliveryStore.h"
+#include <iiFileProviderNative.h>
 
 #include <QDir>
 #include <QElapsedTimer>
@@ -13,6 +14,7 @@
 #include <SharedStorage.h>
 #include <QScopeGuard>
 #include <QTimer>
+#include <QUuid>
 #include <algorithm>
 
 using namespace iiSocietyHelper;
@@ -21,6 +23,61 @@ class ObservationTests : public QObject
 {
     Q_OBJECT
 private slots:
+    void transientUnreadableRecordDoesNotWithdrawAnObservedPeer()
+    {
+        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-record-XXXXXX"));
+        Helper observer;
+        QVERIFY(observer.start({"com.iisacc.record.observer", "Observer", "1"}, {directory.path(), 50, 5000}));
+        QSignalSpy appeared(&observer, &Helper::peerAppeared);
+        QSignalSpy departed(&observer, &Helper::peerDisappeared);
+        const auto instance = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const auto path = std::filesystem::path(directory.filePath(instance + ".json").toStdU16String());
+        QJsonObject record{{"protocol", 1}, {"instanceId", instance},
+            {"applicationId", "com.iisacc.record.peer"}, {"name", "Peer"}, {"version", "1"},
+            {"processId", QCoreApplication::applicationPid()}, {"activity", "unknown"},
+            {"startedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+        const auto publish = [&](int sequence) {
+            record["heartbeat"] = QString::number(sequence);
+            iiFileProvider::native::File::write(path, QJsonDocument(record).toJson(QJsonDocument::Compact).toStdString());
+        };
+        publish(1); QTest::qWait(200);
+        publish(2); QTRY_COMPARE(observer.peers().size(), 1);
+        QCOMPARE(appeared.size(), 1);
+        iiFileProvider::native::File::write(path, std::string_view("{}"));
+        QTest::qWait(250);
+        QCOMPARE(observer.peers().size(), 1);
+        QCOMPARE(departed.size(), 0);
+        publish(3); QTest::qWait(200);
+        QCOMPARE(observer.peers().size(), 1);
+        QCOMPARE(appeared.size(), 1);
+        QVERIFY(iiFileProvider::native::File::remove(path));
+        QTRY_VERIFY(observer.peers().isEmpty());
+        QCOMPARE(departed.size(), 1);
+        QCOMPARE(qvariant_cast<DepartureReason>(departed.first()[1]), DepartureReason::Withdrawn);
+    }
+
+    void presenceSurvivesAnOpenProviderReadSnapshot()
+    {
+        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-snapshot-XXXXXX"));
+        QVERIFY(directory.isValid());
+        Helper helper;
+        QSignalSpy errors(&helper, &Helper::errorOccurred);
+        QVERIFY(helper.start({"com.iisacc.snapshot", "Snapshot", "1"}, {directory.path(), 20, 5000}));
+        const auto path = std::filesystem::path(directory.filePath(helper.self().instanceId + ".json").toStdU16String());
+        {
+            iiFileProvider::native::ReadFile snapshot(path);
+            const auto before = QJsonDocument::fromJson(QByteArray::fromStdString(snapshot.read(8192))).object();
+            QTest::qWait(500);
+            QVERIFY(helper.isRunning());
+            QCOMPARE(errors.size(), 0);
+            const auto after = QJsonDocument::fromJson(QByteArray::fromStdString(
+                iiFileProvider::native::File::read(path, 8192))).object();
+            QVERIFY(after.value("heartbeat").toString().toULongLong() > before.value("heartbeat").toString().toULongLong());
+        }
+        helper.stop();
+        QVERIFY(!QFileInfo::exists(QString::fromStdU16String(path.u16string())));
+    }
+
     void presenceResponsiveness()
     {
         QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/responsiveness-XXXXXX"));
@@ -33,6 +90,8 @@ private slots:
         connect(&a, &Helper::peerAppeared, this, [&] { wrongThread |= QThread::currentThread() != thread(); });
         QTRY_COMPARE(a.peers().size(), 1);
         QTRY_COMPARE(b.peers().size(), 1);
+        QSignalSpy departedA(&a, &Helper::peerDisappeared);
+        QSignalSpy departedB(&b, &Helper::peerDisappeared);
         QElapsedTimer clock;
         clock.start();
         qint64 previous = 0, maximumGap = 0;
@@ -51,6 +110,8 @@ private slots:
         QVERIFY(!wrongThread);
         QVERIFY(gaps.size() >= 10);
         QTRY_COMPARE(a.peers().size(), 1);
+        QCOMPARE(departedA.size(), 0);
+        QCOMPARE(departedB.size(), 0);
         std::sort(gaps.begin(), gaps.end());
         qInfo().nospace() << "PRESENCE_RESPONSIVENESS {\"ticks\":" << gaps.size()
             << ",\"p95Ms\":" << gaps[gaps.size() * 95 / 100] / 1000000.0

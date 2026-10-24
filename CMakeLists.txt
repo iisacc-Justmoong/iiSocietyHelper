@@ -189,10 +189,11 @@ if(BUILD_TESTING)
     add_test(NAME iiSocietyHelper.delivery COMMAND iiSocietyHelper_delivery_tests)
     set_tests_properties(iiSocietyHelper.delivery PROPERTIES TIMEOUT 30)
     add_executable(iiSocietyHelper_observation_tests tests/observation.cpp)
-    target_link_libraries(iiSocietyHelper_observation_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+    target_link_libraries(iiSocietyHelper_observation_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::Native Qt6::Test)
     target_compile_definitions(iiSocietyHelper_observation_tests PRIVATE
         HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
-    add_test(NAME iiSocietyHelper.observation COMMAND iiSocietyHelper_observation_tests)
+    add_test(NAME iiSocietyHelper.observation COMMAND iiSocietyHelper_observation_tests
+        -o "${CMAKE_CURRENT_BINARY_DIR}/observation-qt.txt,txt")
     set_tests_properties(iiSocietyHelper.observation PROPERTIES TIMEOUT 90)
     if(APPLE AND NOT CMAKE_CROSSCOMPILING)
         execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
@@ -246,7 +247,8 @@ if(BUILD_TESTING)
             HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}"
             HELPER_OBSERVER_EXECUTABLE="$<TARGET_FILE:ii-society-helper>")
         add_dependencies(iiSocietyHelper_process_tests ii-society-helper)
-        add_test(NAME iiSocietyHelper.process_observation COMMAND iiSocietyHelper_process_tests)
+        add_test(NAME iiSocietyHelper.process_observation COMMAND iiSocietyHelper_process_tests
+            -o "${CMAKE_CURRENT_BINARY_DIR}/process-observation-qt.txt,txt")
         set_tests_properties(iiSocietyHelper.process_observation PROPERTIES TIMEOUT 90)
     endif()
     add_executable(iiSocietyHelper_hello_world tests/hello_world.cpp)

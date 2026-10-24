@@ -418,7 +418,8 @@ private slots:
         QVERIFY(storedPreview); QCOMPARE(storedPreview->preview.kind, std::string("image"));
         const auto png = QImage::fromData(reinterpret_cast<const uchar *>(storedPreview->preview.bytes.data()), qsizetype(storedPreview->preview.bytes.size()));
         QVERIFY(!png.isNull()); QCOMPARE(png.pixel(0, 0), QRgb(0xff204080U));
-        QCOMPARE(files.container()->recentFiles().size(), 1);
+        const auto recent=files.container()->recentFiles();
+        QCOMPARE(recent.size(), 1);
         QVERIFY(files.container()->alias("files/document.iisc.lock").isEmpty());
         QVERIFY(files.container()->alias("files/.document.iisc.lock").isEmpty());
         const auto preview = files.preview(destination); QVERIFY(preview.isLocalFile());

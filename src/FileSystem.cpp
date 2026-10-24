@@ -99,8 +99,8 @@ MirrorSnapshot scanMirror(const std::optional<SharedStorage> &storage)
             key == "generation-history" ? QDirIterator::NoIteratorFlags : QDirIterator::Subdirectories);
         while (files.hasNext() && result.aliases.size() < 25000) {
             const auto native = files.next();
-            if (files.fileName().startsWith('.') || providerControl(files.fileName())) continue;
             const auto relative = QDir(directory).relativeFilePath(native);
+            if (files.fileName().startsWith('.') || providerControl(relative)) continue;
             // The batch pins and checks the drive once at each boundary. Each
             // resident leaf still rejects traversal and redirected ancestors.
             const auto logical = key + '/' + relative;
