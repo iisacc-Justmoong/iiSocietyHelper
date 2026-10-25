@@ -6,12 +6,16 @@
 #include <TemporaryLease.h>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QDateTime>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUuid>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QLockFile>
 
 using namespace iiSocietyHelper::Sync;
 static const QString scope(64, 'a');
@@ -44,6 +48,90 @@ public:
 class ReplicaTests : public QObject {
     Q_OBJECT
 private slots:
+    void unchangedHostBindingPreservesItsDurableFile() {
+        QTemporaryDir a(SYNC_TEST_DIRECTORY "/binding-source-XXXXXX.societycontainer"),b(SYNC_TEST_DIRECTORY "/binding-mirror-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
+        Replica host,client;QVERIFY(host.open(a.path(),scope));QVERIFY(client.open(b.path(),scope));
+        QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));
+        const auto path=b.filePath(".society-sync/mirror.json");const auto durable=readFile(path);
+        const auto timestamp=QDateTime::fromSecsSinceEpoch(1000000);QFile file(path);QVERIFY(file.open(QIODevice::ReadWrite));
+        QVERIFY(file.setFileTime(timestamp,QFileDevice::FileModificationTime));file.close();
+        QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));
+        QCOMPARE(readFile(path),durable);QCOMPARE(QFileInfo(path).lastModified(),timestamp);
+        QVERIFY(QFile::remove(path));QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));QCOMPARE(readFile(path),durable);
+    }
+    void inlineCommitRejectsCorruptionAndPreservesThePreviousFile() {
+        QTemporaryDir a(SYNC_TEST_DIRECTORY "/inline-source-XXXXXX.societycontainer"),b(SYNC_TEST_DIRECTORY "/inline-target-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
+        writeFile(a.filePath("Files/item"),"verified payload");Replica source,target;QVERIFY(source.open(a.path(),scope));QVERIFY(target.open(b.path(),scope));QVERIFY(source.scan());
+        const auto entry=source.record("files/item");
+        auto request=QJsonObject{{"action","commit"},{"entry",entry},{"inlineData",QString::fromLatin1(QByteArray("corrupt").toBase64())}};
+        QCOMPARE(target.handle("source",request).value("error"),"invalid_inline_payload");QVERIFY(target.record("files/item").isEmpty());
+        request.insert("inlineData",QString::fromLatin1(QByteArray("verified payload").toBase64()));
+        QVERIFY(target.handle("source",request).value("complete").toBool());
+        QFile file(b.filePath("Files/item"));QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("verified payload"));file.close();
+        request.insert("inlineData","!");QVERIFY(!target.handle("source",request).value("ok").toBool());
+        QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("verified payload"));
+    }
+    void metadataPagesReadACommittedWalSnapshotWhileTheOperationLockIsHeld() {
+        QTemporaryDir root(SYNC_TEST_DIRECTORY "/wal-read-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));writeFile(root.filePath("Files/value"),"committed");
+        Replica replica;QVERIFY(replica.open(root.path(),scope));QVERIFY(replica.scan());
+        const auto changes=replica.changes(),journal=replica.journal();QVERIFY(changes.value("ok").toBool());QVERIFY(journal.value("ok").toBool());
+        QVERIFY(replica.publishStorageMap());
+        QLockFile operation(root.filePath(".society-sync/operation.lock"));operation.setStaleLockTime(0);QVERIFY(operation.tryLock(3000));
+        // An unchanged publication is already durable and must not acquire a
+        // fresh filesystem lock merely to report that fact.
+        QVERIFY(replica.publishStorageMap());
+        QVERIFY(replica.scan()); // A verified, unchanged walk does not create a lock file.
+        const auto connection="wal-writer-"+QUuid::createUuid().toString();
+        {
+            auto db=QSqlDatabase::addDatabase("QSQLITE",connection);db.setDatabaseName(root.filePath(".society-sync/journal.sqlite"));QVERIFY(db.open());QVERIFY(db.transaction());
+            QSqlQuery edit(db);QVERIFY(edit.exec("UPDATE metadata SET value='999999' WHERE key='sequence'"));
+            QVERIFY(edit.exec("UPDATE entries SET data='{}',sequence=999999"));
+            QCOMPARE(replica.changes(),changes);QCOMPARE(replica.journal(),journal);
+            QVERIFY(QFileInfo::exists(root.filePath(".society-sync/operation.lock")));QVERIFY(db.rollback());db.close();
+        }
+        QSqlDatabase::removeDatabase(connection);operation.unlock();QCOMPARE(replica.changes(),changes);
+    }
+    void unchangedPeerCursorsDoNotCreateAnotherDurableRevision() {
+        QTemporaryDir root(SYNC_TEST_DIRECTORY "/peer-noop-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));Replica replica;QVERIFY(replica.open(root.path(),scope));
+        const auto peer=QUuid::createUuid().toString(),container=QUuid::createUuid().toString();
+        QVERIFY(replica.savePeerState("peer",peer,container,5,8));
+        const auto connection="peer-observer-"+QUuid::createUuid().toString();
+        {
+            auto db=QSqlDatabase::addDatabase("QSQLITE",connection);db.setDatabaseName(root.filePath(".society-sync/journal.sqlite"));QVERIFY(db.open());
+            auto revision=[&]{QSqlQuery query(db);if(!query.exec("PRAGMA data_version")||!query.next())return qint64(-1);return query.value(0).toLongLong();};
+            const auto before=revision();QVERIFY(before>=0);
+            QVERIFY(replica.savePeerState("peer",peer,container,5,8));QVERIFY(replica.savePeerState("peer",peer,container,1,2));
+            QCOMPARE(revision(),before);QCOMPARE(replica.peerState("peer").value("pushed").toString(),"8");
+            QVERIFY(replica.savePeerState("peer",peer,container,6,8));QVERIFY(revision()!=before);db.close();
+        }
+        QSqlDatabase::removeDatabase(connection);
+    }
+    void failedNamespaceMigrationRollsBackTheWholeNewJournal() {
+        QTemporaryDir root(SYNC_TEST_DIRECTORY "/schema-rollback-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
+        QVERIFY(QDir().mkpath(root.filePath(".society-sync")));
+        const auto path=root.filePath(".society-sync/journal.sqlite");
+        const auto name="schema-probe-"+QUuid::createUuid().toString(QUuid::WithoutBraces);
+        {
+            auto db=QSqlDatabase::addDatabase("QSQLITE",name);db.setDatabaseName(path);QVERIFY(db.open());
+            QSqlQuery query(db);QVERIFY(query.exec("CREATE TABLE namespace_revisions(unexpected INTEGER)"));
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(name);
+        Replica replica;QVERIFY(!replica.open(root.path(),scope));replica.close();
+        {
+            auto db=QSqlDatabase::addDatabase("QSQLITE",name);db.setDatabaseName(path);QVERIFY(db.open());
+            QSqlQuery query(db);QVERIFY(query.exec("PRAGMA user_version"));QVERIFY(query.next());
+            QCOMPARE(query.value(0).toInt(),0);query.finish();
+            QVERIFY(!db.tables().contains("metadata"));QVERIFY(!db.tables().contains("entries"));
+            db.close();
+        }
+        QSqlDatabase::removeDatabase(name);
+    }
     void maintenancePreservesLeasedCapabilityProbeAndRetainedHardLink() {
         QTemporaryDir root(SYNC_TEST_DIRECTORY "/lease-capability-probe-XXXXXX.societycontainer");
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);

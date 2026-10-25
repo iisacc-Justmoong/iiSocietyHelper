@@ -1,5 +1,6 @@
 #pragma once
 #include "Replica.h"
+#include "Status.h"
 #include <QObject>
 
 namespace iiSocietyHelper::Sync {
@@ -14,6 +15,7 @@ public:
     void stop();
     void setExpectedHost(QString host, QString container);
     bool busy() const;
+    Status &status();
     // FullReplica remains available for explicit backup/replica consumers.
     // Society interactive clients use MetadataFirst.
     enum class ContentPolicy { FullReplica, MetadataFirst };

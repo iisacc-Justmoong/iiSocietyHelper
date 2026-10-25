@@ -306,6 +306,35 @@ private slots:
         QVERIFY(!client.bindHost("different-host", host.replicaId(), host.containerId()));
         QCOMPARE(client.errorString(), QString("different_primary_host"));
     }
+    void smallUploadsNegotiateInlineCommitAndRetainTheLegacyFallback() {
+        for(const bool capable:{false,true}) {
+            QTemporaryDir a(SYNC_TEST_DIRECTORY "/inline-a-XXXXXX.societycontainer"),b(SYNC_TEST_DIRECTORY "/inline-b-XXXXXX.societycontainer");
+            QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
+            Replica client,host;QVERIFY(client.open(a.path(),QString(64,'a')));QVERIFY(host.open(b.path(),QString(64,'a')));cycle(client,host);
+            put(a.filePath("Files/small"),"small verified payload");
+            Synchronizer sync(&client);QSignalSpy done(&sync,&Synchronizer::finished);int inlined=0,chunks=0;
+            connect(&sync,&Synchronizer::requestReady,&sync,[&](auto id,auto,auto wire){
+                const auto request=wire.value("message").toObject();
+                if(request.contains("inlineData"))++inlined;if(request.value("action")=="chunk")++chunks;
+                auto response=host.handle("client",request);if(!capable)response.remove("inlineBytes");
+                sync.receive(id,{{"ok",true},{"result",response}});
+            });
+            QVERIFY(sync.start("host"));QTRY_COMPARE_WITH_TIMEOUT(done.size(),1,20000);QVERIFY(done[0][1].toBool());
+            QCOMPARE(get(b.filePath("Files/small")),QByteArray("small verified payload"));
+            QCOMPARE(inlined,capable?1:0);QCOMPARE(chunks,capable?0:1);
+        }
+    }
+    void anIdleProviderLeaseSentinelDoesNotPreventDirectoryDeletion() {
+        QTemporaryDir a(SYNC_TEST_DIRECTORY "/lease-delete-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/lease-delete-b-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
+        put(b.filePath("Files/sub/item"), "original");
+        Replica client, host;QVERIFY(client.open(a.path(),QString(64,'a')));QVERIFY(host.open(b.path(),QString(64,'a')));
+        cycle(client,host);cycle(client,host);
+        // FileProvider keeps this stable, empty lease inode after its work ends.
+        put(b.filePath("Files/sub/.iisacc-temporary.lock"),{});
+        QVERIFY(QDir(a.filePath("Files/sub")).removeRecursively());cycle(client,host);cycle(client,host);
+        QVERIFY(!QFileInfo::exists(a.filePath("Files/sub")));QVERIFY(!QFileInfo::exists(b.filePath("Files/sub")));
+    }
     void bothDirectionsDirectoriesDeletionAndIncrementalRequests() {
         QTemporaryDir a(SYNC_TEST_DIRECTORY "/sync-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/sync-b-XXXXXX.societycontainer");
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));

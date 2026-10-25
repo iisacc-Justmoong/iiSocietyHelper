@@ -463,6 +463,7 @@ bool Client::connectHost() {
 }
 void Client::stop() { d->active = false; d->timer.stop(); d->transportStop(); emit changed(); }
 void Client::synchronizeNow() { d->update(); if (d->direct) d->refreshHost(); else d->sync.synchronizeNow(); }
+Sync::Status &Client::synchronizationStatus() { return d->sync.status(); }
 QString Client::status() const { return d->message; }
 bool Client::connected() const {
     return d->active && d->online && d->account && d->account->signedIn()

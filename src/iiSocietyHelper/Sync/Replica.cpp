@@ -15,6 +15,7 @@
 #include <QImage>
 #include <QCryptographicHash>
 #include <QElapsedTimer>
+#include <QDateTime>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -54,6 +55,16 @@ QString physical(const QString &key) {
 bool contentEqual(const QJsonObject &a, const QJsonObject &b) {
     return a.value("kind") == b.value("kind") && a.value("hash") == b.value("hash") && a.value("size") == b.value("size");
 }
+bool validSnapshot(const QJsonObject &snapshot) {
+    qint64 captured = 0, base = 0;
+    const QSet<QString> allowed{"schema", "id", "capturedAt", "baseSequence", "baseRevision"};
+    const auto keys = snapshot.keys();
+    return snapshot.value("schema") == 1 && !QUuid(snapshot.value("id").toString()).isNull()
+        && number(snapshot.value("capturedAt"), &captured) && captured > 0
+        && number(snapshot.value("baseSequence"), &base) && snapshot.value("baseRevision").isString()
+        && (base ? hex(snapshot.value("baseRevision").toString()) : snapshot.value("baseRevision").toString().isEmpty())
+        && QSet<QString>(keys.begin(), keys.end()) == allowed;
+}
 // 1: incoming dominates; -1: local dominates; 0: equal; 2: concurrent.
 int compare(const QJsonObject &incoming, const QJsonObject &local) {
     bool greater = false, less = false; QSet<QString> keys;
@@ -83,6 +94,14 @@ class Replica::Private {
 public:
     struct Manifest {
         QString id, replica;
+        QJsonObject snapshot;
+        QHash<QString, QString> members;
+        QSet<QString> applied;
+        int added = 0, updated = 0, deleted = 0, unchanged = 0, conflicts = 0;
+        QJsonObject diff() const {
+            return {{"added", added}, {"updated", updated}, {"deleted", deleted},
+                {"unchanged", unchanged}, {"conflicts", conflicts}};
+        }
         qint64 next = 0, total = 0, after = 0, through = 0, sequence = 0;
         bool complete = false;
         QCryptographicHash digest{QCryptographicHash::Sha256};
@@ -119,6 +138,11 @@ public:
         lock->setStaleLockTime(0);
         if (!lock->tryLock(timeoutMs)) { fail("sync_store_busy"); return {}; }
         return lock;
+    }
+    QJsonObject readSnapshot(const std::function<QJsonObject()>& read) {
+        if(!ready()||!sql("SAVEPOINT protocol_read"))return failed();
+        bool released=false;const auto cleanup=qScopeGuard([&]{if(!released)sql("RELEASE protocol_read");});
+        auto result=read();if(!sql("RELEASE protocol_read"))return failed();released=true;return result;
     }
     QJsonObject driveRequest(const QJsonObject &request) {
         auto operation = lock(); if (!operation) return failed();
@@ -292,7 +316,7 @@ public:
         if (!q.exec()) { fail(q.lastError().text()); return {}; } return q.next() ? q.value(0).toString() : QString();
     }
     bool setMeta(const QString &key, const QString &value) {
-        QSqlQuery q(db); q.prepare("INSERT INTO metadata(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value");
+        QSqlQuery q(db); q.prepare("INSERT INTO metadata(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value WHERE metadata.value<>excluded.value");
         q.addBindValue(key); q.addBindValue(value); return q.exec() || fail(q.lastError().text());
     }
     QJsonObject binding() const {
@@ -305,8 +329,13 @@ public:
         const auto value = binding(); if (value.isEmpty()) return true;
         detail::FileState state;
         if (!files.state(".society-sync/mirror.json", &state)) return fail(files.error);
-        iiFileProvider::SaveFile output(iiFileProvider::Directory(files.root).filePath(".society-sync/mirror.json"));
         const auto bytes = json(value);
+        if(state.kind=="file"&&state.size==bytes.size()) {
+            const auto existing=files.read(".society-sync/mirror.json",0,bytes.size(),state.stamp);
+            if(!files.error.isEmpty())return fail(files.error);
+            if(existing==bytes)return true;
+        }
+        iiFileProvider::SaveFile output(iiFileProvider::Directory(files.root).filePath(".society-sync/mirror.json"));
         if (!output.open(QIODevice::WriteOnly) || !output.setPermissions(iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner)
             || output.write(bytes) != bytes.size() || !output.commit()) return fail("mirror_binding_write_failed");
         return true;
@@ -327,7 +356,7 @@ public:
         }
         plan.finish();
         if (!db.transaction()) return fail("journal_transaction_failed");
-        const bool ok = sql("DELETE FROM entries") && sql("DELETE FROM peers") && sql("DELETE FROM detach") && journal().clear()
+        const bool ok = sql("DELETE FROM entries") && sql("DELETE FROM peers") && sql("DELETE FROM detach") && sql("DELETE FROM sync_snapshots") && journal().clear()
             && setMeta("container", drive->identifier()) && setMeta("sequence", "0") && setMeta("counter", "0")
             && setMeta("replica", QUuid::createUuid().toString(QUuid::WithoutBraces))
             && setMeta("adoption", "pulling");
@@ -444,7 +473,12 @@ public:
         if (local.value("kind") == "directory" && incoming.value("kind") != "directory") {
             bool ok; const auto children = files.list(physical(path), &ok);
             if (!ok) return failed(files.error);
-            retainDirectory = !children.isEmpty();
+            // The stable provider lease inode is not user content. Removal
+            // still validates its ownership and acquires its exclusive lock;
+            // a live writer therefore prevents detaching the directory.
+            retainDirectory = std::any_of(children.begin(),children.end(),[](const auto& name) {
+                return name != ".iisacc-temporary.lock";
+            });
         }
         if (mirror && retainDirectory && !same) {
             // Unsynchronized children cannot be destroyed to materialize a
@@ -554,23 +588,30 @@ bool Replica::open(const QString &container, const QString &accountScope) {
     { QSqlQuery q(d->db); if (q.exec("PRAGMA user_version") && q.next()) schema = q.value(0).toInt(); }
     if (schema < 0 || schema > 3) return d->fail("unsupported_journal_schema");
     if (!d->sql("PRAGMA journal_mode=WAL") || !d->sql("PRAGMA synchronous=FULL")) return false;
+    if (!d->db.transaction()) return d->fail("journal_transaction_failed");
+    bool initialized=false;
+    const auto rollback=qScopeGuard([&]{if(!initialized)d->db.rollback();});
     if (schema == 0) {
-        if (!d->db.transaction()) return d->fail("journal_transaction_failed");
         const QStringList statements{
             "CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL)",
             "CREATE TABLE entries(path TEXT PRIMARY KEY,data BLOB NOT NULL,stamp TEXT NOT NULL,sequence INTEGER NOT NULL)",
             "CREATE INDEX entry_sequence ON entries(sequence)",
             "CREATE TABLE peers(peer TEXT PRIMARY KEY,replica TEXT NOT NULL,container TEXT NOT NULL,pulled INTEGER NOT NULL,pushed INTEGER NOT NULL)",
-            "PRAGMA user_version=1"};
+            "CREATE TABLE detach(path TEXT PRIMARY KEY,target TEXT NOT NULL)",
+            "PRAGMA user_version=3"};
         for (const auto &s : statements) if (!d->sql(s)) { d->db.rollback(); return false; }
         if (!d->setMeta("scope", accountScope) || !d->setMeta("container", containerId())
-            || !d->setMeta("replica", QUuid::createUuid().toString(QUuid::WithoutBraces)) || !d->setMeta("sequence", "0") || !d->setMeta("counter", "0") || !d->db.commit()) {
+            || !d->setMeta("replica", QUuid::createUuid().toString(QUuid::WithoutBraces)) || !d->setMeta("sequence", "0") || !d->setMeta("counter", "0")) {
             d->db.rollback(); return d->fail("journal_initialization_failed");
         }
+        schema=3;
     }
     if (schema < 2 && (!d->sql("CREATE TABLE IF NOT EXISTS detach(path TEXT PRIMARY KEY,target TEXT NOT NULL)")
         || !d->sql("PRAGMA user_version=2"))) return false;
     if (!d->journal().initialize()) return d->fail("namespace_initialization_failed");
+    if (!d->sql("CREATE TABLE IF NOT EXISTS sync_snapshots(peer TEXT PRIMARY KEY,data BLOB NOT NULL)")) return false;
+    if (!d->db.commit()) return d->fail("journal_initialization_commit_failed");
+    initialized=true;
     if (d->meta("scope") != accountScope
         || (d->meta("container") != containerId()
             && !(d->meta("adoption") == "detaching" && d->meta("target") == containerId()))) {
@@ -705,7 +746,7 @@ bool Replica::validRecord(const QJsonObject &e) {
     return json(e).size() <= 16384;
 }
 bool Replica::scan() {
-    { auto lock = d->lock(2000); if (!lock) return false; }
+    if(!d->ready())return false;
     struct Work { QString path; detail::FileState state; QString hash; };
     QList<Work> work, pending;
     QSet<QString> seen; bool ok = true;
@@ -778,11 +819,15 @@ bool Replica::scan() {
     if (!flush()) return false;
     // Absence from the earlier walk is only a candidate deletion. An upload or
     // another local app may have recreated the path while a model was hashing.
-    auto lock = d->lock(2000); if (!lock) return false;
     QStringList absent; QSqlQuery q(d->db);
-    if (!q.exec("SELECT path FROM entries")) return d->fail(q.lastError().text());
-    while (q.next()) if (!seen.contains(q.value(0).toString())) absent.append(q.value(0).toString());
+    if (!q.exec("SELECT path,data FROM entries")) return d->fail(q.lastError().text());
+    while (q.next()) if (!seen.contains(q.value(0).toString())
+        &&QJsonDocument::fromJson(q.value(1).toByteArray()).object().value("kind")!="deleted")absent.append(q.value(0).toString());
     q.finish();
+    // Enumeration and an unchanged result need no durable lock-file write.
+    // Every mutation still revalidates physical state under the operation lock.
+    if(absent.isEmpty())return true;
+    auto lock = d->lock(2000); if (!lock) return false;
     if (!d->db.transaction()) return d->fail("journal_transaction_failed");
     for (const auto &path : absent) {
         detail::FileState current;
@@ -815,6 +860,14 @@ bool Replica::acceptMetadata(const QString &peer, const QJsonObject &incoming) {
     return d->save(incoming, "remote");
 }
 bool Replica::publishStorageMap() {
+    if(!d->ready())return false;
+    {
+        QSqlQuery version(d->db),changes(d->db);
+        if(!version.exec("PRAGMA data_version")||!version.next()||!changes.exec("SELECT total_changes()")||!changes.next())
+            return d->fail("catalog_revision_unavailable");
+        if(d->publishedDataVersion==version.value(0).toLongLong()&&d->publishedChanges==changes.value(0).toLongLong()
+            &&QFileInfo::exists(iiFileProvider::Directory(d->drive->rootPath()).filePath(".society-sync/catalog.json")))return true;
+    }
     auto lock = d->lock(); if (!lock) return false;
     QSqlQuery version(d->db), changes(d->db);
     if (!version.exec("PRAGMA data_version") || !version.next()
@@ -959,9 +1012,15 @@ bool Replica::restoreObject(const QString &path, ObjectProvider &provider) {
     return d->save(e, state.stamp);
 }
 QJsonObject Replica::journal(qint64 after, qint64 through) {
-    auto lock = d->lock(); return lock ? d->journal().changes(after, through, true) : d->failed();
+    return d->readSnapshot([&]{return d->journal().changes(after,through,true);});
 }
 bool Replica::acceptJournal(const QString &peer, const QJsonObject &page) {
+    if(!d->ready())return false;
+    if (peer != d->meta("host") || peer.isEmpty()) return d->fail("host_revision_required");
+    if(page.value("entries").isArray()&&page.value("entries").toArray().isEmpty()) {
+        auto ledger=d->journal();
+        return ledger.accept(page)||d->fail(ledger.error);
+    }
     auto lock = d->lock(); if (!lock) return false;
     if (peer != d->meta("host") || peer.isEmpty()) return d->fail("host_revision_required");
     if (!d->db.transaction()) return d->fail("journal_transaction_failed");
@@ -970,7 +1029,7 @@ bool Replica::acceptJournal(const QString &peer, const QJsonObject &page) {
     return true;
 }
 QJsonObject Replica::changes(qint64 after, qint64 through) {
-    auto lock = d->lock(); if (!lock) return d->failed();
+    return d->readSnapshot([&]()->QJsonObject {
     if (d->meta("host").isEmpty()) {
         auto result = d->journal().changes(after, through, false);
         result.insert("container", containerId()); result.insert("replica", replicaId()); return result;
@@ -993,6 +1052,7 @@ QJsonObject Replica::changes(qint64 after, qint64 through) {
     const bool more = limited || (rows == 128 && next < through);
     return {{"ok", true}, {"container", containerId()}, {"replica", replicaId()}, {"entries", entries},
         {"through", QString::number(through)}, {"next", QString::number(more ? next : through)}, {"more", more}};
+    });
 }
 QJsonObject Replica::handle(const QString &peer, const QJsonObject &request) {
     return handle(peer, request, true);
@@ -1005,7 +1065,7 @@ QJsonObject Replica::handle(const QString &peer, const QJsonObject &request, boo
     if (action == "describe") {
         if (!d->ready()) return d->failed();
         if (!d->meta("host").isEmpty()) return d->failed("mirror_cannot_be_primary_host");
-        return {{"ok", true}, {"protocol", 2}, {"namespaceVersion", 1}, {"namespace", namespaceState()}, {"manifestVersion", 1}, {"transferWindow", 4},
+        return {{"ok", true}, {"protocol", 2}, {"namespaceVersion", 1}, {"namespace", namespaceState()}, {"manifestVersion", 1}, {"snapshotVersion", 1}, {"transferWindow", 4}, {"inlineBytes", int(InlineBytes)},
             {"container", containerId()}, {"replica", replicaId()}};
     }
     if (action == "journal") {
@@ -1022,6 +1082,8 @@ QJsonObject Replica::handle(const QString &peer, const QJsonObject &request, boo
     }
     if (action == "manifest") {
         if (!d->ready()) return d->failed();
+        const auto snapshot = request.value("snapshot").toObject();
+        if (request.contains("snapshot") && (!validSnapshot(snapshot) || !d->meta("host").isEmpty())) return d->failed("invalid_snapshot");
         qint64 offset, total, after, through;
         const auto id = request.value("manifest").toString(), replica = request.value("replica").toString();
         const auto entries = request.value("entries").toArray();
@@ -1031,14 +1093,20 @@ QJsonObject Replica::handle(const QString &peer, const QJsonObject &request, boo
             || total > 250000 || offset > total || entries.size() > 128 || entries.size() > total - offset
             || !request.value("entries").isArray() || (entries.isEmpty() && total != 0)) return d->failed("invalid_manifest_page");
         if (offset == 0) {
+            if (!snapshot.isEmpty()) {
+                const auto base = snapshot.value("baseSequence").toString().toLongLong();
+                if (base && d->journal().revision(snapshot.value("baseRevision").toString()).value("sequence") != snapshot.value("baseSequence"))
+                    return d->failed("snapshot_base_unknown");
+            }
             if (!d->manifests.contains(peer) && d->manifests.size() >= 32) return d->failed("manifest_capacity");
             auto state = std::make_shared<Private::Manifest>();
             state->id = id; state->replica = replica; state->total = total;
+            state->snapshot = snapshot;
             state->after = state->sequence = after; state->through = through; d->manifests.insert(peer, state);
         }
         const auto state = d->manifests.value(peer);
         if (!state || state->complete || state->id != id || state->replica != replica || state->next != offset
-            || state->total != total || state->after != after || state->through != through) return d->failed("manifest_page_out_of_order");
+            || state->total != total || state->after != after || state->through != through || state->snapshot != snapshot) return d->failed("manifest_page_out_of_order");
         for (const auto &value : entries) {
             const auto entry = value.toObject(); qint64 sequence;
             const QSet<QString> allowed{"path", "kind", "size", "hash", "clock", "version", "sequence", "baseRevision"};
@@ -1048,6 +1116,21 @@ QJsonObject Replica::handle(const QString &peer, const QJsonObject &request, boo
                 d->manifests.remove(peer); return d->failed("invalid_manifest_entry");
             }
             state->digest.addData(json(entry)); state->digest.addData(QByteArrayView("\n")); state->sequence = sequence;
+            if (!snapshot.isEmpty()) {
+                const auto path = entry.value("path").toString();
+                if (!entry.contains("baseRevision") || state->members.contains(path)) {
+                    d->manifests.remove(peer); return d->failed("invalid_snapshot_entry");
+                }
+                state->members.insert(path, digest(json(entry)));
+                // This is a read-only plan. merge() rechecks physical state and
+                // the confirmed base under the operation lock before applying.
+                const auto current = d->journal().object(path);
+                if (!current.isEmpty() && contentEqual(entry, current)) ++state->unchanged;
+                else if (entry.value("baseRevision").toString() != current.value("revision").toString()) ++state->conflicts;
+                else if (entry.value("kind") == "deleted") ++state->deleted;
+                else if (current.isEmpty() || current.value("kind") == "deleted") ++state->added;
+                else ++state->updated;
+            }
         }
         state->next += entries.size();
         if (state->next == total) {
@@ -1057,15 +1140,49 @@ QJsonObject Replica::handle(const QString &peer, const QJsonObject &request, boo
             state->complete = true;
         }
         // Metadata never creates destination files, transfers, or journal entries.
-        return {{"ok", true}, {"manifest", id}, {"next", QString::number(state->next)}, {"complete", state->complete}};
+        QJsonObject response{{"ok", true}, {"manifest", id}, {"next", QString::number(state->next)}, {"complete", state->complete}};
+        if (state->complete && !snapshot.isEmpty()) {
+            response.insert("snapshot", snapshot); response.insert("diff", state->diff());
+        }
+        return response;
     }
     auto lock = d->lock(); if (!lock) return d->failed();
-    if (request.contains("manifest")) {
+    if (action == "snapshot.complete") {
         const auto state = d->manifests.value(peer);
-        if (!state || !state->complete || state->id != request.value("manifest").toString()) return d->failed("manifest_required_before_transfer");
+        if (!state || !state->complete || state->snapshot.isEmpty() || state->id != request.value("manifest")
+            || state->snapshot.value("id") != request.value("snapshot")) {
+            const auto previous = lastSnapshot(peer);
+            if (!previous.isEmpty() && previous.value("manifest") == request.value("manifest")
+                && previous.value("snapshot").toObject().value("id") == request.value("snapshot"))
+                return {{"ok", true}, {"receipt", previous}};
+            return d->failed("manifest_required_before_transfer");
+        }
+        if (state->applied.size() != state->members.size()) return d->failed("snapshot_transfers_incomplete");
+        const auto previous = lastSnapshot(peer);
+        if (previous.value("snapshot") == state->snapshot && previous.value("manifest") == state->id)
+            return {{"ok", true}, {"receipt", previous}};
+        const QJsonObject receipt{{"snapshot", state->snapshot}, {"manifest", state->id}, {"replica", state->replica},
+            {"container", containerId()}, {"after", QString::number(state->after)}, {"through", QString::number(state->through)},
+            {"diff", state->diff()}, {"receivedAt", QString::number(QDateTime::currentMSecsSinceEpoch())}};
+        QSqlQuery save(d->db); save.prepare("INSERT INTO sync_snapshots(peer,data) VALUES(?,?) ON CONFLICT(peer) DO UPDATE SET data=excluded.data");
+        save.addBindValue(peer); save.addBindValue(json(receipt));
+        if (!save.exec()) return d->failed("snapshot_receipt_write_failed");
+        return {{"ok", true}, {"receipt", receipt}};
+    }
+    std::shared_ptr<Private::Manifest> manifest;
+    const bool transfer = action == "begin" || action == "chunk" || action == "commit" || action == "apply";
+    const auto announced = d->manifests.value(peer);
+    if (transfer && announced && !announced->snapshot.isEmpty() && !request.contains("manifest"))
+        return d->failed("manifest_required_before_transfer");
+    if (request.contains("manifest")) {
+        manifest = d->manifests.value(peer);
+        if (!manifest || !manifest->complete || manifest->id != request.value("manifest").toString()) return d->failed("manifest_required_before_transfer");
     }
     const auto e = request.value("entry").toObject(); if (!validRecord(e)) return d->failed("invalid_entry");
     const auto path = e.value("path").toString();
+    if (request.contains("snapshot") && (!manifest || manifest->snapshot.isEmpty())) return d->failed("manifest_required_before_transfer");
+    if (manifest && !manifest->snapshot.isEmpty() && (manifest->snapshot.value("id") != request.value("snapshot")
+        || manifest->members.value(path) != digest(json(e)))) return d->failed("snapshot_entry_mismatch");
     // A targeted download may share the store with another indexer/session.
     // Check the pinned revision under the operation lock, including physical
     // edits discovered since the caller prepared its transfer.
@@ -1110,15 +1227,36 @@ QJsonObject Replica::handle(const QString &peer, const QJsonObject &request, boo
     if (action == "begin" || action == "commit" || action == "apply") {
         if (action == "apply" && e.value("kind") == "file") return d->failed("file_requires_transfer");
         const auto part = d->transfer(peer, e);
+        const bool inlineCommit=action=="commit"&&request.contains("inlineData");
+        QByteArray inlinePayload;
+        if(inlineCommit) {
+            const auto encoded=request.value("inlineData");
+            const auto bytes=QByteArray::fromBase64Encoding(encoded.toString().toLatin1(),QByteArray::AbortOnBase64DecodingErrors);
+            qint64 size=0;
+            if(!encoded.isString()||e.value("kind")!="file"||!number(e.value("size"),&size)||size>InlineBytes
+                ||!bytes||bytes.decoded.size()!=size||digest(bytes.decoded)!=e.value("hash").toString())return d->failed("invalid_inline_payload");
+            const auto free=QStorageInfo(d->files.root).bytesAvailable();
+            if(free>=0&&free<size+1024*1024)return d->failed("insufficient_storage");
+            inlinePayload=bytes.decoded;
+        }
         if (e.value("kind") == "file" && !d->protectTransfer(part)) return d->failed();
+        if(inlineCommit) {
+            detail::FileState staged;
+            if(!d->files.state(part,&staged))return d->failed(d->files.error);
+            if(staged.kind!="deleted"&&!d->files.remove(part))return d->failed(d->files.error);
+            if(!d->files.append(part,0,inlinePayload))return d->failed(d->files.error);
+        }
         d->proposal = e.value("version").toString(); d->proposalBase = e.value("baseRevision").toString();
-        const auto result = d->merge(peer, e, action != "begin"); d->proposal.clear(); d->proposalBase.clear();
+        const auto result = d->merge(peer, e, action != "begin"||inlineCommit); d->proposal.clear(); d->proposalBase.clear();
+        if(inlineCommit&&result.value("complete").toBool()&&!d->files.remove(part))return d->failed(d->files.error);
         if (result.value("complete").toBool() || (action == "begin" && !result.value("ok").toBool())) {
             d->transferLeases.remove(part);
         } else if (!result.value("ok").toBool()) {
             detail::FileState partial;
             if (!d->files.state(part, &partial) || partial.kind != "file") d->transferLeases.remove(part);
         }
+        if (manifest && !manifest->snapshot.isEmpty() && result.value("ok").toBool() && result.value("complete").toBool())
+            manifest->applied.insert(path);
         return result;
     }
     if (action == "chunk") {
@@ -1144,11 +1282,22 @@ QJsonObject Replica::peerState(const QString &peer) const {
     if (!q.exec()) { d->fail(q.lastError().text()); return {}; } if (!q.next()) return {};
     return {{"replica", q.value(0).toString()}, {"container", q.value(1).toString()}, {"pulled", QString::number(q.value(2).toLongLong())}, {"pushed", QString::number(q.value(3).toLongLong())}};
 }
+QJsonObject Replica::lastSnapshot(const QString &peer) const {
+    if (!d->db.isOpen()) return {};
+    QSqlQuery query(d->db); query.prepare("SELECT data FROM sync_snapshots WHERE peer=?"); query.addBindValue(peer);
+    return query.exec() && query.next() ? QJsonDocument::fromJson(query.value(0).toByteArray()).object() : QJsonObject();
+}
 bool Replica::savePeerState(const QString &peer, const QString &replica, const QString &container, qint64 pulled, qint64 pushed) {
-    auto lock = d->lock(); if (!lock) return false;
+    if(!d->ready())return false;
     if (peer.isEmpty() || peer.size() > 256 || QUuid(replica).isNull() || QUuid(container).isNull() || pulled < 0 || pushed < 0) return d->fail("invalid_peer_state");
     const auto before = peerState(peer);
     if (!before.isEmpty() && (before.value("replica").toString() != replica || before.value("container").toString() != container)) return d->fail("remote_container_changed");
+    if(!before.isEmpty()&&before.value("pulled").toString().toLongLong()>=pulled
+        &&before.value("pushed").toString().toLongLong()>=pushed)return true;
+    auto lock=d->lock();if(!lock)return false;
+    const auto lockedBefore=peerState(peer);
+    if(!lockedBefore.isEmpty()&&(lockedBefore.value("replica").toString()!=replica||lockedBefore.value("container").toString()!=container))
+        return d->fail("remote_container_changed");
     QSqlQuery q(d->db); q.prepare("INSERT INTO peers(peer,replica,container,pulled,pushed) VALUES(?,?,?,?,?) ON CONFLICT(peer) DO UPDATE SET pulled=MAX(pulled,excluded.pulled),pushed=MAX(pushed,excluded.pushed)");
     q.addBindValue(peer); q.addBindValue(replica); q.addBindValue(container); q.addBindValue(pulled); q.addBindValue(pushed);
     return q.exec() || d->fail(q.lastError().text());

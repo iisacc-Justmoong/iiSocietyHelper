@@ -14,7 +14,11 @@ foreach(_component IN LISTS _helper_components)
 endforeach()
 # Core consumes Monitoring; the native component never imports Core in return.
 find_dependency(Threads)
-find_dependency(iiSDKCore 0.11 CONFIG)
+if("Core" IN_LIST _helper_components OR "GenerationHost" IN_LIST _helper_components)
+    find_dependency(iiSDKCore 0.18 CONFIG COMPONENTS Runtime)
+else()
+    find_dependency(iiSDKCore 0.11 CONFIG)
+endif()
 # Resolve the compiled Native contract before CoreIO's lower minimum can retain
 # an older imported target. Native does not introduce Qt into Monitoring.
 if(EXISTS "${_helper_prefix}/../iiFileProvider/lib/cmake/iiFileProviderNative")

@@ -19,6 +19,8 @@ int main(int argc, char **argv)
     AccountSession account(QUrl(QStringLiteral("http://127.0.0.1:1")));
     iiSocietyHelper::Helper helper;
     iiSocietyHelper::Client client(&account, nullptr);
+    const auto syncStatus = client.synchronizationStatus().query().send({});
+    if (!syncStatus || *syncStatus != 0) return 11;
     if (!helper.setAccountManager(account.manager()) || helper.accountManager() != account.manager()
         || helper.account() != account.manager()->account()) return 2;
     auto *mirror = client.container();

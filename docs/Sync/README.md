@@ -1,5 +1,8 @@
 # Society synchronization in iiSocietyHelper 0.10.0
 
+기기별 로컬 타임스탬프·호스트 차이 분석·안전 병합과 정수 상태 쿼리의 현재 계약은
+[스냅샷과 안전 동기화](Snapshots.md)에 정의한다.
+
 Sync is included in the default Helper Core target. Include
 `<iiSocietyHelper/Sync/Replica.h>` and use `iiSocietyHelper::Sync`.
 Build from the iiSocietyHelper repository root; see [component usage](../Consolidation.md).

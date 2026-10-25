@@ -18,6 +18,7 @@
 #include <QThread>
 #include <QElapsedTimer>
 #include <QScopeGuard>
+#include <QLockFile>
 #include <atomic>
 
 using namespace iiSocietyHelper::Sync;
@@ -110,6 +111,18 @@ private slots:
         QCOMPARE(client.namespaceState().value("head"), host.namespaceState().value("head"));
         QVERIFY(client.record("files/note").contains("revision"));
         QVERIFY(QDir(b.filePath("Files")).entryList({"note.sync-conflict-*"}, QDir::Files).isEmpty());
+    }
+    void anEmptyCommittedJournalPageDoesNotNeedTheMutationLock() {
+        QTemporaryDir a(SYNC_TEST_DIRECTORY "/empty-journal-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/empty-journal-b-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
+        Replica host,client;QVERIFY(host.open(a.path(),scope));QVERIFY(client.open(b.path(),scope));
+        QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));
+        const auto page=host.journal();QVERIFY(page.value("entries").toArray().isEmpty());
+        QLockFile lock(b.filePath(".society-sync/operation.lock"));lock.setStaleLockTime(0);QVERIFY(lock.tryLock(3000));
+        QVERIFY(client.acceptJournal("host",page));QVERIFY(QFileInfo::exists(b.filePath(".society-sync/operation.lock")));
+        auto forged=page;forged.insert("authority",client.replicaId());QVERIFY(!client.acceptJournal("host",forged));
+        QVERIFY(!client.acceptJournal("other",page));
+        QCOMPARE(client.namespaceState().value("sequence"),"0");
     }
     void journalRejectsForgedGapsWrongAuthorityAndRollsBackWholePage() {
         QTemporaryDir a(SYNC_TEST_DIRECTORY "/journal-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/journal-b-XXXXXX.societycontainer");

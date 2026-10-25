@@ -148,6 +148,25 @@ public:
         if (!store || !store->isOpen() || !Replica::claimPrimaryHost(container, store->accountScope(), primaryClaim)) return false;
         primaryClaim.clear(); return true;
     }
+    void handleJob(quint64 revision, QString key, QString peer, QJsonObject message, qint64 deadline, int delay=1) {
+        if(generation!=revision||cancellation->load()!=revision)return;
+        if(QDateTime::currentMSecsSinceEpoch()>=deadline){emit result(revision,key,{{"ok",false},{"error","sync_request_timeout"}});return;}
+        const auto response=!pinPrimary()?QJsonObject{{"ok",false},{"error","primary_host_unavailable"}}
+            :store->binding().isEmpty()?store->handle(peer,message,false)
+            :QJsonObject{{"ok",false},{"error","mirror_cannot_be_primary_host"}};
+        // This error is returned before Replica performs any operation. Keep
+        // the same idempotency token pending rather than caching a transient
+        // lock collision and restarting the whole protocol on the next tick.
+        if(response.value("error")=="sync_store_busy"&&QDateTime::currentMSecsSinceEpoch()<deadline) {
+            QTimer::singleShot(delay,this,[this,revision,key,peer,message,deadline,delay] {
+                handleJob(revision,key,peer,message,deadline,qMin(50,delay*2));
+            });return;
+        }
+        if(response.value("ok").toBool()&&(message.value("action")=="drive.write"||message.value("action")=="drive.mkdir")) {
+            store->publishStorageMap();publishNamespace();indexDirty=true;
+        }
+        emit result(revision,key,response);
+    }
     void publishNamespace() {
         const auto state = store->namespaceState();
         if (state != namespaceSnapshot) { namespaceSnapshot = state; emit namespaceChanged(generation, state); }
@@ -201,9 +220,14 @@ public:
         const auto shared = cancellation;
         store->setCancellation([shared, revision] { return shared->load() != revision; });
         if (scope.isEmpty()) { emit status(generation, false, false, {}); return; }
+        const bool trace=qEnvironmentVariableIntValue("SOCIETY_SYNC_TRACE")==1;
+        QElapsedTimer startup;if(trace)startup.start();
         QString error; const auto storage = iiSocietyContainer::SharedStorage::open(path, &error, true);
+        if(trace)qInfo("Society sync startup shared_open_ms=%lld",startup.restart());
         const bool ok = storage && store->open(storage->drive().rootPath(), scope);
+        if(trace)qInfo("Society sync startup replica_open_ms=%lld",startup.restart());
         if (ok) { container = storage->drive().rootPath(); if (!hostAccess) refreshWatches(); }
+        if(trace)qInfo("Society sync startup watches_ms=%lld",startup.elapsed());
         if (ok) emit mirrorChanged(generation, store->binding());
         emit status(generation, ok, false, ok ? QString() : storage ? store->errorString() : error);
     }
@@ -299,11 +323,15 @@ signals:
 };
 class Controller::Private {
 public:
-    struct Job { QJsonObject request, result; bool finished = false; qint64 created = 0; };
+    struct Job { QJsonObject request, result; bool finished = false; qint64 created = 0; QString peer; };
     Controller *q; RequestSender send; QThread *thread = new QThread; SyncWorker *worker;
     std::shared_ptr<std::atomic<quint64>> cancellation = std::make_shared<std::atomic<quint64>>(0);
     std::shared_ptr<std::atomic<quint64>> inspection = std::make_shared<std::atomic<quint64>>(0);
     QMap<QString, Job> jobs; QHash<QString, QString> transportIds; QSet<QString> authorized;
+    Status syncStatus;
+    QHash<QString, qint64> incomingSnapshots;
+    QElapsedTimer snapshotClock;
+    QTimer snapshotTimeout;
     QString path, scope, error; bool ready = false, busy = false, opening = false, shutdown = false, hostAccess = false;
     QSet<QThread *> providerThreads;
     void providerTask(const QString &objectPath, std::shared_ptr<ObjectProvider> provider, bool restore) {
@@ -332,6 +360,16 @@ public:
         task->start();
     }
     Private(Controller *owner, RequestSender sender) : q(owner), send(std::move(sender)), worker(new SyncWorker) {
+        snapshotClock.start(); snapshotTimeout.setInterval(1000);
+        QObject::connect(&snapshotTimeout, &QTimer::timeout, q, [this] {
+            bool expired = false;
+            for (auto it = incomingSnapshots.begin(); it != incomingSnapshots.end();) {
+                if (it.value() <= snapshotClock.elapsed()) { it = incomingSnapshots.erase(it); expired = true; }
+                else ++it;
+            }
+            if (expired && incomingSnapshots.isEmpty() && !busy) syncStatus.publish(StatusCode::Failed);
+        });
+        snapshotTimeout.start();
         worker->cancellation = cancellation; worker->inspection = inspection; worker->moveToThread(thread);
         thread->setObjectName("iiSocietyHelper::Sync-worker");
         QObject::connect(worker, &SyncWorker::namespaceChanged, q, [this](quint64 generation, QJsonObject state) {
@@ -348,6 +386,8 @@ public:
             });
         QObject::connect(worker, &SyncWorker::status, q, [this](quint64 generation, bool available, bool active, const QString &message) {
             if (generation != cancellation->load()) return;
+            if (active || !incomingSnapshots.isEmpty()) syncStatus.publish(StatusCode::InProgress);
+            else if (!message.isEmpty()) syncStatus.publish(message == "cancelled" ? StatusCode::Cancelled : StatusCode::Failed);
             if (!opening && ready == available && busy == active && error == message) return;
             if (!message.isEmpty() && qEnvironmentVariableIntValue("SOCIETY_SYNC_TRACE") == 1)
                 qWarning().noquote() << "Society sync error:" << message;
@@ -363,9 +403,20 @@ public:
         QObject::connect(worker, &SyncWorker::result, q, [this](quint64 generation, const QString &key, const QJsonObject &result) {
             if (generation != cancellation->load() || !jobs.contains(key)) return;
             jobs[key].result = result; jobs[key].finished = true;
+            const auto message = jobs[key].request.value("message").toObject();
+            const auto peer = jobs[key].peer;
+            if (incomingSnapshots.contains(peer) && (!result.value("ok").toBool() || message.value("action") == "snapshot.complete")) {
+                incomingSnapshots.remove(peer);
+                if (!busy && incomingSnapshots.isEmpty()) syncStatus.publish(result.value("ok").toBool() ? StatusCode::Complete : StatusCode::Failed);
+            }
         });
         QObject::connect(worker, &SyncWorker::hostValidated, q, [this](quint64 generation, const QString &peer) { if (generation == cancellation->load()) emit q->hostValidated(peer); });
-        QObject::connect(worker, &SyncWorker::synchronized, q, [this](quint64 generation, const QString &peer) { if (generation == cancellation->load()) emit q->synchronized(peer); });
+        QObject::connect(worker, &SyncWorker::synchronized, q, [this](quint64 generation, const QString &peer) {
+            if (generation == cancellation->load()) {
+                syncStatus.publish(incomingSnapshots.isEmpty() ? StatusCode::Complete : StatusCode::InProgress);
+                emit q->synchronized(peer);
+            }
+        });
         QObject::connect(worker, &SyncWorker::progress, q, [this](quint64 generation, const QString &path, qint64 done, qint64 total) { if (generation == cancellation->load()) emit q->progress(path, done, total); });
         QObject::connect(worker, &SyncWorker::verificationProgress, q, [this](quint64 generation, const QString &path, qint64 done, qint64 total) {
             if (generation == cancellation->load()) emit q->verificationProgress(path, done, total);
@@ -390,6 +441,7 @@ Controller::Controller(RequestSender sender, QObject *parent) : QObject(parent),
 Controller::~Controller() { close(); }
 bool Controller::available() const { return d->ready; }
 bool Controller::busy() const { return d->busy; }
+Status &Controller::status() { return d->syncStatus; }
 QString Controller::errorString() const { return d->error; }
 void Controller::open(const QString &container, const QString &accountScope) {
     openInternal(container, accountScope, false);
@@ -401,6 +453,8 @@ void Controller::openInternal(const QString &container, const QString &accountSc
     if (d->shutdown) return;
     if (d->path == container && d->scope == accountScope && d->hostAccess == hostAccess && !accountScope.isEmpty() && (d->ready || d->opening)) return;
     const auto revision = ++*d->cancellation;
+    const bool cancelled = container.isEmpty() && (d->busy || !d->incomingSnapshots.isEmpty());
+    d->incomingSnapshots.clear(); d->syncStatus.publish(cancelled ? StatusCode::Cancelled : StatusCode::Before);
     d->path = container; d->scope = accountScope; d->ready = false; d->busy = false; d->error.clear();
     d->opening = !accountScope.isEmpty(); d->hostAccess = hostAccess;
     d->jobs.clear(); d->transportIds.clear(); d->authorized.clear();
@@ -427,6 +481,8 @@ void Controller::inspectContainer(const QString &container, const QString &accou
 void Controller::shutdownAsync() {
     if (d->shutdown) return;
     d->shutdown = true;
+    if (d->busy || !d->incomingSnapshots.isEmpty()) d->syncStatus.publish(StatusCode::Cancelled);
+    d->incomingSnapshots.clear(); d->snapshotTimeout.stop();
     d->ready = false; d->busy = false; d->opening = false;
     d->jobs.clear(); d->transportIds.clear(); d->authorized.clear();
     QObject::connect(d->thread, &QThread::finished, d->thread, &QObject::deleteLater);
@@ -435,6 +491,12 @@ void Controller::shutdownAsync() {
 void Controller::setPeers(const QStringList &authorizedPeers, const QStringList &remoteHosts, const QString &accountHost, const QString &accountContainer) {
     if (d->shutdown) return;
     d->authorized = QSet<QString>(authorizedPeers.begin(), authorizedPeers.end());
+    bool cancelled = false;
+    for (auto it = d->incomingSnapshots.begin(); it != d->incomingSnapshots.end();) {
+        if (!d->authorized.contains(it.key())) { it = d->incomingSnapshots.erase(it); cancelled = true; }
+        else ++it;
+    }
+    if (cancelled && d->incomingSnapshots.isEmpty() && !d->busy) d->syncStatus.publish(StatusCode::Cancelled);
     QStringList hosts; for (const auto &host : remoteHosts) if (d->authorized.contains(host)) hosts.append(host);
     const auto revision = d->cancellation->load();
     QMetaObject::invokeMethod(d->worker, [w = d->worker, hosts, revision, accountHost, accountContainer] { w->setHosts(hosts, revision, accountHost, accountContainer); });
@@ -502,17 +564,16 @@ QJsonObject Controller::handle(const QString &peer, const QJsonObject &envelope)
         if (oldest == d->jobs.end()) return fail("sync_endpoint_busy");
         d->jobs.erase(oldest);
     }
-    d->jobs.insert(key, {envelope, {}, false, now});
+    d->jobs.insert(key, {envelope, {}, false, now, peer});
     const auto revision = d->cancellation->load(); const auto message = envelope.value("message").toObject();
-    QMetaObject::invokeMethod(d->worker, [w = d->worker, revision, key, peer, message] {
-        if (w->generation != revision || w->cancellation->load() != revision) return;
-        const auto result = !w->pinPrimary() ? QJsonObject{{"ok", false}, {"error", "primary_host_unavailable"}}
-            : w->store->binding().isEmpty() ? w->store->handle(peer, message, false)
-            : QJsonObject{{"ok", false}, {"error", "mirror_cannot_be_primary_host"}};
-        if (result.value("ok").toBool() && (message.value("action") == "drive.write" || message.value("action") == "drive.mkdir")) {
-            w->store->publishStorageMap(); w->publishNamespace(); w->indexDirty = true;
-        }
-        emit w->result(revision, key, result);
+    if (message.value("action") == "manifest" && message.value("snapshot").isObject())
+        d->incomingSnapshots.insert(peer, d->snapshotClock.elapsed() + 120000);
+    if (d->incomingSnapshots.contains(peer)) {
+        d->incomingSnapshots[peer] = d->snapshotClock.elapsed() + 120000;
+        d->syncStatus.publish(StatusCode::InProgress);
+    }
+    QMetaObject::invokeMethod(d->worker, [w = d->worker, revision, key, peer, message,deadline=now+120000] {
+        w->handleJob(revision,key,peer,message,deadline);
     });
     return {{"ok", true}, {"pending", true}};
 }

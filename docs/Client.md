@@ -1,5 +1,8 @@
 # Account and host sessions
 
+기기간 동기화 상태는 `Client::synchronizationStatus()`의 iiSDKCore 쿼리에서
+정수로 조회·구독한다. [스냅샷과 상태 계약](Sync/Snapshots.md)을 따른다.
+
 ## Container objects and direct host access
 
 The consolidated 0.9.0 SDK preserves `Client::connectHost()` for authenticated access without a local

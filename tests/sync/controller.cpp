@@ -16,6 +16,19 @@ using namespace iiSocietyHelper::Sync;
 class ControllerTests : public QObject {
     Q_OBJECT
 private slots:
+    void transientOperationLockKeepsTheOriginalRequestPending() {
+        QTemporaryDir root(SYNC_TEST_DIRECTORY "/pending-lock-XXXXXX.societycontainer");
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));const QString scope(64,'a');
+        Controller hosting({});hosting.open(root.path(),scope);QTRY_VERIFY(hosting.available());hosting.setPeers({"phone"},{});
+        QLockFile lock(root.filePath(".society-sync/operation.lock"));lock.setStaleLockTime(0);QVERIFY(lock.tryLock(3000));
+        const QJsonObject envelope{{"op","society.sync"},{"protocol",2},{"namespaceVersion",1},{"scope",scope},
+            {"token",QUuid::createUuid().toString(QUuid::WithoutBraces)},
+            {"message",QJsonObject{{"action","drive.list"},{"container",iiSocietyContainer::SocietyDrive::open(root.path())->identifier()},{"path","files"}}}};
+        QVERIFY(hosting.handle("phone",envelope).value("pending").toBool());QTest::qWait(25);
+        QVERIFY(hosting.handle("phone",envelope).value("pending").toBool());lock.unlock();
+        QJsonObject reply;QTRY_VERIFY(!(reply=hosting.handle("phone",envelope)).value("pending").toBool());
+        QVERIFY(reply.value("ok").toBool());QVERIFY(reply.value("result").toObject().value("ok").toBool());hosting.closeAndWait();
+    }
     void hostSelectionRetriesTheLocalOperationLockWithoutBlockingTheCaller() {
         QTemporaryDir root(SYNC_TEST_DIRECTORY "/primary-claim-XXXXXX.societycontainer");
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path())); const QString scope(64, 'a');
@@ -199,6 +212,11 @@ private slots:
         QFile local(mobile.filePath("Files/mobile.txt")); QVERIFY(local.open(QIODevice::WriteOnly)); local.write("mobile edit"); local.close();
         iiWebServer::LanPeer host, client;
         Controller hosting({}), syncing([&](const auto &peer, const auto &message) { return client.request(peer, message); });
+        ii::runtime::EventLoop receiver;
+        QList<int> hostStates, clientStates;
+        auto hostWatch = hosting.status().changes().subscribe(receiver, {}, [&](auto event) { hostStates.append(event.value); });
+        auto clientWatch = syncing.status().changes().subscribe(receiver, {}, [&](auto event) { clientStates.append(event.value); });
+        QVERIFY(hostWatch); QVERIFY(clientWatch);
         syncing.setContentPolicy(Synchronizer::ContentPolicy::FullReplica);
         const auto files = filesHandler(root.path());
         QVERIFY(host.startHost("desktop", "Desktop", [&](const auto &peer, const auto &message) {
@@ -217,6 +235,9 @@ private slots:
         QSignalSpy completed(&syncing, &Controller::synchronized);
         syncing.setPeers({"desktop"}, {"desktop"});
         QTRY_VERIFY2_WITH_TIMEOUT(completed.size() > 0, qPrintable(syncing.errorString()), 30000);
+        receiver.poll();
+        QVERIFY(hostStates.contains(1)); QVERIFY(hostStates.contains(2));
+        QVERIFY(clientStates.contains(1)); QVERIFY(clientStates.contains(2));
         // A completed snapshot can precede the authority's next indexing batch.
         // Wait for the actual payload, not the first empty metadata round trip.
         QTRY_VERIFY2_WITH_TIMEOUT(QFileInfo::exists(mobile.filePath("Models/host.bin")), qPrintable(syncing.errorString()), 30000);

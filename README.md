@@ -1,5 +1,13 @@
 # iiSocietyHelper
 
+Device replication now sends timestamped, revision-pinned local snapshots for
+host-side difference analysis before payload transfer. Conflicts preserve both
+contents; source timestamps never decide overwrite order. Core QueryPort reads
+and QueryStream subscriptions expose only an integer synchronization state:
+`0` before, `1` in progress, `2` complete, `3` failed, `4` cancelled. Use
+`Client::synchronizationStatus()` or `Sync::Controller::status()` with iiSDKCore
+0.18 Runtime. See [snapshot and status contracts](docs/Sync/Snapshots.md).
+
 Storage operations and background intake now use iiFileProvider's RAW originals,
 revision journal, work sessions and ontology filesystem through the container
 repository. `FileSystem` exposes indexed search, metadata edits, journal/session
@@ -597,3 +605,5 @@ covered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.m
 ## Native publication metadata (0.11.0)
 
 The package and its by-value canvas storage boundary rebuild against iiSharedCanvas 0.32.0 / ABI 0.32. The Helper library uses ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts.
+
+Related implementation contracts: [Sync journal startup and WAL snapshots](docs/SyncStartup.md).

@@ -13,6 +13,7 @@ class ObjectProvider;
 // Society channel; Controller supplies that boundary and runs I/O off the UI.
 class IISOCIETYHELPER_EXPORT Replica final {
 public:
+    static constexpr qint64 InlineBytes = 64 * 1024;
     Replica();
     ~Replica();
     Replica(const Replica &) = delete;
@@ -72,6 +73,8 @@ public:
     // without starting an expensive scan on the replication worker.
     QJsonObject handle(const QString &peer, const QJsonObject &request, bool refreshIndex);
     QJsonObject peerState(const QString &peer) const;
+    // Latest fully applied, host-acknowledged snapshot from this authenticated peer.
+    QJsonObject lastSnapshot(const QString &peer) const;
     bool savePeerState(const QString &peer, const QString &replica, const QString &container,
                        qint64 pulled, qint64 pushed);
     static bool validRecord(const QJsonObject &record);

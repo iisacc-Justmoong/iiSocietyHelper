@@ -1,3 +1,5 @@
+find_package(iiSDKCore 0.18 CONFIG REQUIRED COMPONENTS Runtime)
+target_link_libraries(iiSocietyHelper PUBLIC iiSDKCore::Runtime)
 option(IISOCIETYHELPER_WITH_BLE "Discover nearby peers and exchange bootstrap metadata over BLE" ON)
 if(IISOCIETYHELPER_WITH_BLE)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Bluetooth)
@@ -6,6 +8,7 @@ if(IISOCIETYHELPER_WITH_BLE)
 endif()
 set(_helper_sync_dir src/iiSocietyHelper/Sync)
 target_sources(iiSocietyHelper PRIVATE
+    ${_helper_sync_dir}/Status.cpp ${_helper_sync_dir}/Status.h
     ${_helper_sync_dir}/Sync.cpp ${_helper_sync_dir}/Sync.h
     ${_helper_sync_dir}/Replica.cpp ${_helper_sync_dir}/Replica.h
     ${_helper_sync_dir}/ConfinedFiles.cpp ${_helper_sync_dir}/ConfinedFiles.h

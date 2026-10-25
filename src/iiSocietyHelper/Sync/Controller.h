@@ -36,6 +36,7 @@ public:
     void claimPrimaryHost(const QString &device);
     bool available() const;
     bool busy() const;
+    Status &status();
     QString errorString() const;
     void synchronizeNow();
     void setContentPolicy(Synchronizer::ContentPolicy policy);

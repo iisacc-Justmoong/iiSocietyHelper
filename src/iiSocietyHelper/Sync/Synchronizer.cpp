@@ -31,6 +31,9 @@ void order(QList<QJsonObject> &entries) {
 class Synchronizer::Private {
 public:
     Synchronizer *q; Replica *store; QTimer timeout;
+    Status status;
+    QJsonObject snapshot;
+    bool snapshotAcknowledged = false;
     bool active = false; quint64 generation = 0;
     ContentPolicy policy = ContentPolicy::FullReplica;
     QStringList requested, photoIdentities;
@@ -49,6 +52,7 @@ public:
     QString peer, remoteId, remoteContainer, expectedHost, expectedContainer;
     QHash<QString, std::shared_ptr<Request>> requests;
     int configuredWindow = 4, window = 1, pendingChunks = 0;
+    qint64 inlineBytes=0;
     QMap<qint64, QJsonObject> receivedChunks;
     QMap<qint64, qint64> acknowledgedChunks;
     QList<QJsonObject> entries; qsizetype index = 0;
@@ -72,6 +76,9 @@ public:
     }
     void finish(bool ok, const QString &error = {}) {
         if (!active) return;
+        if (ok && !snapshotAcknowledged) {
+            acknowledgeSnapshot([this] { finish(true); }); return;
+        }
         if (ok && !store->publishStorageMap()) { finish(false, store->errorString()); return; }
         if (ok) store->completeRequests();
         if (ok && policy == ContentPolicy::MetadataFirst && !previewsDone) {
@@ -79,7 +86,19 @@ public:
         }
         active = false; earlyPush = false; ++generation; requests.clear(); pendingChunks = 0; receivedChunks.clear(); acknowledgedChunks.clear();
         manifestReady = {}; entries.clear(); outgoing.clear(); timeout.stop();
+        status.publish(ok ? StatusCode::Complete : error == "cancelled" ? StatusCode::Cancelled : StatusCode::Failed);
         emit q->finished(peer, ok, error);
+    }
+    void acknowledgeSnapshot(std::function<void()> done) {
+        send({{"action", "snapshot.complete"}, {"manifest", manifestId}, {"snapshot", snapshot.value("id")}}, [this, done = std::move(done)](const auto &response) {
+            if (!accepted(response)) return;
+            const auto receipt = response.value("receipt").toObject();
+            if (receipt.value("snapshot") != snapshot || receipt.value("manifest") != manifestId
+                || receipt.value("replica") != store->replicaId() || receipt.value("container") != remoteContainer) {
+                finish(false, "invalid_snapshot_receipt"); return;
+            }
+            snapshotAcknowledged = true; done();
+        });
     }
     void previewNext() {
         if (previewIndex >= previews.size()) { finish(true); return; }
@@ -107,7 +126,7 @@ public:
         if (!active) return;
         if (!remoteContainer.isEmpty()) message.insert("container", remoteContainer);
         if (manifests && (message.value("action") == "begin" || message.value("action") == "chunk" || message.value("action") == "commit"))
-            message.insert("manifest", manifestId);
+        { message.insert("manifest", manifestId); message.insert("snapshot", snapshot.value("id")); }
         const auto id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         auto request = std::make_shared<Request>(); request->callback = std::move(done);
         request->envelope = {{"op", "society.sync"}, {"protocol", 2}, {"namespaceVersion", 1}, {"scope", store->accountScope()},
@@ -135,6 +154,8 @@ public:
             emit q->mirrorChanged(store->binding());
             if (!store->bootstrapping()) emit q->hostValidated(peer);
             manifests = r.value("manifestVersion").toInt() == 1;
+            if (!manifests || r.value("snapshotVersion") != 1) { finish(false, "snapshot_protocol_required"); return; }
+            inlineBytes=qBound(qint64(0),qint64(r.value("inlineBytes").toInt()),Replica::InlineBytes);
             window = qMin(configuredWindow, qBound(1, r.value("transferWindow").toInt(1), 4));
             remoteId = r.value("replica").toString(); remoteContainer = r.value("container").toString();
             const auto state = store->peerState(peer);
@@ -280,12 +301,19 @@ public:
             }
             pushThrough = upper;
         }
-        if (!manifests) { done(); return; }
+        // After receiving the canonical revisions for a completed upload,
+        // keep that receipt instead of replacing it with a redundant empty plan.
+        if (!manifests || (outgoing.isEmpty() && snapshotAcknowledged)) { done(); return; }
         QCryptographicHash digest(QCryptographicHash::Sha256);
         for (const auto &entry : outgoing) {
             digest.addData(QJsonDocument(entry).toJson(QJsonDocument::Compact)); digest.addData(QByteArrayView("\n"));
         }
         manifestId = QString::fromLatin1(digest.result().toHex()); manifestIndex = 0; manifestReady = std::move(done);
+        const auto base = store->namespaceState();
+        snapshot = {{"schema", 1}, {"id", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+            {"capturedAt", QString::number(QDateTime::currentMSecsSinceEpoch())},
+            {"baseSequence", base.value("sequence")}, {"baseRevision", base.value("head")}};
+        snapshotAcknowledged = false;
         announcePage();
     }
     void announcePage() {
@@ -298,7 +326,7 @@ public:
         }
         send({{"action", "manifest"}, {"manifest", manifestId}, {"replica", store->replicaId()},
               {"offset", QString::number(start)}, {"total", QString::number(outgoing.size())},
-              {"after", QString::number(pushed)}, {"through", QString::number(pushThrough)}, {"entries", page}}, [this](const auto &r) {
+              {"after", QString::number(pushed)}, {"through", QString::number(pushThrough)}, {"entries", page}, {"snapshot", snapshot}}, [this](const auto &r) {
             if (!accepted(r)) return;
             const bool complete = manifestIndex == outgoing.size();
             if (r.value("manifest") != manifestId || r.value("next").toString() != QString::number(manifestIndex)
@@ -306,6 +334,9 @@ public:
                 finish(false, "invalid_manifest_acknowledgement"); return;
             }
             if (!complete) { announcePage(); return; }
+            if (r.value("snapshot") != snapshot || !r.value("diff").isObject()) {
+                finish(false, "invalid_snapshot_analysis"); return;
+            }
             const auto done = std::move(manifestReady); manifestReady = {}; if (done) done();
         });
     }
@@ -411,6 +442,7 @@ public:
                 // unrelated reconciliation. The old pull cursor stays intact.
                 page(pulled, 0); return;
             }
+            if (!snapshotAcknowledged) { acknowledgeSnapshot([this] { pushNext(); }); return; }
             pushed = through;
             const bool ok = store->savePeerState(peer, remoteId, remoteContainer, pulled, pushed);
             if (!ok) { finish(false, store->errorString()); return; }
@@ -420,9 +452,24 @@ public:
             finish(true); return;
         }
         current = entries[index];
-        send({{"action", "begin"}, {"entry", current}}, [this](const auto &r) {
+        QJsonObject begin{{"action","begin"},{"entry",current}};
+        const auto size=current.value("size").toString().toLongLong();
+        const bool inlined=inlineBytes>0&&current.value("kind")=="file"&&size<=inlineBytes;
+        if(inlined) {
+            const auto data=store->handle(peer,{{"action","read"},{"entry",current},{"offset","0"}});
+            if(!accepted(data))return;
+            const auto bytes=QByteArray::fromBase64Encoding(data.value("data").toString().toLatin1(),QByteArray::AbortOnBase64DecodingErrors);
+            if(!bytes||bytes.decoded.size()!=size){finish(false,"invalid_local_chunk");return;}
+            begin.insert("action","commit");
+            begin.insert("inlineData",data.value("data"));
+        }
+        send(begin, [this,inlined,size](const auto &r) {
             if (!accepted(r)) return;
-            if (r.value("complete").toBool()) { ++index; pushNext(); return; }
+            if (r.value("complete").toBool()) {
+                if(inlined&&size>0){transferredInSlice=true;emit q->progress(current.value("path").toString(),size,size);}
+                ++index;pushNext();return;
+            }
+            if(inlined){finish(false,"invalid_inline_acknowledgement");return;}
             if (current.value("kind") != "file" || !nonnegative(r.value("offset"), &offset) || offset > current.value("size").toString().toLongLong()) { finish(false, "invalid_transfer_offset"); return; }
             pushChunk();
         });
@@ -458,6 +505,7 @@ public:
 Synchronizer::Synchronizer(Replica *replica, QObject *parent) : QObject(parent), d(std::make_unique<Private>(this, replica)) {}
 Synchronizer::~Synchronizer() { stop(); }
 bool Synchronizer::busy() const { return d->active; }
+Status &Synchronizer::status() { return d->status; }
 bool Synchronizer::setContentPolicy(ContentPolicy policy) {
     if (d->active) return false;
     d->policy = policy; return true;
@@ -469,6 +517,7 @@ bool Synchronizer::setTransferWindow(int chunks) {
 bool Synchronizer::start(const QString &peer) {
     if (d->active || !d->store || !d->store->isOpen() || peer.isEmpty()) return false;
     d->active = true; ++d->generation; d->peer = peer; d->entries.clear();
+    d->snapshot = {}; d->snapshotAcknowledged = false; d->status.publish(StatusCode::InProgress);
     d->transferSlice.invalidate(); d->transferredInSlice = false;
     d->previewsDone = false; d->previews = {}; d->previewIndex = 0;
     d->photoIdentities.clear(); d->hydratedPhotoIdentities.clear();
@@ -489,6 +538,9 @@ void Synchronizer::receive(const QString &requestId, const QJsonObject &response
     }
     if (!response.value("result").isObject()) { d->finish(false, "invalid_sync_response"); return; }
     d->requests.remove(requestId);
+    if(qEnvironmentVariableIntValue("SOCIETY_SYNC_TRACE")==1)
+        qInfo("Society sync request action=%s elapsed_ms=%lld",qPrintable(request->envelope.value("message").toObject().value("action").toString()),
+            120000-(request->deadline-QDateTime::currentMSecsSinceEpoch()));
     const auto done = std::move(request->callback); if (done) done(response.value("result").toObject());
 }
 }

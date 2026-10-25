@@ -1,5 +1,6 @@
 #pragma once
 #include "Export.h"
+#include "Sync/Status.h"
 #include <Container.h>
 #include <QObject>
 #include <QHostAddress>
@@ -28,6 +29,7 @@ public:
     void stop();
     void synchronizeNow();
     QString status() const;
+    Sync::Status &synchronizationStatus();
     bool connected() const;
     // Credential-free identity of the currently authenticated host session.
     QJsonObject hostBinding() const;
