@@ -1,5 +1,5 @@
 #pragma once
-#include "Export.h"
+#include <iiSocietyHelper/Export.h>
 #include <QByteArray>
 // AccountManager permits a 192 KiB snapshot; retain room for paired devices.
 inline constexpr qsizetype MaximumSocietyStateBytes = 256 * 1024;

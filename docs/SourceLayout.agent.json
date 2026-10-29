@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:8d72517649f2b5c5128b18a4bea26a3ee40c192dc2fb13d5c4f4b297dd4de23c",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/SourceLayout.md",
+    "sha256": "d674d288189391ded847b03e523fc72c54a4bd8c7cc7895822cc9a72a4f7dc98",
+    "bytes": 1213,
+    "line_count": 9,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Society Helper 소스 책임 분류",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Society Helper 소스 책임 분류\n",
+      "level": 1,
+      "title": "Society Helper 소스 책임 분류"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "클라이언트 계정·연결·발견·세션 저장·미디어 처리는 `src/Account`, `Client`, `Discovery`, `Storage`, `Media`에 둔다. 동기화, 모니터링, 원격 생성은 `src/Sync`, `Monitoring`, `Generation`으로 독립하며 공개 헤더와 구현을 함께 둔다. 공통 내보내기 정의는 `src/Core`에 있다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "빌드 forwarding 헤더와 설치 헤더는 기존 `<iiSocietyHelper/...>`, `<iiSocietyHelper/Sync/...>`, `<iiSocietyHelper/Monitoring/...>`, `<iiSocietyHelper/Generation/...>` 경로를 유지한다. `tests/source_layout.cmake`와 `tests/module_boundary.py`가 배치와 모듈 소유 경계를 검사한다. 실사용 컨테이너 대신 격리된 시험 데이터를 사용한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "기존 평탄한 최상위 구현도 `Core/`, `Files/`, `Delivery/`, `Objects/`와 `Storage/`의 관리·Canvas·생성 책임으로 나누었다. 기존 `<iiSocietyHelper.h>` 및 `<DeliveryStore.h>` 설치 경로는 유지한다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "모니터링 테스트는 각 실행에 고유한 빌드 하위 임시 디렉터리를 사용하며 종료 시 정리한다. 기존 테스트 디렉터리나 실제 사용자 컨테이너를 재사용하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Society Helper 소스 책임 분류",
+      "anchor": "society-helper-소스-책임-분류",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 9,
+        "text": "모니터링 테스트는 각 실행에 고유한 빌드 하위 임시 디렉터리를 사용하며 종료 시 정리한다. 기존 테스트 디렉터리나 실제 사용자 컨테이너를 재사용하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

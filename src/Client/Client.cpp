@@ -1,9 +1,9 @@
 #include <iiFileProviderDevice.h>
-#include "Client.h"
-#include "AccountSession.h"
-#include "PairingCredentials.h"
-#include "NearbyDevices.h"
-#include "AutomaticPairing.h"
+#include <iiSocietyHelper/Client.h>
+#include <iiSocietyHelper/AccountSession.h>
+#include <iiSocietyHelper/PairingCredentials.h>
+#include <iiSocietyHelper/NearbyDevices.h>
+#include <iiSocietyHelper/AutomaticPairing.h>
 #include <iiSocietyHelper/Sync/Sync.h>
 #include <SharedStorage.h>
 #include <StorageMap.h>

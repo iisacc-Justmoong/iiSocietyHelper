@@ -1,6 +1,6 @@
 #include <iiFileProviderDevice.h>
-#include "GroupSessionStore.h"
-#include "StateCrypto.h"
+#include <iiSocietyHelper/GroupSessionStore.h>
+#include <iiSocietyHelper/StateCrypto.h>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QFileInfo>

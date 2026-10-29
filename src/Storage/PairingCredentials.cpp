@@ -1,4 +1,4 @@
-#include "PairingCredentials.h"
+#include <iiSocietyHelper/PairingCredentials.h>
 #include <QCryptographicHash>
 #include <QMessageAuthenticationCode>
 #include <QRegularExpression>

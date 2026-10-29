@@ -4,12 +4,14 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#include <iiFileProviderNative.h>
 #include <iiFileProviderPresentation.h>
 namespace fs=std::filesystem;
 void require(bool value,const char* message){if(!value)throw std::runtime_error(message);}
 int main(int argc,char**argv){
-  const auto root=fs::path(argv[1])/"monitor-test.societycontainer";
-  fs::remove_all(root);fs::create_directories(root);
+  iiFileProvider::native::TemporaryDirectory fixture(argv[1]);
+  const auto root=fixture.path()/"monitor-test.societycontainer";
+  fs::create_directories(root);
   for(const auto name:std::array{"Files","Photos","Asset Library","Generation History","Models","Thinking Space","Forked","Published","Deleted"})fs::create_directories(root/name);
   const std::string id="11111111-2222-4333-8444-555555555555";
   std::ofstream(root/".society-drive.json")<<"{\"type\":\"SocietyDrive\",\"schemaVersion\":1,\"identifier\":\""<<id<<"\"}";

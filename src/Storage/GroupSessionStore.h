@@ -1,6 +1,6 @@
 #include <iiFileProviderDevice.h>
 #pragma once
-#include "Export.h"
+#include <iiSocietyHelper/Export.h>
 #include <iiAccountManager/SessionStore.h>
 #include <QHash>
 #include <QPointer>

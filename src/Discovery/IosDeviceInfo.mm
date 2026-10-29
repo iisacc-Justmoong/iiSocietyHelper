@@ -1,4 +1,4 @@
-#include "DeviceInfo.h"
+#include <iiSocietyHelper/DeviceInfo.h>
 #include <QCryptographicHash>
 #import <UIKit/UIKit.h>
 

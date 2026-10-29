@@ -18,19 +18,19 @@ class UnifiedPackageTests(unittest.TestCase):
 
     def test_public_features_have_one_owner(self):
         for feature, header in [("Sync", "Replica.h"), ("Monitoring", "Monitor.h"), ("Generation", "Remote.h")]:
-            path = ROOT / "src/iiSocietyHelper" / feature / header
+            path = ROOT / "src" / feature / header
             self.assertTrue(path.is_file(), str(path))
             self.assertIn("namespace iiSocietyHelper::" + feature, path.read_text())
 
     def test_monitoring_public_headers_are_native(self):
-        directory = ROOT / "src/iiSocietyHelper/Monitoring"
+        directory = ROOT / "src/Monitoring"
         headers = list(directory.glob("*.h"))
         self.assertTrue(headers)
         for path in headers:
             self.assertNotRegex(path.read_text(), r"#\s*include\s*[<\"](?:Q|Qt|iiSocietyHelper/Export)")
 
     def test_core_umbrella_exposes_remote_without_host_inference(self):
-        source = (ROOT / "src/iiSocietyHelper.h").read_text()
+        source = (ROOT / "src/Core/iiSocietyHelper.h").read_text()
         self.assertIn("iiSocietyHelper/Generation/Remote.h", source)
         self.assertIn("iiSocietyHelper/Sync/Sync.h", source)
         self.assertNotIn("Generation/Host.h", source)

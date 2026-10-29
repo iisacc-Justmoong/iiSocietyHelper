@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/Generation/FILE_PROVIDER.md",
-    "sha256": "c82bdab7f22e555376b3d896c7c10a90ba8f37e56f7c8c64391cd684d9b08a4d",
-    "bytes": 2064,
+    "sha256": "ab218335649540520dd54fa74643deefa31f4e3b903c67a41cc5bd2a81a814a6",
+    "bytes": 2048,
     "line_count": 35,
     "encoding": "utf-8",
     "language": "en"
@@ -113,11 +113,11 @@
       "kind": "list",
       "start_line": 32,
       "end_line": 32,
-      "raw": "- `src/iiSocietyHelper/Generation/Host.cpp`\n",
+      "raw": "- `src/Generation/Host.cpp`\n",
       "items": [
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Generation/Host.cpp`",
+          "text": "`src/Generation/Host.cpp`",
           "checked": null
         }
       ]

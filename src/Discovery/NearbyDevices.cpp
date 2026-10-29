@@ -1,5 +1,5 @@
-#include "NearbyDevices.h"
-#include "PairingCredentials.h"
+#include <iiSocietyHelper/NearbyDevices.h>
+#include <iiSocietyHelper/PairingCredentials.h>
 #include <iiWebServer.h>
 #include <QCryptographicHash>
 #include <QMessageAuthenticationCode>

@@ -1,6 +1,6 @@
 #pragma once
-#include "Export.h"
-#include "DiscoveryService.h"
+#include <iiSocietyHelper/Export.h>
+#include <iiSocietyHelper/DiscoveryService.h>
 #include <QDateTime>
 #include <QHash>
 #include <QTimer>

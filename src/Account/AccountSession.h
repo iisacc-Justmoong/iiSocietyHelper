@@ -1,5 +1,5 @@
 #pragma once
-#include "Export.h"
+#include <iiSocietyHelper/Export.h>
 
 #include <iiAccountManager.h>
 #include <QNetworkAccessManager>

@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/Sync/FILE_PROVIDER.md",
-    "sha256": "8ee991f84ae58d13afce5035b4864a0320974f0d11c9949fd88d4d5f43bb1105",
-    "bytes": 863,
+    "sha256": "34adb8259b730967d285b6455f6a77ddbf7e220e313fbae13e3caab566760390",
+    "bytes": 783,
     "line_count": 17,
     "encoding": "utf-8",
     "language": "en"
@@ -85,31 +85,31 @@
       "kind": "list",
       "start_line": 13,
       "end_line": 17,
-      "raw": "- `src/iiSocietyHelper/Sync/ConfinedFiles.cpp`\n- `src/iiSocietyHelper/Sync/ConfinedFiles_win.cpp`\n- `src/iiSocietyHelper/Sync/ObjectProvider.cpp`\n- `src/iiSocietyHelper/Sync/RemoteFiles.cpp`\n- `src/iiSocietyHelper/Sync/Replica.cpp`\n",
+      "raw": "- `src/Sync/ConfinedFiles.cpp`\n- `src/Sync/ConfinedFiles_win.cpp`\n- `src/Sync/ObjectProvider.cpp`\n- `src/Sync/RemoteFiles.cpp`\n- `src/Sync/Replica.cpp`\n",
       "items": [
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Sync/ConfinedFiles.cpp`",
+          "text": "`src/Sync/ConfinedFiles.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Sync/ConfinedFiles_win.cpp`",
+          "text": "`src/Sync/ConfinedFiles_win.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Sync/ObjectProvider.cpp`",
+          "text": "`src/Sync/ObjectProvider.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Sync/RemoteFiles.cpp`",
+          "text": "`src/Sync/RemoteFiles.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Sync/Replica.cpp`",
+          "text": "`src/Sync/Replica.cpp`",
           "checked": null
         }
       ]

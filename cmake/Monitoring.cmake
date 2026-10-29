@@ -11,7 +11,7 @@ else()
     set(helper_monitor_type SHARED)
 endif()
 add_library(iiSocietyHelperMonitoring ${helper_monitor_type}
-    src/iiSocietyHelper/Monitoring/Monitor.cpp src/iiSocietyHelper/Monitoring/Monitor.h)
+    src/Monitoring/Monitor.cpp src/Monitoring/Monitor.h)
 add_library(iiSocietyHelper::Monitoring ALIAS iiSocietyHelperMonitoring)
 set_target_properties(iiSocietyHelperMonitoring PROPERTIES EXPORT_NAME Monitoring
     AUTOMOC OFF CXX_EXTENSIONS OFF VERSION ${PROJECT_VERSION} SOVERSION 0
@@ -22,7 +22,7 @@ if(helper_monitor_type STREQUAL "STATIC")
     target_compile_definitions(iiSocietyHelperMonitoring PUBLIC IISOCIETYHELPER_MONITORING_STATIC)
 endif()
 target_include_directories(iiSocietyHelperMonitoring PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>" "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 target_link_libraries(iiSocietyHelperMonitoring PRIVATE iiSDKCore::iiSDKCore
     iiFileProvider::CoreIO iiSocietyContainer::FileTree Threads::Threads)
 if(APPLE)

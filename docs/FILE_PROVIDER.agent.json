@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/FILE_PROVIDER.md",
-    "sha256": "3b4e2761ccbd64824c555a060569780aa724b60c43fd575c34a6053f47a82998",
-    "bytes": 837,
+    "sha256": "469bf264f58975bdfe0aed5a4ca2dcff205ce6e1538e5993f7dfee130808a15e",
+    "bytes": 866,
     "line_count": 20,
     "encoding": "utf-8",
     "language": "en"
@@ -85,46 +85,46 @@
       "kind": "list",
       "start_line": 13,
       "end_line": 20,
-      "raw": "- `src/CanvasStorage.cpp`\n- `src/DeliveryStore.cpp`\n- `src/FileSystem.cpp`\n- `src/GenerationStorage.cpp`\n- `src/Helper.cpp`\n- `src/iiSocietyHelper/Client.cpp`\n- `src/iiSocietyHelper/GroupSessionStore.cpp`\n- `src/iiSocietyHelper/GroupSessionStore.h`\n",
+      "raw": "- `src/Storage/Canvas/CanvasStorage.cpp`\n- `src/Delivery/DeliveryStore.cpp`\n- `src/Files/FileSystem.cpp`\n- `src/Storage/Generation/GenerationStorage.cpp`\n- `src/Core/Helper.cpp`\n- `src/Client/Client.cpp`\n- `src/Storage/GroupSessionStore.cpp`\n- `src/Storage/GroupSessionStore.h`\n",
       "items": [
         {
           "marker": "-",
-          "text": "`src/CanvasStorage.cpp`",
+          "text": "`src/Storage/Canvas/CanvasStorage.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/DeliveryStore.cpp`",
+          "text": "`src/Delivery/DeliveryStore.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/FileSystem.cpp`",
+          "text": "`src/Files/FileSystem.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/GenerationStorage.cpp`",
+          "text": "`src/Storage/Generation/GenerationStorage.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/Helper.cpp`",
+          "text": "`src/Core/Helper.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/Client.cpp`",
+          "text": "`src/Client/Client.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/GroupSessionStore.cpp`",
+          "text": "`src/Storage/GroupSessionStore.cpp`",
           "checked": null
         },
         {
           "marker": "-",
-          "text": "`src/iiSocietyHelper/GroupSessionStore.h`",
+          "text": "`src/Storage/GroupSessionStore.h`",
           "checked": null
         }
       ]

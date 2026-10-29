@@ -6,7 +6,7 @@ if(IISOCIETYHELPER_WITH_BLE)
     target_link_libraries(iiSocietyHelper PRIVATE Qt6::Bluetooth)
     target_compile_definitions(iiSocietyHelper PRIVATE IISOCIETYHELPER_BLE)
 endif()
-set(_helper_sync_dir src/iiSocietyHelper/Sync)
+set(_helper_sync_dir src/Sync)
 target_sources(iiSocietyHelper PRIVATE
     ${_helper_sync_dir}/Status.cpp ${_helper_sync_dir}/Status.h
     ${_helper_sync_dir}/Sync.cpp ${_helper_sync_dir}/Sync.h

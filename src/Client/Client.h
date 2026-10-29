@@ -1,6 +1,6 @@
 #pragma once
-#include "Export.h"
-#include "Sync/Status.h"
+#include <iiSocietyHelper/Export.h>
+#include <iiSocietyHelper/Sync/Status.h>
 #include <Container.h>
 #include <QObject>
 #include <QHostAddress>

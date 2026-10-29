@@ -1,5 +1,5 @@
 #pragma once
-#include "Export.h"
+#include <iiSocietyHelper/Export.h>
 #include <QByteArray>
 #include <QDateTime>
 #include <QJsonObject>

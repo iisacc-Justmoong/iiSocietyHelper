@@ -1,4 +1,4 @@
-#include "DiscoveryService.h"
+#include <iiSocietyHelper/DiscoveryService.h>
 #include <iiSocietyHelper/Sync/BleDiscovery.h>
 
 namespace {

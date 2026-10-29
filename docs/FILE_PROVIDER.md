@@ -10,11 +10,11 @@ runtime validation are separate evidence.
 Changed boundaries:
 
 
-- `src/CanvasStorage.cpp`
-- `src/DeliveryStore.cpp`
-- `src/FileSystem.cpp`
-- `src/GenerationStorage.cpp`
-- `src/Helper.cpp`
-- `src/iiSocietyHelper/Client.cpp`
-- `src/iiSocietyHelper/GroupSessionStore.cpp`
-- `src/iiSocietyHelper/GroupSessionStore.h`
+- `src/Storage/Canvas/CanvasStorage.cpp`
+- `src/Delivery/DeliveryStore.cpp`
+- `src/Files/FileSystem.cpp`
+- `src/Storage/Generation/GenerationStorage.cpp`
+- `src/Core/Helper.cpp`
+- `src/Client/Client.cpp`
+- `src/Storage/GroupSessionStore.cpp`
+- `src/Storage/GroupSessionStore.h`

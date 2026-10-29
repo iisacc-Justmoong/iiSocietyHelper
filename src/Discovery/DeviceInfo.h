@@ -1,5 +1,5 @@
 #pragma once
-#include "Export.h"
+#include <iiSocietyHelper/Export.h>
 #include <QVariantMap>
 
 // Adds Society's app identity and the native mobile identity/form factor.

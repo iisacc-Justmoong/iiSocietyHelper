@@ -5,13 +5,14 @@ import pathlib
 import queue
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
 exe, build, version = sys.argv[1:]
 assert subprocess.check_output([exe, '--version'], text=True).strip().endswith(version)
-base = pathlib.Path(build) / 'process-fixture'
-base.mkdir(exist_ok=True)
+fixture = tempfile.TemporaryDirectory(prefix='process-fixture-', dir=build)
+base = pathlib.Path(fixture.name)
 roots = [base / (name + '.societycontainer') for name in ('first', 'second')]
 ids = ['11111111-2222-4333-8444-555555555555', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee']
 sections = ['Files', 'Photos', 'Asset Library', 'Generation History', 'Models', 'Thinking Space', 'Forked', 'Published', 'Deleted']
@@ -95,5 +96,4 @@ finally:
         if process.poll() is None:
             process.terminate()
             process.wait(timeout=5)
-    import shutil
-    shutil.rmtree(base)
+    fixture.cleanup()

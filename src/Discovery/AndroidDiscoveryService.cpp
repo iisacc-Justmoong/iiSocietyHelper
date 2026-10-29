@@ -1,4 +1,4 @@
-#include "DiscoveryService.h"
+#include <iiSocietyHelper/DiscoveryService.h>
 #include <QCoreApplication>
 #include <QJniEnvironment>
 #include <QJniObject>

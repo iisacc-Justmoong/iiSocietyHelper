@@ -1,4 +1,4 @@
-#include "DiscoveryService.h"
+#include <iiSocietyHelper/DiscoveryService.h>
 #include <iiWebServer.h>
 #include <QHostInfo>
 #include <QPointer>

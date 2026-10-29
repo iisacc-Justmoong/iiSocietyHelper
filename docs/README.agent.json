@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/README.md",
-    "sha256": "57b65cb69b021f881c9ce1e2699ccee5c46d14ad4a84da4a14dee18d38041850",
-    "bytes": 3515,
-    "line_count": 44,
+    "sha256": "1265aa1e936bf2f729a50c573bd6ebcf108de37476b26f0f8b96e19dffffaae3",
+    "bytes": 3595,
+    "line_count": 45,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -79,8 +79,8 @@
       "id": "b000008",
       "kind": "table",
       "start_line": 8,
-      "end_line": 43,
-      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/ApplicationStorage.md`](ApplicationStorage.md) | [JSON](ApplicationStorage.agent.json) |\n| [`docs/BuildComponents.md`](BuildComponents.md) | [JSON](BuildComponents.agent.json) |\n| [`docs/CanvasProfiles.md`](CanvasProfiles.md) | [JSON](CanvasProfiles.agent.json) |\n| [`docs/Client.md`](Client.md) | [JSON](Client.agent.json) |\n| [`docs/Consolidation.md`](Consolidation.md) | [JSON](Consolidation.agent.json) |\n| [`docs/ConsolidationVerification.md`](ConsolidationVerification.md) | [JSON](ConsolidationVerification.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/FilePresentation.md`](FilePresentation.md) | [JSON](FilePresentation.agent.json) |\n| [`docs/Generation/FILE_PROVIDER.md`](Generation/FILE_PROVIDER.md) | [JSON](Generation/FILE_PROVIDER.agent.json) |\n| [`docs/Generation/README.md`](Generation/README.md) | [JSON](Generation/README.agent.json) |\n| [`docs/Generation/WindowsBuildAndRun.md`](Generation/WindowsBuildAndRun.md) | [JSON](Generation/WindowsBuildAndRun.agent.json) |\n| [`docs/HostDrive.md`](HostDrive.md) | [JSON](HostDrive.agent.json) |\n| [`docs/ManagedFiles.md`](ManagedFiles.md) | [JSON](ManagedFiles.agent.json) |\n| [`docs/Migration.md`](Migration.md) | [JSON](Migration.agent.json) |\n| [`docs/Monitoring/FILE_PROVIDER.md`](Monitoring/FILE_PROVIDER.md) | [JSON](Monitoring/FILE_PROVIDER.agent.json) |\n| [`docs/Monitoring/Protocol.md`](Monitoring/Protocol.md) | [JSON](Monitoring/Protocol.agent.json) |\n| [`docs/Monitoring/README.md`](Monitoring/README.md) | [JSON](Monitoring/README.agent.json) |\n| [`docs/Monitoring/WindowsBuildAndRun.md`](Monitoring/WindowsBuildAndRun.md) | [JSON](Monitoring/WindowsBuildAndRun.agent.json) |\n| [`docs/Sync/FILE_PROVIDER.md`](Sync/FILE_PROVIDER.md) | [JSON](Sync/FILE_PROVIDER.agent.json) |\n| [`docs/Sync/Namespace.md`](Sync/Namespace.md) | [JSON](Sync/Namespace.agent.json) |\n| [`docs/Sync/NearbySync.md`](Sync/NearbySync.md) | [JSON](Sync/NearbySync.agent.json) |\n| [`docs/Sync/PERFORMANCE.md`](Sync/PERFORMANCE.md) | [JSON](Sync/PERFORMANCE.agent.json) |\n| [`docs/Sync/README.md`](Sync/README.md) | [JSON](Sync/README.agent.json) |\n| [`docs/Sync/Snapshots.md`](Sync/Snapshots.md) | [JSON](Sync/Snapshots.agent.json) |\n| [`docs/Sync/WindowsBuildAndRun.md`](Sync/WindowsBuildAndRun.md) | [JSON](Sync/WindowsBuildAndRun.agent.json) |\n| [`docs/Sync/WindowsValidation.md`](Sync/WindowsValidation.md) | [JSON](Sync/WindowsValidation.agent.json) |\n| [`docs/SyncStartup.md`](SyncStartup.md) | [JSON](SyncStartup.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/WindowsCanvasDashboard.md`](WindowsCanvasDashboard.md) | [JSON](WindowsCanvasDashboard.agent.json) |\n| [`docs/WindowsPresencePublication.md`](WindowsPresencePublication.md) | [JSON](WindowsPresencePublication.agent.json) |\n| [`docs/WindowsValidation.md`](WindowsValidation.md) | [JSON](WindowsValidation.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
+      "end_line": 44,
+      "raw": "| Document | Agent JSON |\n| --- | --- |\n| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |\n| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |\n| [`docs/ApplicationStorage.md`](ApplicationStorage.md) | [JSON](ApplicationStorage.agent.json) |\n| [`docs/BuildComponents.md`](BuildComponents.md) | [JSON](BuildComponents.agent.json) |\n| [`docs/CanvasProfiles.md`](CanvasProfiles.md) | [JSON](CanvasProfiles.agent.json) |\n| [`docs/Client.md`](Client.md) | [JSON](Client.agent.json) |\n| [`docs/Consolidation.md`](Consolidation.md) | [JSON](Consolidation.agent.json) |\n| [`docs/ConsolidationVerification.md`](ConsolidationVerification.md) | [JSON](ConsolidationVerification.agent.json) |\n| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |\n| [`docs/FilePresentation.md`](FilePresentation.md) | [JSON](FilePresentation.agent.json) |\n| [`docs/Generation/FILE_PROVIDER.md`](Generation/FILE_PROVIDER.md) | [JSON](Generation/FILE_PROVIDER.agent.json) |\n| [`docs/Generation/README.md`](Generation/README.md) | [JSON](Generation/README.agent.json) |\n| [`docs/Generation/WindowsBuildAndRun.md`](Generation/WindowsBuildAndRun.md) | [JSON](Generation/WindowsBuildAndRun.agent.json) |\n| [`docs/HostDrive.md`](HostDrive.md) | [JSON](HostDrive.agent.json) |\n| [`docs/ManagedFiles.md`](ManagedFiles.md) | [JSON](ManagedFiles.agent.json) |\n| [`docs/Migration.md`](Migration.md) | [JSON](Migration.agent.json) |\n| [`docs/Monitoring/FILE_PROVIDER.md`](Monitoring/FILE_PROVIDER.md) | [JSON](Monitoring/FILE_PROVIDER.agent.json) |\n| [`docs/Monitoring/Protocol.md`](Monitoring/Protocol.md) | [JSON](Monitoring/Protocol.agent.json) |\n| [`docs/Monitoring/README.md`](Monitoring/README.md) | [JSON](Monitoring/README.agent.json) |\n| [`docs/Monitoring/WindowsBuildAndRun.md`](Monitoring/WindowsBuildAndRun.md) | [JSON](Monitoring/WindowsBuildAndRun.agent.json) |\n| [`docs/SourceLayout.md`](SourceLayout.md) | [JSON](SourceLayout.agent.json) |\n| [`docs/Sync/FILE_PROVIDER.md`](Sync/FILE_PROVIDER.md) | [JSON](Sync/FILE_PROVIDER.agent.json) |\n| [`docs/Sync/Namespace.md`](Sync/Namespace.md) | [JSON](Sync/Namespace.agent.json) |\n| [`docs/Sync/NearbySync.md`](Sync/NearbySync.md) | [JSON](Sync/NearbySync.agent.json) |\n| [`docs/Sync/PERFORMANCE.md`](Sync/PERFORMANCE.md) | [JSON](Sync/PERFORMANCE.agent.json) |\n| [`docs/Sync/README.md`](Sync/README.md) | [JSON](Sync/README.agent.json) |\n| [`docs/Sync/Snapshots.md`](Sync/Snapshots.md) | [JSON](Sync/Snapshots.agent.json) |\n| [`docs/Sync/WindowsBuildAndRun.md`](Sync/WindowsBuildAndRun.md) | [JSON](Sync/WindowsBuildAndRun.agent.json) |\n| [`docs/Sync/WindowsValidation.md`](Sync/WindowsValidation.md) | [JSON](Sync/WindowsValidation.agent.json) |\n| [`docs/SyncStartup.md`](SyncStartup.md) | [JSON](SyncStartup.agent.json) |\n| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |\n| [`docs/WindowsCanvasDashboard.md`](WindowsCanvasDashboard.md) | [JSON](WindowsCanvasDashboard.agent.json) |\n| [`docs/WindowsPresencePublication.md`](WindowsPresencePublication.md) | [JSON](WindowsPresencePublication.agent.json) |\n| [`docs/WindowsValidation.md`](WindowsValidation.md) | [JSON](WindowsValidation.agent.json) |\n| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |\n",
       "columns": [
         "Document",
         "Agent JSON"
@@ -167,6 +167,10 @@
           "[JSON](Monitoring/WindowsBuildAndRun.agent.json)"
         ],
         [
+          "[`docs/SourceLayout.md`](SourceLayout.md)",
+          "[JSON](SourceLayout.agent.json)"
+        ],
+        [
           "[`docs/Sync/FILE_PROVIDER.md`](Sync/FILE_PROVIDER.md)",
           "[JSON](Sync/FILE_PROVIDER.agent.json)"
         ],
@@ -227,8 +231,8 @@
     {
       "id": "b000009",
       "kind": "html",
-      "start_line": 44,
-      "end_line": 44,
+      "start_line": 45,
+      "end_line": 45,
       "raw": "<!-- workspace-docs:document-map:end -->\n"
     }
   ],
@@ -536,199 +540,213 @@
       },
       {
         "block_id": "b000008",
+        "label": "`docs/SourceLayout.md`",
+        "target": "SourceLayout.md",
+        "kind": "relative",
+        "line": 30
+      },
+      {
+        "block_id": "b000008",
+        "label": "JSON",
+        "target": "SourceLayout.agent.json",
+        "kind": "relative",
+        "line": 30
+      },
+      {
+        "block_id": "b000008",
         "label": "`docs/Sync/FILE_PROVIDER.md`",
         "target": "Sync/FILE_PROVIDER.md",
         "kind": "relative",
-        "line": 30
+        "line": 31
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/FILE_PROVIDER.agent.json",
         "kind": "relative",
-        "line": 30
+        "line": 31
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/Namespace.md`",
         "target": "Sync/Namespace.md",
         "kind": "relative",
-        "line": 31
+        "line": 32
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/Namespace.agent.json",
         "kind": "relative",
-        "line": 31
+        "line": 32
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/NearbySync.md`",
         "target": "Sync/NearbySync.md",
         "kind": "relative",
-        "line": 32
+        "line": 33
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/NearbySync.agent.json",
         "kind": "relative",
-        "line": 32
+        "line": 33
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/PERFORMANCE.md`",
         "target": "Sync/PERFORMANCE.md",
         "kind": "relative",
-        "line": 33
+        "line": 34
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/PERFORMANCE.agent.json",
         "kind": "relative",
-        "line": 33
+        "line": 34
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/README.md`",
         "target": "Sync/README.md",
         "kind": "relative",
-        "line": 34
+        "line": 35
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/README.agent.json",
         "kind": "relative",
-        "line": 34
+        "line": 35
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/Snapshots.md`",
         "target": "Sync/Snapshots.md",
         "kind": "relative",
-        "line": 35
+        "line": 36
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/Snapshots.agent.json",
         "kind": "relative",
-        "line": 35
+        "line": 36
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/WindowsBuildAndRun.md`",
         "target": "Sync/WindowsBuildAndRun.md",
         "kind": "relative",
-        "line": 36
+        "line": 37
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/WindowsBuildAndRun.agent.json",
         "kind": "relative",
-        "line": 36
+        "line": 37
       },
       {
         "block_id": "b000008",
         "label": "`docs/Sync/WindowsValidation.md`",
         "target": "Sync/WindowsValidation.md",
         "kind": "relative",
-        "line": 37
+        "line": 38
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "Sync/WindowsValidation.agent.json",
         "kind": "relative",
-        "line": 37
+        "line": 38
       },
       {
         "block_id": "b000008",
         "label": "`docs/SyncStartup.md`",
         "target": "SyncStartup.md",
         "kind": "relative",
-        "line": 38
+        "line": 39
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "SyncStartup.agent.json",
         "kind": "relative",
-        "line": 38
+        "line": 39
       },
       {
         "block_id": "b000008",
         "label": "`docs/WindowsBuildAndRun.md`",
         "target": "WindowsBuildAndRun.md",
         "kind": "relative",
-        "line": 39
+        "line": 40
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WindowsBuildAndRun.agent.json",
         "kind": "relative",
-        "line": 39
+        "line": 40
       },
       {
         "block_id": "b000008",
         "label": "`docs/WindowsCanvasDashboard.md`",
         "target": "WindowsCanvasDashboard.md",
         "kind": "relative",
-        "line": 40
+        "line": 41
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WindowsCanvasDashboard.agent.json",
         "kind": "relative",
-        "line": 40
+        "line": 41
       },
       {
         "block_id": "b000008",
         "label": "`docs/WindowsPresencePublication.md`",
         "target": "WindowsPresencePublication.md",
         "kind": "relative",
-        "line": 41
+        "line": 42
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WindowsPresencePublication.agent.json",
         "kind": "relative",
-        "line": 41
+        "line": 42
       },
       {
         "block_id": "b000008",
         "label": "`docs/WindowsValidation.md`",
         "target": "WindowsValidation.md",
         "kind": "relative",
-        "line": 42
+        "line": 43
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "WindowsValidation.agent.json",
         "kind": "relative",
-        "line": 42
+        "line": 43
       },
       {
         "block_id": "b000008",
         "label": "`docs/documentation-structure.md`",
         "target": "documentation-structure.md",
         "kind": "relative",
-        "line": 43
+        "line": 44
       },
       {
         "block_id": "b000008",
         "label": "JSON",
         "target": "documentation-structure.agent.json",
         "kind": "relative",
-        "line": 43
+        "line": 44
       }
     ],
     "tables": [
@@ -818,6 +836,10 @@
           [
             "[`docs/Monitoring/WindowsBuildAndRun.md`](Monitoring/WindowsBuildAndRun.md)",
             "[JSON](Monitoring/WindowsBuildAndRun.agent.json)"
+          ],
+          [
+            "[`docs/SourceLayout.md`](SourceLayout.md)",
+            "[JSON](SourceLayout.agent.json)"
           ],
           [
             "[`docs/Sync/FILE_PROVIDER.md`](Sync/FILE_PROVIDER.md)",

@@ -1,4 +1,4 @@
-#include "StateCrypto.h"
+#include <iiSocietyHelper/StateCrypto.h>
 #ifdef Q_OS_IOS
 extern "C" int society_state_crypt(int encrypt, const char *key, const char *input, int size,
                                    const char *context, int contextSize, char *output);

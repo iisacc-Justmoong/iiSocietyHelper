@@ -21,12 +21,55 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(CTest)
 find_package(Threads REQUIRED)
+set(_helper_root_headers
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Core/Export.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Account/AccountSession.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Client/Client.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/AutomaticPairing.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/DeviceInfo.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/DiscoveryService.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/NearbyDevices.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Storage/GroupSessionStore.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Storage/PairingCredentials.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Storage/StateCrypto.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Media/FileDownload.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Media/MediaExport.h"
+)
+foreach(_header IN LISTS _helper_root_headers)
+    get_filename_component(_name "${_header}" NAME)
+    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/iiSocietyHelper/${_name}"
+        CONTENT "#pragma once\n#include \"${_header}\"\n")
+endforeach()
+# Keep the legacy flat umbrella, delivery and private source includes available.
+foreach(_header IN ITEMS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Core/iiSocietyHelper.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Delivery/DeliveryStore.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Delivery/LocalDirectory.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/PresenceWorker_p.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Files/FilePresentation_p.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/Storage/Managed/ManagedFileOperation_p.h")
+    get_filename_component(_name "${_header}" NAME)
+    file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/${_name}"
+        CONTENT "#pragma once\n#include \"${_header}\"\n")
+endforeach()
+foreach(_feature Sync Monitoring Generation)
+    file(GLOB_RECURSE _feature_headers CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/${_feature}/*.h")
+    foreach(_header IN LISTS _feature_headers)
+        file(RELATIVE_PATH _relative "${CMAKE_CURRENT_SOURCE_DIR}/src" "${_header}")
+        file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/iiSocietyHelper/${_relative}"
+            CONTENT "#pragma once\n#include \"${_header}\"\n")
+    endforeach()
+endforeach()
+if(BUILD_TESTING)
+    add_test(NAME iiSocietyHelper.SourceLayout COMMAND ${CMAKE_COMMAND}
+        "-DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/source_layout.cmake")
+endif()
 option(IISOCIETYHELPER_BUILD_CORE "Build the account, IPC, storage, sync and remote-generation facade" ON)
 if(NOT IISOCIETYHELPER_BUILD_CORE)
     set(IISOCIETYHELPER_BUILD_GENERATION_HOST OFF)
     set(IISOCIETYHELPER_WITH_BLE OFF)
     include(cmake/Monitoring.cmake)
-    install(DIRECTORY src/iiSocietyHelper/Monitoring DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h")
+    install(DIRECTORY src/Monitoring DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h")
     include(cmake/Package.cmake)
     return()
 endif()
@@ -58,13 +101,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
 else()
     set(helper_library_type SHARED)
 endif()
-add_library(iiSocietyHelper ${helper_library_type} src/iiSocietyHelper.cpp src/iiSocietyHelper.h src/Helper.cpp src/FileSystem.cpp src/ManagedStorage.cpp src/ManagedFileOperation_p.h src/CanvasStorage.cpp src/GenerationStorage.cpp src/MediaExport.cpp src/DeliveryStore.cpp src/DeliveryStore.h src/ObjectCodec.cpp src/LocalDirectory.cpp src/LocalDirectory.h)
+add_library(iiSocietyHelper ${helper_library_type} src/Core/iiSocietyHelper.cpp src/Core/iiSocietyHelper.h src/Core/Helper.cpp src/Files/FileSystem.cpp src/Storage/Managed/ManagedStorage.cpp src/Storage/Managed/ManagedFileOperation_p.h src/Storage/Canvas/CanvasStorage.cpp src/Storage/Generation/GenerationStorage.cpp src/Media/MediaExport.cpp src/Delivery/DeliveryStore.cpp src/Delivery/DeliveryStore.h src/Objects/ObjectCodec.cpp src/Delivery/LocalDirectory.cpp src/Delivery/LocalDirectory.h)
 target_sources(iiSocietyHelper PRIVATE
-    src/iiSocietyHelper/FileDownload.h src/iiSocietyHelper/FileDownload.cpp
-    src/iiSocietyHelper/Client.h src/iiSocietyHelper/Client.cpp src/iiSocietyHelper/AccountSession.h src/iiSocietyHelper/AccountSession.cpp src/iiSocietyHelper/DeviceInfo.h src/iiSocietyHelper/DeviceInfo.cpp
-    src/iiSocietyHelper/DiscoveryService.h src/iiSocietyHelper/NearbyDevices.h src/iiSocietyHelper/NearbyDevices.cpp src/iiSocietyHelper/AutomaticPairing.h src/iiSocietyHelper/AutomaticPairing.cpp
-    src/iiSocietyHelper/PairingCredentials.h src/iiSocietyHelper/PairingCredentials.cpp src/iiSocietyHelper/HybridDiscoveryService.cpp
-    src/iiSocietyHelper/GroupSessionStore.h src/iiSocietyHelper/GroupSessionStore.cpp src/iiSocietyHelper/StateCrypto.h src/iiSocietyHelper/StateCrypto.cpp src/iiSocietyHelper/Export.h)
+    src/Media/FileDownload.h src/Media/FileDownload.cpp
+    src/Client/Client.h src/Client/Client.cpp src/Account/AccountSession.h src/Account/AccountSession.cpp src/Discovery/DeviceInfo.h src/Discovery/DeviceInfo.cpp
+    src/Discovery/DiscoveryService.h src/Discovery/NearbyDevices.h src/Discovery/NearbyDevices.cpp src/Discovery/AutomaticPairing.h src/Discovery/AutomaticPairing.cpp
+    src/Storage/PairingCredentials.h src/Storage/PairingCredentials.cpp src/Discovery/HybridDiscoveryService.cpp
+    src/Storage/GroupSessionStore.h src/Storage/GroupSessionStore.cpp src/Storage/StateCrypto.h src/Storage/StateCrypto.cpp src/Core/Export.h)
 add_library(iiSocietyHelper::iiSocietyHelper ALIAS iiSocietyHelper)
 target_compile_features(iiSocietyHelper PUBLIC cxx_std_23)
 target_compile_definitions(iiSocietyHelper PRIVATE IISOCIETYHELPER_BUILDING_LIBRARY SOCIETY_APP_VERSION="${PROJECT_VERSION}")
@@ -75,10 +118,11 @@ target_link_libraries(iiSocietyHelper PUBLIC Qt6::Core Qt6::Sql
     iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core iiAccountManager::iiAccountManager Qt6::Network Qt6::Gui iiWebServer::iiWebServer)
 target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::iiFileProvider iiSocietyHelper::Monitoring iiFileProvider::Temporary)
 target_link_libraries(iiSocietyHelper PRIVATE Threads::Threads)
-target_sources(iiSocietyHelper PRIVATE src/FilePresentation.cpp src/FilePresentation_p.h)
+target_sources(iiSocietyHelper PRIVATE src/Files/FilePresentation.cpp src/Files/FilePresentation_p.h)
 target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::Native)
 target_include_directories(iiSocietyHelper PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 set_target_properties(iiSocietyHelper PROPERTIES
     VERSION ${PROJECT_VERSION}
@@ -107,8 +151,8 @@ if(APPLE)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Concurrent)
     target_link_libraries(iiSocietyHelper PRIVATE Qt6::Concurrent)
     enable_language(OBJCXX)
-    target_sources(iiSocietyHelper PRIVATE src/iiSocietyHelper/AppleStateLocation.mm)
-    set_source_files_properties(src/iiSocietyHelper/AppleStateLocation.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
+    target_sources(iiSocietyHelper PRIVATE src/Storage/AppleStateLocation.mm)
+    set_source_files_properties(src/Storage/AppleStateLocation.mm PROPERTIES COMPILE_OPTIONS "-fobjc-arc")
     target_link_libraries(iiSocietyHelper PRIVATE "-framework Foundation" "-framework Security")
     set_target_properties(iiSocietyHelper PROPERTIES OBJCXX_STANDARD 23 OBJCXX_STANDARD_REQUIRED ON)
 endif()
@@ -120,8 +164,8 @@ if(IOS)
         endif()
     endif()
     enable_language(Swift)
-    target_sources(iiSocietyHelper PRIVATE src/iiSocietyHelper/IosDeviceInfo.mm)
-    add_library(iiSocietyHelperCrypto STATIC src/iiSocietyHelper/IosStateCrypto.swift)
+    target_sources(iiSocietyHelper PRIVATE src/Discovery/IosDeviceInfo.mm)
+    add_library(iiSocietyHelperCrypto STATIC src/Storage/IosStateCrypto.swift)
     set_target_properties(iiSocietyHelperCrypto PROPERTIES AUTOMOC OFF Swift_LANGUAGE_VERSION 5)
     target_compile_options(iiSocietyHelperCrypto PRIVATE "$<$<COMPILE_LANGUAGE:Swift>:-parse-as-library>")
     target_link_libraries(iiSocietyHelperCrypto PRIVATE "-framework CryptoKit" "-framework Foundation")
@@ -136,10 +180,10 @@ else()
     target_link_libraries(iiSocietyHelper PRIVATE OpenSSL::Crypto)
 endif()
 if(ANDROID)
-    target_sources(iiSocietyHelper PRIVATE src/iiSocietyHelper/AndroidDiscoveryService.cpp)
+    target_sources(iiSocietyHelper PRIVATE src/Discovery/AndroidDiscoveryService.cpp)
 else()
     find_path(IISOCIETYHELPER_DNSSD_INCLUDE dns_sd.h PATH_SUFFIXES avahi-compat-libdns_sd REQUIRED)
-    target_sources(iiSocietyHelper PRIVATE src/iiSocietyHelper/DnsSdDiscoveryService.cpp)
+    target_sources(iiSocietyHelper PRIVATE src/Discovery/DnsSdDiscoveryService.cpp)
     target_include_directories(iiSocietyHelper PRIVATE "${IISOCIETYHELPER_DNSSD_INCLUDE}")
     if(NOT APPLE)
         find_library(IISOCIETYHELPER_DNSSD_LIBRARY NAMES dns_sd dnssd REQUIRED)
@@ -185,7 +229,7 @@ if(BUILD_TESTING)
         set_tests_properties(iiSocietyHelper.session PROPERTIES TIMEOUT 300 ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
         if(APPLE AND NOT IOS)
             # Exercise the private native Keychain adapter without exporting it.
-            add_executable(iiSocietyHelper_apple_state_tests tests/client/apple_state.mm src/iiSocietyHelper/AppleStateLocation.mm)
+            add_executable(iiSocietyHelper_apple_state_tests tests/client/apple_state.mm src/Storage/AppleStateLocation.mm)
             target_link_libraries(iiSocietyHelper_apple_state_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Concurrent "-framework Security")
             set_target_properties(iiSocietyHelper_apple_state_tests PROPERTIES OBJCXX_STANDARD 23)
             add_test(NAME iiSocietyHelper.apple_state COMMAND iiSocietyHelper_apple_state_tests)
@@ -269,8 +313,9 @@ install(TARGETS iiSocietyHelper EXPORT iiSocietyHelperTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES src/iiSocietyHelper.h src/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(DIRECTORY src/iiSocietyHelper/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h"
+install(FILES src/Core/iiSocietyHelper.h src/Delivery/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES ${_helper_root_headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper)
+install(DIRECTORY src/Sync src/Monitoring src/Generation DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h"
     PATTERN "ConfinedFiles.h" EXCLUDE PATTERN "NamespaceJournal.h" EXCLUDE
     PATTERN "WatchPaths.h" EXCLUDE PATTERN "FilePresentation_p.h" EXCLUDE PATTERN "NativeControlPaths_p.h" EXCLUDE)
 install(EXPORT iiSocietyHelperTargets NAMESPACE iiSocietyHelper:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper)

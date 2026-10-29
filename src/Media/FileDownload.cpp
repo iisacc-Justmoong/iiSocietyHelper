@@ -1,5 +1,5 @@
-#include "FileDownload.h"
-#include "Client.h"
+#include <iiSocietyHelper/FileDownload.h>
+#include <iiSocietyHelper/Client.h>
 #include <iiSocietyHelper.h>
 #include <iiSocietyHelper/Sync/Sync.h>
 #include <StorageMap.h>

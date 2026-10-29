@@ -1,4 +1,4 @@
-#include "AutomaticPairing.h"
+#include <iiSocietyHelper/AutomaticPairing.h>
 #include <QScopedValueRollback>
 #include <algorithm>
 

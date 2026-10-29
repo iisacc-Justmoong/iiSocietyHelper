@@ -1,6 +1,6 @@
 #pragma once
-#include "Export.h"
-#include "NearbyDevices.h"
+#include <iiSocietyHelper/Export.h>
+#include <iiSocietyHelper/NearbyDevices.h>
 #include <iiWebServer.h>
 #include <functional>
 

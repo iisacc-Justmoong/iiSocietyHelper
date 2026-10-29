@@ -1,5 +1,7 @@
 # iiSocietyHelper
 
+Sources and adjacent headers are organized by responsibility under `src/`; see [source layout](docs/SourceLayout.md). Existing public include names remain unchanged.
+
 All iisacc products access the common `.societycontainer` contract through
 `FileSystem::openForApplication()` and iiSocietyContainer. Windows/Linux use a
 suite-wide user data root, Apple uses its App Group, and Android uses the signed
@@ -303,7 +305,7 @@ Apps share the same original bytes. Finder, iOS, and File apps expose only `File
 
 iOS consuming apps require the same App Group signature as the existing `iiSocietyContainer_configure_ios_client()` configuration. macOS sandbox apps must also use the original allowed by the OS. The private app directories for Android and WebAssembly are not public storage, and the host must explicitly specify the shared original. Android apps do not provide default shared storage or IPC between apps. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)follows the shared container contract.
 
-Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing MIT iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/FileSystem.cpp`, and the public API is at `src/iiSocietyHelper.h`.
+Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing MIT iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/Files/FileSystem.cpp`, and the public API is at `src/Core/iiSocietyHelper.h`.
 
 `iiSocietyHelper.filesystem` and install consumers check standard C++ write to Qt read/modify to standard C++ re-read, 8 areas, rename/delete, URL, invalid paths, late storage preparation, selective pin/unpin, and UUID replacement. All files are confined to `build/`'s temporary container.
 
@@ -475,7 +477,7 @@ Android and WebAssembly require a native selected package or an explicitly integ
 
 `QSaveFile` from the existing Qt Core atomically records `<UUID>.json` for each run, while `QFileSystemWatcher` and timer polling are used together. Records are reread periodically even if watcher notifications are coalesced or missed. Data delivery additionally links Qt Sql and the QSQLITE driver from the existing Qt distribution. No separate message broker or external server package is installed. Maintained SQL APIs in Qt 6.8.3 and SQLite transactions reduce the recovery burden of a custom file journal. Qt usage and redistribution follow the installed distribution's license.
 
-The public header is at `src/iiSocietyHelper.h` of the root, and the implementation is placed at `src/Helper.cpp`, `src/ObjectCodec.cpp`, `src/FileSystem.cpp`, and `src/iiSocietyHelper.cpp` of the same root. Only Apple path resolution is at `src/platform/apple/ObservationDirectory.mm`. The previous `helloWorld()` symbol is maintained for existing consumer compatibility.
+The public header is at `src/Core/iiSocietyHelper.h` of the root, and the implementation is placed at `src/Core/Helper.cpp`, `src/Objects/ObjectCodec.cpp`, `src/Files/FileSystem.cpp`, and `src/Core/iiSocietyHelper.cpp` of the same root. Only Apple path resolution is at `src/platform/apple/ObservationDirectory.mm`. The previous `helloWorld()` symbol is maintained for existing consumer compatibility.
 
 References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpaths.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html), [QFileSystemWatcher](https://doc.qt.io/qt-6.8/qfilesystemwatcher.html), [monotonic clock](https://doc.qt.io/qt-6.8/qelapsedtimer.html), [Apple App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups), and [iOS background execution](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes).
 

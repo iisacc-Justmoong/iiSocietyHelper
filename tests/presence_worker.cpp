@@ -1,4 +1,4 @@
-#include "../src/PresenceWorker_p.h"
+#include "../src/Discovery/PresenceWorker_p.h"
 #include <QElapsedTimer>
 #include <QTest>
 #include <QTimer>

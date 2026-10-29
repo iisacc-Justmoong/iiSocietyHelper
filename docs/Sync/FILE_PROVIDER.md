@@ -10,8 +10,8 @@ runtime validation are separate evidence.
 Changed boundaries:
 
 
-- `src/iiSocietyHelper/Sync/ConfinedFiles.cpp`
-- `src/iiSocietyHelper/Sync/ConfinedFiles_win.cpp`
-- `src/iiSocietyHelper/Sync/ObjectProvider.cpp`
-- `src/iiSocietyHelper/Sync/RemoteFiles.cpp`
-- `src/iiSocietyHelper/Sync/Replica.cpp`
+- `src/Sync/ConfinedFiles.cpp`
+- `src/Sync/ConfinedFiles_win.cpp`
+- `src/Sync/ObjectProvider.cpp`
+- `src/Sync/RemoteFiles.cpp`
+- `src/Sync/Replica.cpp`

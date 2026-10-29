@@ -29,7 +29,7 @@ directories; the gate is not a sandbox for arbitrary shell commands.
 
 Changed boundaries in this module:
 
-- `src/iiSocietyHelper/Generation/Host.cpp`
+- `src/Generation/Host.cpp`
 
 Protocol fixtures use actual `.societycontainer` directory packages and preserve
 strict cancellation, job ownership, retry, and corrupt-output checks.
