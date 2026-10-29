@@ -1,7 +1,7 @@
 #include <iiFileProviderDevice.h>
 #pragma once
 #include "Export.h"
-#include <iiAcountManager/SessionStore.h>
+#include <iiAccountManager/SessionStore.h>
 #include <QHash>
 #include <QPointer>
 #include <QQueue>

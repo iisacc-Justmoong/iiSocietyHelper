@@ -1,0 +1,316 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:a300d73c76c76eeaa3adcb6a89b0d0745ca0354a31e5417e396eaa933de5d634",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Migration.md",
+    "sha256": "6edc49c24187466cec0d863c015bcc282fdd656f5bc5f556c2eeab0aca0674ea",
+    "bytes": 4468,
+    "line_count": 81,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Society Helper API migration",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Society Helper API migration\n",
+      "level": 1,
+      "title": "Society Helper API migration"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "Version 0.10.0 also consolidates generation, monitoring and synchronization.\nSee [the component and namespace migration](Consolidation.md).\nThe Client migration described below remains applicable.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 10,
+      "raw": "`iiSocietyHelper` is the single application-facing SDK for Society storage,\naccounts, discovery, pairing and same-device collaboration. The former\n`iiSocietyClient` sources, native adapters and regression tests are part of this\nlibrary. There is no separate Client package or Client library to build or link.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "fenced_code",
+      "start_line": 12,
+      "end_line": 15,
+      "raw": "```cmake\nfind_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED)\ntarget_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED)\ntarget_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)\n",
+      "closed": true
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 25,
+      "raw": "Replace `#include <iiSocietyClient/Client.h>` with\n`#include <iiSocietyHelper/Client.h>` and `iiSocietyClient::Client` with\n`iiSocietyHelper::Client`. The other former Client headers retain their basenames\nunder `iiSocietyHelper/`, including `AccountSession.h`, `DiscoveryService.h`,\n`NearbyDevices.h`, `AutomaticPairing.h`, `GroupSessionStore.h` and\n`PairingCredentials.h`. Existing global account and discovery type names remain\nunchanged. `<iiSocietyHelper.h>` includes the local Helper, FileSystem, Client\nand AccountSession entry points. Recompile consumers; old Client object files\nand libraries must not be linked alongside the consolidated library.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "The SDK keeps two storage responsibilities explicit:\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "table",
+      "start_line": 29,
+      "end_line": 34,
+      "raw": "| API | Responsibility |\n| --- | --- |\n| `Helper` / `DeliveryStore` | Same-device presence and durable local IPC. |\n| `Helper::fileSystem()` / `FileSystem` | Selected native drive, Alias snapshots, canvas persistence, model access and media publication. |\n| `Client` | Authenticated host access, read-only container metadata and replica sessions. |\n| `AccountSession` | Account restoration, scoped pairing credentials and host reconnection state. |\n",
+      "columns": [
+        "API",
+        "Responsibility"
+      ],
+      "rows": [
+        [
+          "`Helper` / `DeliveryStore`",
+          "Same-device presence and durable local IPC."
+        ],
+        [
+          "`Helper::fileSystem()` / `FileSystem`",
+          "Selected native drive, Alias snapshots, canvas persistence, model access and media publication."
+        ],
+        [
+          "`Client`",
+          "Authenticated host access, read-only container metadata and replica sessions."
+        ],
+        [
+          "`AccountSession`",
+          "Account restoration, scoped pairing credentials and host reconnection state."
+        ]
+      ]
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 36,
+      "end_line": 37,
+      "raw": "Create the objects on the application event-loop thread. A local Helper can\nreference the same account manager as the host client:\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 38,
+      "end_line": 38,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "fenced_code",
+      "start_line": 39,
+      "end_line": 49,
+      "raw": "```cpp\n#include <iiSocietyHelper.h>\n\nAccountSession account;\niiSocietyHelper::Helper helper;\nhelper.setAccountManager(account.manager());\niiSocietyHelper::Client host(&account, nullptr);\n// After account authentication and registered host selection:\nhost.connectHost();\n// Consume host.hostDriveResponse and host.container() as described in HostDrive.md.\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSocietyHelper.h>\n\nAccountSession account;\niiSocietyHelper::Helper helper;\nhelper.setAccountManager(account.manager());\niiSocietyHelper::Client host(&account, nullptr);\n// After account authentication and registered host selection:\nhost.connectHost();\n// Consume host.hostDriveResponse and host.container() as described in HostDrive.md.\n",
+      "closed": true
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 51,
+      "end_line": 57,
+      "raw": "`Helper::stop()` ends local presence; `Client::stop()` ends host access and\nclears its remote mirror. Neither operation signs out the borrowed account.\nThe two container objects have independent ownership: local FileSystem aliases\nremain native-path snapshots, while Client aliases describe the authenticated\nhost. Network credentials and filesystem-private state never enter local IPC.\nThe selected container's encrypted state locations and keychain services do not\nchange during this source consolidation.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 59,
+      "end_line": 64,
+      "raw": "Dependency direction is `Helper Core -> Container/ServerHost/AccountManager/SharedCanvas`\nand `Helper Core -> Monitoring -> FileTree/Core/CoreIO`. Sync and Remote are\nimplementations in Core. GenerationHost depends on Core and iiLocalDiffusion.\nContainer, account and Monitoring never depend on the Helper Core facade.\nLocal presence and delivery remain usable without starting network discovery\nor signing in. No separate Sync, Generation or Monitor package is discovered.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 66,
+      "end_line": 70,
+      "raw": "Desktop builds keep the existing shared Helper library; iOS keeps a native\nstatic library and its private CryptoKit bridge. Android retains its native\ndiscovery adapter and existing OpenSSL runtime setting. These are native C++ and\nplatform implementations with the existing Qt dependency. Consolidation does\nnot introduce a VM, interpreter, new transport or credential format.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 72,
+      "end_line": 81,
+      "raw": "`tests/merged_api.cpp` checks both public surfaces through one target.\nThe original local delivery, object, filesystem, observation and account tests\nrun alongside the imported account, state, discovery and host-drive session\ntests. `tests/consumer` rebuilds against the installed package and checks that\nno retired Client/Sync/Generation/Monitor package is imported. A native Monitoring\nconsumer independently rejects Qt, Core and inference targets.\n`SDK/tests/SocietyHelperConsumers` also compiles Society's real account wrapper\nand encrypted-state tests and Dreamscapes' real generation controller against\nthe installed SDK, without creating app bundles or changing product build caches.\nPlatform runtime verification is recorded separately from source support.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Society Helper API migration",
+      "anchor": "society-helper-api-migration",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 25,
+        "text": "and libraries must not be linked alongside the consolidated library.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 55,
+        "text": "host. Network credentials and filesystem-private state never enter local IPC.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 56,
+        "text": "The selected container's encrypted state locations and keychain services do not",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 62,
+        "text": "Container, account and Monitoring never depend on the Helper Core facade.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "the component and namespace migration",
+        "target": "Consolidation.md",
+        "kind": "relative",
+        "line": 4
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000013",
+        "columns": [
+          "API",
+          "Responsibility"
+        ],
+        "rows": [
+          [
+            "`Helper` / `DeliveryStore`",
+            "Same-device presence and durable local IPC."
+          ],
+          [
+            "`Helper::fileSystem()` / `FileSystem`",
+            "Selected native drive, Alias snapshots, canvas persistence, model access and media publication."
+          ],
+          [
+            "`Client`",
+            "Authenticated host access, read-only container metadata and replica sessions."
+          ],
+          [
+            "`AccountSession`",
+            "Account restoration, scoped pairing credentials and host reconnection state."
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

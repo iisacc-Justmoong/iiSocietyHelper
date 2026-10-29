@@ -1,0 +1,2857 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:6e0d8fa2d2288ac54aa36e60db96988d4439d2796a75fbdc849da6fe57aa9722",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "README.md",
+    "sha256": "73384b5927c27e63c28280cbe9400236c4183732f2c105051db95345bc6b8355",
+    "bytes": 58565,
+    "line_count": 627,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "iiSocietyHelper",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiSocietyHelper\n",
+      "level": 1,
+      "title": "iiSocietyHelper"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 10,
+      "raw": "All iisacc products access the common `.societycontainer` contract through\n`FileSystem::openForApplication()` and iiSocietyContainer. Windows/Linux use a\nsuite-wide user data root, Apple uses its App Group, and Android uses the signed\nSociety provider. Desktop deployments can set `IISACC_SHARED_STORAGE_ROOT`.\nLocal model/image I/O works without a Society UI process, and later Society\nadoption preserves paths and managed history. Android clients currently require\nthe provider package to be installed. See\n[application storage](docs/ApplicationStorage.md).\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 18,
+      "raw": "Device replication now sends timestamped, revision-pinned local snapshots for\nhost-side difference analysis before payload transfer. Conflicts preserve both\ncontents; source timestamps never decide overwrite order. Core QueryPort reads\nand QueryStream subscriptions expose only an integer synchronization state:\n`0` before, `1` in progress, `2` complete, `3` failed, `4` cancelled. Use\n`Client::synchronizationStatus()` or `Sync::Controller::status()` with iiSDKCore\n0.18 Runtime. See [snapshot and status contracts](docs/Sync/Snapshots.md).\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 23,
+      "raw": "Storage operations and background intake now use iiFileProvider's RAW originals,\nrevision journal, work sessions and ontology filesystem through the container\nrepository. `FileSystem` exposes indexed search, metadata edits, journal/session\npages and typed ontology changes. See [managed files](docs/ManagedFiles.md).\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 27,
+      "raw": "Version 0.11.0 is the single Society integration SDK: account/client access,\nlocal IPC, storage/media operations, device synchronization, native monitoring\nand local/remote generation. See [consolidation and component usage](docs/Consolidation.md).\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 29,
+      "end_line": 32,
+      "raw": "The default `iiSocietyHelper::iiSocietyHelper` target includes synchronization and\nremote generation. `iiSocietyHelper::Monitoring` remains a Qt-free C++23 native\ncomponent. Desktop hosts select `iiSocietyHelper::GenerationHost`; mobile clients\nuse the remote generation API without linking the desktop inference host.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 34,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "[Windows build and execution](docs/WindowsBuildAndRun.md)\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 36,
+      "end_line": 36,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 37,
+      "end_line": 43,
+      "raw": "Package release: **0.11.0**. This package pins iiSharedCanvas 0.32.0 Core\nso exported package discovery and the compiled storage adapter use the same\nnative contract. Prepared storage, detached image reads and stateless export\nretain their existing interfaces.\n Earlier versioned feature and verification notes\nbelow describe their original releases. Current package ownership and build\ncomponents are defined in [Consolidation.md](docs/Consolidation.md).\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 44,
+      "end_line": 45,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 46,
+      "end_line": 61,
+      "raw": "Version 0.9.3 adds `FileDownload` for explicit native `.societycontainer`\nhydration within the consuming application. It reads the selected drive through\n`FileSystem`, uses a dedicated `Client::connectHost()` session for missing bytes,\nand runs the replica's bounded chunk writes, SHA-256 verification and atomic\npublication on its own worker. It never creates a shared download-request file,\nwaits for `client-session.lock`, starts Society, or sends a local IPC request.\nDirect host sessions have an independent authenticated session identity so a\nconsumer does not replace another app's device-level LAN or relay connection.\n`state` reports preparing/connecting/downloading/verifying/ready/failed/cancelled\nwith file identity and byte progress. `cancel()` retires the pending open intent;\n`ready` contains a fresh, locally available Alias. Drive changes and stale\nrevisions cannot publish an old selection. Resident files work without a login\nor a Client. Network retrieval still requires access to the authenticated host.\nThe session integration tests exercise LAN TLS and account relay downloads while\nanother replica-session lease is held, cancellation/retry, integrity failure,\ndrive changes and native offline reads without a Society application process.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 63,
+      "end_line": 70,
+      "raw": "The current package requires iiFileProvider 0.7.1 or newer; synchronization is\nincluded in Helper Core. Media export validates the source\nformat here, then delegates opening and final native URL publication to\n`iiFileProvider::File`. Android document-picker destinations use the provider's\ngranted `content:` stream adapter. Existing destinations remain intact when\nvalidation or a native stream transfer fails. Classified file libraries use the\nseparate native `iiFileProvider::Catalog` metadata/collection/search API; generic\nsingle-stream export does not implicitly scan or register the user's directories.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 72,
+      "end_line": 74,
+      "raw": "Version 0.9.0 consolidates the former iiSocietyClient module into this SDK and builds and exports an exact iiSharedCanvas 0.31.0 dependency,\nwhich uses iiPaintEngine 0.4.1. Canvas documents cross the Helper API by value;\napplications and Helper must use the same canvas headers and library version.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 75,
+      "end_line": 75,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 76,
+      "end_line": 81,
+      "raw": "Use the single `iiSocietyHelper::iiSocietyHelper` CMake target for local app\ncollaboration, native file/canvas access, account sessions, discovery, pairing,\nreplica synchronization and authenticated host-drive access. The consolidated\nhost API is `iiSocietyHelper::Client` in `<iiSocietyHelper/Client.h>`.\nSee [migration and dependency direction](docs/Migration.md),\n[host access](docs/HostDrive.md) and [account and connection lifecycle](docs/Client.md).\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "heading",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "## Container state and file ownership\n",
+      "level": 2,
+      "title": "Container state and file ownership"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 85,
+      "end_line": 102,
+      "raw": "`Helper::fileSystem()->container()` exposes an `iiSocietyContainer::Container`\nowned by the bridge. It contains read-only Alias snapshots instead of application\ncopies of stored payloads. The bridge synchronizes the selected drive every two\nseconds, on `synchronize()`/`Container::refresh()`, and after publication or save.\nThe selection remains pinned to the drive identity until explicitly reopened.\nSince 0.9.5 the periodic desktop/native scan, monitor-triggered refresh and\n`Container::refresh()` run on a bounded C++ I/O worker. Applications can request\nthe same nonblocking scan with `requestSynchronization()` and observe\n`synchronizationFinished(bool)`. Repeated requests coalesce to one active scan\nand one pending scan. Completed Alias values are published only on the owning\nQObject thread; reopening the drive or calling synchronous `synchronize()`\ninvalidates earlier replies. Destruction joins the worker before releasing its\nreceiver. `open()`, explicit `synchronize()` and save/publication APIs keep their\nsynchronous success and durability contracts. Android's existing ContentProvider\nadapter keeps its synchronous request context.\n`containerStateChanged` reports daemon status independently of mirror completion;\nobserve `Container::stateChanged` or `synchronizationFinished` for completed Alias\nsnapshots instead of assuming that a daemon revision means a scan has finished.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 103,
+      "end_line": 103,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 104,
+      "end_line": 109,
+      "raw": "For a view/document owner that does not need storage yet, construct\n`FileSystem(FileSystem::Initialization::Deferred)`. This creates the adapter\nwithout discovering a default drive, scanning a mirror, starting its timer or\nstarting a storage monitor. The existing default constructor retains discovery;\nexplicit `open()`/`openForSource()` and storage commands retain their contracts.\nReading one detached canvas with `readCanvas()` does not require discovery.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 110,
+      "end_line": 110,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 111,
+      "end_line": 121,
+      "raw": "An I/O owner can capture `preparedStorage()` after selecting/scanning a drive and\npass the immutable value to another thread. `adoptStorage()` pins that captured\nselection and publishes its already discovered Alias values without repeating\ndirectory scans, selection discovery or payload reads. It checks the captured\ndrive identity before replacing a selection, rejects a default/invalid value,\ninvalidates older mirror replies and starts the existing monitor on the receiver.\nThe source FileSystem may be destroyed first. Timers, workers, QObject owners,\ncredentials and writable document bindings are not transferred. Mirror values\nremain snapshots: later filesystem changes arrive through explicit or ordinary\nasynchronous synchronization. Adoption still performs the bounded drive identity\ncheck and mirror value publication on its owning thread.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 122,
+      "end_line": 122,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 123,
+      "end_line": 125,
+      "raw": "The bootstrap lifecycle tests cover both explicit BLE disablement and an invalid\nendpoint. Both paths stop before radio creation or permission requests; `disabled`\nand `unavailable` remain distinct status values.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 126,
+      "end_line": 126,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 127,
+      "end_line": 135,
+      "raw": "Native mirror scans validate the pinned drive at both boundaries, resolve each\npublic section once, reject redirected resident leaves and read replica catalog\nobjects once per batch. They do not reopen and revalidate the drive for every\nAlias or perform a linear duplicate search for every remote entry. The mirror is\nstill metadata only; original payloads and download-on-demand semantics remain\nowned by the selected container.\nAndroid clients synchronize this mirror through Society's existing ContentProvider\nlisting and retain its readable `content:` source/preview addresses. They do not\ninterpret provider addresses as native filesystem paths.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 136,
+      "end_line": 136,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 137,
+      "end_line": 142,
+      "raw": "Use `alias(section, relativePath)` to distinguish logical existence from locally\navailable contents. A catalog-only replica entry does not create a zero-byte file\nor directory. Resident payloads establish existence without reopening the catalog\nfor each file during synchronization. Raster Alias previews are supplied by the bridge; call `preview()`\nfor a native `.iisc` preview. Helper renders and caches it beneath the selected\ncontainer's private `.society-runtime/canvas-previews`, preserving the document.\n"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 143,
+      "end_line": 143,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 144,
+      "end_line": 153,
+      "raw": "`importCanvas()` and `createImageCanvas()` persist native image documents in Files.\n`readCanvas()` supplies detached iiSharedCanvas data for application editing.\n`saveCanvas()` owns native file creation and updates, accepts encoded document\nsnapshots, and rejects stale versions before changing stored contents. New native\ndocuments use the SDK's SQLite authoring format; imported serialized canvases are\nupdated by compare-and-replace. The returned Alias carries the saved version.\nApplications never receive a writable DocumentFile binding.\nHelper's native write locks are hidden implementation files and are never\npublished as document Aliases or recent files. The saved version is captured\nwhile holding the write lock, before releasing it and refreshing the mirror.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 154,
+      "end_line": 154,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 155,
+      "end_line": 159,
+      "raw": "PNG generation uses `publishGeneratedImage()` in Generation History.\n`publishFile()`, `saveFile()` and `exportMedia()` own other publication/export I/O.\nModel resolution, file download requests, generation-input cleanup and legacy\ncache/queue migration also pass through this bridge. Native canvas writes inside\nSociety belong to Files. Explicit external export remains supported.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 160,
+      "end_line": 160,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 161,
+      "end_line": 168,
+      "raw": "`<iiSocietyHelper/MediaExport.h>` also exposes the stateless\n`iiSocietyHelper::exportMedia(source, destination, video)` GUI file-picker adapter.\nIt validates image/MP4 input and copies the original bytes through iiFileProvider,\nincluding Android document URLs. Its `MediaExportResult` contains success/error;\nthe caller owns scheduling. It never creates a FileSystem, opens a selected drive,\nstarts observation or refreshes a mirror. Use it for external Save to File work\nthat has no drive-state owner. The existing FileSystem member remains compatible\nand refreshes its explicitly owned drive after a successful export.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 169,
+      "end_line": 169,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 170,
+      "end_line": 178,
+      "raw": "The same GUI adapter header exposes `mediaExportDestination(destination,\nnativeCanvas)` for checked file-picker paths and `exportCanvasCopy(document,\ndestination)` for detached native data. The former retains Society section and\nredirect checks without constructing a FileSystem; native copies remain limited\nto Files inside Society. The latter creates a new SDK authoring file directly,\nrejects occupied names, and requests only that file's provider preview. It does\nnot round-trip through encoded canvas bytes, activate the selected FileSystem, start a\ndirectory observer, or refresh a mirror. Callers own worker scheduling and must\nreport its terminal success/error separately from accepting the request.\n"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 179,
+      "end_line": 179,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 180,
+      "end_line": 184,
+      "raw": "Canvas operations depend on iiSharedCanvas 0.31.0 and iiSocietyContainer 0.16.0.\nSupply the installed iiSharedCanvas codec dependencies, including libzip, in the\nCMake prefix when configuring a standalone Helper consumer. Filesystem tests\nexercise two independent bridges, Alias deletion, remote-only objects, real native\nsave/reopen/preview and conflicting document versions.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 185,
+      "end_line": 185,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "paragraph",
+      "start_line": 186,
+      "end_line": 186,
+      "raw": "A C++23/Qt 6.8.3 library for **native app collaboration with local or remote Society storage**. Version 0.8.0 adds container Alias synchronization and Helper-owned canvas persistence and previews to C++ object delivery, account-object references, local Society file-system access, app observation, and persistent IPC. Society communication and container replication across devices are the responsibility of iiSocietyHelper::Sync. The Client API in this library performs account-scoped discovery, pairing and host requests; iiSocietyHelper::Sync owns the underlying replication and transport protocol.\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 187,
+      "end_line": 187,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "paragraph",
+      "start_line": 188,
+      "end_line": 189,
+      "raw": "The local app can queue messages and use files even while Society is stopped. Society or the device's daemon receives the message. Account references and object snapshots are not network authenticated and are not automatically propagated via Sync. Host sessions use the Sync implementation inside Helper Core. Native Monitoring\nis a separate component of this same package and never imports the Core facade. Local observation and delivery do not start a network session.\n"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 190,
+      "end_line": 190,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 191,
+      "end_line": 191,
+      "raw": "Survival signals, delivery SQLite ·ACK are not replication targets. Specifying observation and message directory inside a Society container or a known network file system causes rejection before file creation. `delivery` regression inspection checks this boundary and existing same-device delivery and re-execution behavior.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 192,
+      "end_line": 192,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "html",
+      "start_line": 193,
+      "end_line": 193,
+      "raw": "<a id=\"앱에서-사용하기\"></a>\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 194,
+      "end_line": 194,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "heading",
+      "start_line": 195,
+      "end_line": 195,
+      "raw": "## Use from app\n",
+      "level": 2,
+      "title": "Use from app"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 196,
+      "end_line": 196,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "fenced_code",
+      "start_line": 197,
+      "end_line": 200,
+      "raw": "```cmake\nfind_package(iiSocietyHelper 0.11.0 CONFIG REQUIRED)\ntarget_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)\n```\n",
+      "language": "cmake",
+      "code": "find_package(iiSocietyHelper 0.11.0 CONFIG REQUIRED)\ntarget_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)\n",
+      "closed": true
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 201,
+      "end_line": 201,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "fenced_code",
+      "start_line": 202,
+      "end_line": 221,
+      "raw": "```cpp\n#include <iiSocietyHelper.h>\n#include <QCoreApplication>\n#include <QDebug>\n\nint main(int argc, char **argv)\n{\n    QCoreApplication app(argc, argv);\n    iiSocietyHelper::Helper helper;\n    QObject::connect(&helper, &iiSocietyHelper::Helper::peerAppeared,\n                     &app, [](const iiSocietyHelper::Peer &peer) {\n        qInfo() << peer.application.id << peer.instanceId;\n    });\n    if (!helper.start({\"com.iisacc.example\", \"Example\", \"1.0.0\"})) {\n        qWarning() << helper.errorString();\n        return 1;\n    }\n    return app.exec();\n}\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSocietyHelper.h>\n#include <QCoreApplication>\n#include <QDebug>\n\nint main(int argc, char **argv)\n{\n    QCoreApplication app(argc, argv);\n    iiSocietyHelper::Helper helper;\n    QObject::connect(&helper, &iiSocietyHelper::Helper::peerAppeared,\n                     &app, [](const iiSocietyHelper::Peer &peer) {\n        qInfo() << peer.application.id << peer.instanceId;\n    });\n    if (!helper.start({\"com.iisacc.example\", \"Example\", \"1.0.0\"})) {\n        qWarning() << helper.errorString();\n        return 1;\n    }\n    return app.exec();\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 222,
+      "end_line": 222,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 223,
+      "end_line": 223,
+      "raw": "The Helper is created after `QCoreApplication` and created and called from the app's event loop thread, and must remain alive during observation. Merely linking a DLL does not start observation. Call `start()` at the actual app entry point. At termination, `aboutToQuit`, destructor, or explicit `stop()` removes its own record. Upon restart after `stop()`, a new instance ID is issued. Duplicate start calls return an error while maintaining the existing observation. To remove an object in signal handling, use Qt's `deleteLater()`.\n"
+    },
+    {
+      "id": "b000064",
+      "kind": "blank",
+      "start_line": 224,
+      "end_line": 224,
+      "raw": "\n"
+    },
+    {
+      "id": "b000065",
+      "kind": "paragraph",
+      "start_line": 225,
+      "end_line": 225,
+      "raw": "Society and Dreamscapes' LVRS `configureEngine` link this lifetime. Qt Quick app can link to `QGuiApplication::applicationStateChanged` at `setActivity()`. `Activity` is Unknown/Foreground/Background and is not treated as a dead app solely because it lost focus.\n"
+    },
+    {
+      "id": "b000066",
+      "kind": "blank",
+      "start_line": 226,
+      "end_line": 226,
+      "raw": "\n"
+    },
+    {
+      "id": "b000067",
+      "kind": "html",
+      "start_line": 227,
+      "end_line": 227,
+      "raw": "<a id=\"계정-객체-참조-060\"></a>\n"
+    },
+    {
+      "id": "b000068",
+      "kind": "blank",
+      "start_line": 228,
+      "end_line": 228,
+      "raw": "\n"
+    },
+    {
+      "id": "b000069",
+      "kind": "heading",
+      "start_line": 229,
+      "end_line": 229,
+      "raw": "## Account object reference ( 0.6.0 )\n",
+      "level": 2,
+      "title": "Account object reference ( 0.6.0 )"
+    },
+    {
+      "id": "b000070",
+      "kind": "blank",
+      "start_line": 230,
+      "end_line": 230,
+      "raw": "\n"
+    },
+    {
+      "id": "b000071",
+      "kind": "paragraph",
+      "start_line": 231,
+      "end_line": 231,
+      "raw": "Connects the `iisacc::accounts::AccountManager` used in the app to the `helper.setAccountManager(&accounts)`. The actual package and header names are the same `iiAccountManager` as the existing repository. The Helper does not copy or own the manager and does not log in; the login is performed by the connected manager. The reference is used from before the observation `start()` and is maintained even after `stop()`.\n"
+    },
+    {
+      "id": "b000072",
+      "kind": "blank",
+      "start_line": 232,
+      "end_line": 232,
+      "raw": "\n"
+    },
+    {
+      "id": "b000073",
+      "kind": "fenced_code",
+      "start_line": 233,
+      "end_line": 248,
+      "raw": "```cpp\n#include <iiSocietyHelper.h> // Also includes the public headers for AccountManager and Account.\n\niisacc::accounts::AccountManager accounts;\niiSocietyHelper::Helper helper;\nif (!helper.setAccountManager(&accounts)) return;\nQObject::connect(&helper, &iiSocietyHelper::Helper::accountChanged, &helper, [&] {\n    const auto *user = helper.account();\n    if (!user || !user->isPresent()) return;\n    const QString userId = user->userId();\n    const auto *author = user->authorDetails();\n    const QVariantMap allValues = user->toVariantMap();\n});\naccounts.loginWithPassword(email, password);\n// Call accounts.verifyEmailCode(code) after accounts.verificationRequired().\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSocietyHelper.h> // Also includes the public headers for AccountManager and Account.\n\niisacc::accounts::AccountManager accounts;\niiSocietyHelper::Helper helper;\nif (!helper.setAccountManager(&accounts)) return;\nQObject::connect(&helper, &iiSocietyHelper::Helper::accountChanged, &helper, [&] {\n    const auto *user = helper.account();\n    if (!user || !user->isPresent()) return;\n    const QString userId = user->userId();\n    const auto *author = user->authorDetails();\n    const QVariantMap allValues = user->toVariantMap();\n});\naccounts.loginWithPassword(email, password);\n// Call accounts.verifyEmailCode(code) after accounts.verificationRequired().\n",
+      "closed": true
+    },
+    {
+      "id": "b000074",
+      "kind": "blank",
+      "start_line": 249,
+      "end_line": 249,
+      "raw": "\n"
+    },
+    {
+      "id": "b000075",
+      "kind": "table",
+      "start_line": 250,
+      "end_line": 256,
+      "raw": "|API / Qt property|Contract|\n| --- | --- |\n| `setAccountManager(AccountManager*)` |Connects the manager in the same thread. `nullptr` is disconnect. It can also be called from QML.|\n| `accountManager()` / `accountManager` |Is the manager object itself that was connected. After being disconnected or destroyed, it is `nullptr`.|\n| `account()` / `account` |Is the manager's fixed `Account` object itself. If not connected, it is `nullptr`; if connected but before login, it is `present == false`.|\n| `accountManagerChanged()` |Notifies of connect, replace, disconnect, and manager destruction.|\n| `accountChanged()` |Notifies of reference replacement and account and nested author data changes. It sends after the entire changed value is reflected.|\n",
+      "columns": [
+        "API / Qt property",
+        "Contract"
+      ],
+      "rows": [
+        [
+          "`setAccountManager(AccountManager*)`",
+          "Connects the manager in the same thread. `nullptr` is disconnect. It can also be called from QML."
+        ],
+        [
+          "`accountManager()` / `accountManager`",
+          "Is the manager object itself that was connected. After being disconnected or destroyed, it is `nullptr`."
+        ],
+        [
+          "`account()` / `account`",
+          "Is the manager's fixed `Account` object itself. If not connected, it is `nullptr`; if connected but before login, it is `present == false`."
+        ],
+        [
+          "`accountManagerChanged()`",
+          "Notifies of connect, replace, disconnect, and manager destruction."
+        ],
+        [
+          "`accountChanged()`",
+          "Notifies of reference replacement and account and nested author data changes. It sends after the entire changed value is reflected."
+        ]
+      ]
+    },
+    {
+      "id": "b000076",
+      "kind": "blank",
+      "start_line": 257,
+      "end_line": 257,
+      "raw": "\n"
+    },
+    {
+      "id": "b000077",
+      "kind": "paragraph",
+      "start_line": 258,
+      "end_line": 258,
+      "raw": "Reads 11 fields of `Account`'s identity, profile, membership, consent, and container drive information, and 20 fields of `AuthorDetails`, and the type-specified links and identifier collection as is. In QML, `societyHelper.account.userId`, `societyHelper.account.authorDetails.organization`, and `societyHelper.accountManager.state` can be used. When there is no connection, it checks `societyHelper.account` first. The account change notification is distinguished from the login request status change, and the login status uses the manager's `state` and `stateChanged`.\n"
+    },
+    {
+      "id": "b000078",
+      "kind": "blank",
+      "start_line": 259,
+      "end_line": 259,
+      "raw": "\n"
+    },
+    {
+      "id": "b000079",
+      "kind": "paragraph",
+      "start_line": 260,
+      "end_line": 260,
+      "raw": "If the same manager is set again, there is no duplicate notification. If replaced, the notification connection of the previous manager is broken, and when the manager is destroyed, both references are automatically cleared. Multiple Helpers can reference the same manager. Helper release and destruction do not perform the manager's logout or account initialization. `setAccountManager()` is called from the Helper's event loop thread and the manager is also maintained in the same thread. Other threads return `false` without changes. Even if replaced with another reference or the Helper is destroyed during change notification processing, it returns `false` without sending subsequent notifications of the previous reference.\n"
+    },
+    {
+      "id": "b000080",
+      "kind": "blank",
+      "start_line": 261,
+      "end_line": 261,
+      "raw": "\n"
+    },
+    {
+      "id": "b000081",
+      "kind": "paragraph",
+      "start_line": 262,
+      "end_line": 262,
+      "raw": "This connection is a QObject reference within the same process. It does not automatically save or broadcast account data and authentication cookies to the observation record or delivery queue, and does not change file system access permissions, storage location, or remote synchronization policy.\n"
+    },
+    {
+      "id": "b000082",
+      "kind": "blank",
+      "start_line": 263,
+      "end_line": 263,
+      "raw": "\n"
+    },
+    {
+      "id": "b000083",
+      "kind": "paragraph",
+      "start_line": 264,
+      "end_line": 264,
+      "raw": "The dependency direction is `iiSocietyHelper → iiAccountManager → Qt Core/Network`. It reuses the public API of the account SDK 0.2.x managed by the existing Workspace. There is no duplication of the account model or login implementation, nor the introduction of a new external package. The CMake target of the Helper exposes the account SDK and also finds the installation settings at `find_dependency`, so the consumer only needs to link the Helper. The account SDK does not reference the Helper or the Container.\n"
+    },
+    {
+      "id": "b000084",
+      "kind": "blank",
+      "start_line": 265,
+      "end_line": 265,
+      "raw": "\n"
+    },
+    {
+      "id": "b000085",
+      "kind": "html",
+      "start_line": 266,
+      "end_line": 266,
+      "raw": "<a id=\"society-파일-시스템-접근-040\"></a>\n"
+    },
+    {
+      "id": "b000086",
+      "kind": "blank",
+      "start_line": 267,
+      "end_line": 267,
+      "raw": "\n"
+    },
+    {
+      "id": "b000087",
+      "kind": "heading",
+      "start_line": 268,
+      "end_line": 268,
+      "raw": "## Society file system access ( 0.4.0 )\n",
+      "level": 2,
+      "title": "Society file system access ( 0.4.0 )"
+    },
+    {
+      "id": "b000088",
+      "kind": "blank",
+      "start_line": 269,
+      "end_line": 269,
+      "raw": "\n"
+    },
+    {
+      "id": "b000089",
+      "kind": "paragraph",
+      "start_line": 270,
+      "end_line": 278,
+      "raw": "Generated image originals use\n`fileSystem()->publishGeneratedImage(sourcePng, \"<job UUID>-0001.png\")`.\nThis delegates to iiSocietyContainer's atomic, no-replacement PNG publication in\nthe selected drive's flat `Generation History/`. It preserves PNG bytes, reports\nfailure through `errorString()`, and works without `start()` or a Society daemon.\nThe caller validates image decoding and dimensions. Storage selection stays\npinned until `open()`/`refresh()`. Generation does not create `.iisc`; the editor\ncreates its native document when the user opens an image for editing. This\nnative-path operation is unavailable to an Android content-URI-only peer.\n"
+    },
+    {
+      "id": "b000090",
+      "kind": "blank",
+      "start_line": 279,
+      "end_line": 279,
+      "raw": "\n"
+    },
+    {
+      "id": "b000091",
+      "kind": "paragraph",
+      "start_line": 280,
+      "end_line": 280,
+      "raw": "`Helper` 's `fileSystem()` automatically opens the Society original at creation and continues to use it before `start()` and after `stop()`. Linking only the Helper connects iiSocietyContainer 0.9.0 and Qt are also connected. In the existing QML context, it is used as `societyHelper.fileSystem` .\n"
+    },
+    {
+      "id": "b000092",
+      "kind": "blank",
+      "start_line": 281,
+      "end_line": 281,
+      "raw": "\n"
+    },
+    {
+      "id": "b000093",
+      "kind": "fenced_code",
+      "start_line": 282,
+      "end_line": 292,
+      "raw": "```cpp\nauto *storage = helper.fileSystem();\nconst auto directory = storage->ensureDirectory(\"files\", \"Example/session-1\");\nif (directory.isEmpty()) { qWarning() << storage->errorString(); return; }\nconst auto path = storage->path(\"files\", \"Example/session-1/result.json\");\nif (path.isEmpty()) { qWarning() << storage->errorString(); return; }\nQSaveFile file(path); // #include <QSaveFile>\nconst QByteArray bytes = \"{\\\"status\\\":\\\"saved\\\"}\";\nif (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())\n    qWarning() << file.errorString();\n```\n",
+      "language": "cpp",
+      "code": "auto *storage = helper.fileSystem();\nconst auto directory = storage->ensureDirectory(\"files\", \"Example/session-1\");\nif (directory.isEmpty()) { qWarning() << storage->errorString(); return; }\nconst auto path = storage->path(\"files\", \"Example/session-1/result.json\");\nif (path.isEmpty()) { qWarning() << storage->errorString(); return; }\nQSaveFile file(path); // #include <QSaveFile>\nconst QByteArray bytes = \"{\\\"status\\\":\\\"saved\\\"}\";\nif (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit())\n    qWarning() << file.errorString();\n",
+      "closed": true
+    },
+    {
+      "id": "b000094",
+      "kind": "blank",
+      "start_line": 293,
+      "end_line": 293,
+      "raw": "\n"
+    },
+    {
+      "id": "b000095",
+      "kind": "paragraph",
+      "start_line": 294,
+      "end_line": 294,
+      "raw": "`path()` is an actual absolute path that `QFile`, `QDir`, `std::filesystem`, and external engines can read and write. `url()` is a local file URL preserving spaces, Korean characters, `#`, and `%`. A QML example is `societyHelper.fileSystem.url(\"models\", \"weights.safetensors\")`. `sections` is a list of `{key, name, path}`; the keys are `asset-library`, `deleted`, `files`, `forked`, `generation-history`, `models`, `photos`, `published`, and `thinking-space`. `photos` in iiSocietyContainer 0.13.0 uses the top-level `Photos/` path. `filesystem` regression checks verify this path and reads/writes in 9 sections between independent apps.\n"
+    },
+    {
+      "id": "b000096",
+      "kind": "blank",
+      "start_line": 295,
+      "end_line": 295,
+      "raw": "\n"
+    },
+    {
+      "id": "b000097",
+      "kind": "list",
+      "start_line": 296,
+      "end_line": 300,
+      "raw": "- The priority of `open()` is the explicit original path, `SOCIETY_CONTAINER_PATH` , and Society common settings. iOS uses the existing Society App Group original. The Helper does not create a new container or change the global default selection.\n- A successful selection is fixed to the path and UUID. Even if the default storage changes, the target being worked on is maintained. `refresh()` re-applies the current selection method, and `open(path)` returns to the explicit path, while `open()` without arguments returns to the default selection. If selection fails, it does not use the previous storage.\n- If there is no initial storage, it returns an empty path and `fileSystem.errorString` and retries on the next path request. If the opened drive disappears or is replaced, it does not switch to a new UUID before explicit re-selection.\n- `available` , `rootPath` , `containerId` , and `sections` are validated upon query. `storageChanged` notifies invalidation detected during selection, re-selection, and access. Since there is no continuous disk monitoring, it calls `refresh()` upon screen return and refresh. File errors are separate from the `Helper.errorString` of observation and delivery, and observation is not stopped.\n- `path(key)` is the area directory. The relative path returns everything except the last filename and prepares the parent as `ensureDirectory()` first. Hidden items are supported. Absolute paths, `..`, `.`, empty intermediate elements, backslash, colon, NUL, symbolic links, and junctions are rejected. Path lookup does not create files.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "The priority of `open()` is the explicit original path, `SOCIETY_CONTAINER_PATH` , and Society common settings. iOS uses the existing Society App Group original. The Helper does not create a new container or change the global default selection.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "A successful selection is fixed to the path and UUID. Even if the default storage changes, the target being worked on is maintained. `refresh()` re-applies the current selection method, and `open(path)` returns to the explicit path, while `open()` without arguments returns to the default selection. If selection fails, it does not use the previous storage.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "If there is no initial storage, it returns an empty path and `fileSystem.errorString` and retries on the next path request. If the opened drive disappears or is replaced, it does not switch to a new UUID before explicit re-selection.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`available` , `rootPath` , `containerId` , and `sections` are validated upon query. `storageChanged` notifies invalidation detected during selection, re-selection, and access. Since there is no continuous disk monitoring, it calls `refresh()` upon screen return and refresh. File errors are separate from the `Helper.errorString` of observation and delivery, and observation is not stopped.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`path(key)` is the area directory. The relative path returns everything except the last filename and prepares the parent as `ensureDirectory()` first. Hidden items are supported. Absolute paths, `..`, `.`, empty intermediate elements, backslash, colon, NUL, symbolic links, and junctions are rejected. Path lookup does not create files.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000098",
+      "kind": "blank",
+      "start_line": 301,
+      "end_line": 301,
+      "raw": "\n"
+    },
+    {
+      "id": "b000099",
+      "kind": "paragraph",
+      "start_line": 302,
+      "end_line": 302,
+      "raw": "Apps share the same original bytes. Finder, iOS, and File apps expose only `Files/` as before, while the Helper app uses 9 area. Path return does not guarantee file locking or I/O success. Actual errors are handled by the file API, and concurrent editing applies the app's lock and conflict policy. Since the file system may change after return, the path is retrieved again right before the operation. Remote synchronization and OS sandbox permission granting are separate.\n"
+    },
+    {
+      "id": "b000100",
+      "kind": "blank",
+      "start_line": 303,
+      "end_line": 303,
+      "raw": "\n"
+    },
+    {
+      "id": "b000101",
+      "kind": "paragraph",
+      "start_line": 304,
+      "end_line": 304,
+      "raw": "iOS consuming apps require the same App Group signature as the existing `iiSocietyContainer_configure_ios_client()` configuration. macOS sandbox apps must also use the original allowed by the OS. The private app directories for Android and WebAssembly are not public storage, and the host must explicitly specify the shared original. Android apps do not provide default shared storage or IPC between apps. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)follows the shared container contract.\n"
+    },
+    {
+      "id": "b000102",
+      "kind": "blank",
+      "start_line": 305,
+      "end_line": 305,
+      "raw": "\n"
+    },
+    {
+      "id": "b000103",
+      "kind": "paragraph",
+      "start_line": 306,
+      "end_line": 306,
+      "raw": "Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing MIT iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/FileSystem.cpp`, and the public API is at `src/iiSocietyHelper.h`.\n"
+    },
+    {
+      "id": "b000104",
+      "kind": "blank",
+      "start_line": 307,
+      "end_line": 307,
+      "raw": "\n"
+    },
+    {
+      "id": "b000105",
+      "kind": "paragraph",
+      "start_line": 308,
+      "end_line": 308,
+      "raw": "`iiSocietyHelper.filesystem` and install consumers check standard C++ write to Qt read/modify to standard C++ re-read, 8 areas, rename/delete, URL, invalid paths, late storage preparation, selective pin/unpin, and UUID replacement. All files are confined to `build/`'s temporary container.\n"
+    },
+    {
+      "id": "b000106",
+      "kind": "blank",
+      "start_line": 309,
+      "end_line": 309,
+      "raw": "\n"
+    },
+    {
+      "id": "b000107",
+      "kind": "paragraph",
+      "start_line": 310,
+      "end_line": 310,
+      "raw": "`build/install/bin/ii-society-helper --filesystem` outputs the current original's path, UUID, and 8 areas as JSON without starting observation or database. If no default storage exists or it is invalid, it returns an error and exit code 1. The explicit original is specified as `SOCIETY_CONTAINER_PATH`. QML expressions and the read-only behavior of this diagnostic command are also verified by the install consumer.\n"
+    },
+    {
+      "id": "b000108",
+      "kind": "blank",
+      "start_line": 311,
+      "end_line": 311,
+      "raw": "\n"
+    },
+    {
+      "id": "b000109",
+      "kind": "html",
+      "start_line": 312,
+      "end_line": 312,
+      "raw": "<a id=\"관측-계약\"></a>\n"
+    },
+    {
+      "id": "b000110",
+      "kind": "blank",
+      "start_line": 313,
+      "end_line": 313,
+      "raw": "\n"
+    },
+    {
+      "id": "b000111",
+      "kind": "heading",
+      "start_line": 314,
+      "end_line": 314,
+      "raw": "## Observation contract\n",
+      "level": 2,
+      "title": "Observation contract"
+    },
+    {
+      "id": "b000112",
+      "kind": "blank",
+      "start_line": 315,
+      "end_line": 315,
+      "raw": "\n"
+    },
+    {
+      "id": "b000113",
+      "kind": "list",
+      "start_line": 316,
+      "end_line": 344,
+      "raw": "- `ApplicationInfo`: fixed reverse- DNS ID, display name, and version that distinguish the app.\n- `Peer`: app info, per-run UUID, PID, foreground/background status, start time, and the time the last signal was acknowledged. PID is not used as the identifier key to distinguish multiple runs of the same app like PID reuse.\n- `peers()` and `observedApplications` for QML contain current observable instances except itself, sorted in order UUID.\n- It provides `peerAppeared`, `peerUpdated`, `peerDisappeared`, and `peersChanged`. It does not repeat metadata change events if only the alive signal is updated.\n- `DepartureReason::Withdrawn` means the record has disappeared or become invalid, and `TimedOut` means the signal is disconnected. It is not a state that definitively determines the app's termination cause or OS process death.\n- It does not judge that the app is running just by reading the stored file. It emits a discovery event only after the heartbeat sequence number increases. Records remaining after forced termination or reboot are not discovered, and files of other Helpers are not deleted.\n- The default survival signal interval is 1 seconds, and observation expiration is 5 seconds. Discovery usually requires one or two renewals. It may be delayed according to OS scheduling. Participants changing the interval via `ObservationOptions` must use a timeout that accommodates each other's periods. Mutual discovery/interruption and recovery integration checks also use the actual default expiration time of 5 seconds. Do not mistake external volume file flush delay for a normal running participant's expiration, and the recovery check actually waits 5.5 seconds to stop the event loop to verify both expiration and new heartbeat rediscovery. Separate process checks also use a 5 second expiration, and the restart process runs for 10 seconds to observe until the normal termination event after confirming discovery.\n- Recurring presence publication, directory validation and peer-record reads run\n  on one private standard C++ worker. Timer and filesystem-watcher requests are\n  coalesced while an operation is active; they do not queue an unbounded backlog\n  or wait for disk flushes on the application's event loop. Peer collections and\n  signals remain on the Helper's owning thread. Session epochs discard late\n  results, and `stop()` drains active work before removing its own record, so an\n  old heartbeat cannot recreate a withdrawn session. Initial `start()`, explicit\n  `stop()` and durable `sendData`/`sendObject` remain synchronous. Atomic record\n  publication, owner-only permissions and runtime-directory checks are retained.\n  `iiSocietyHelper.presence_worker` covers an intentionally blocked operation,\n  and `ObservationTests::presenceResponsiveness` reports event-loop latency\n  with real presence I/O; its timings depend on the current host load.\n  Automatic activity/peer history is committed on a separate lazy worker and drained\n  during normal `stop()`. Every transition retains its own durable outbox record;\n  only redundant presence/scan requests are coalesced. `dataQueued` is delivered\n  on the owning thread after each commit, including a completed old session's\n  notification. Forced termination may lose automatic events not yet committed.\n  Explicit `sendData` and `sendObject` still commit before returning to callers.\n  Slow history commits do not delay presence heartbeats. Unstarted storage-only\n  Helpers allocate neither presence nor history worker threads.\n- Expiration uses the monotonic clock inside the observer. The record's date or file modification time is not evidence of being alive. If the observer itself stops for more than the timeout and then returns, it checks for a new signal again.\n- If execution fails to access the directory or record, it switches to `running=false` and provides `errorOccurred` / `errorString`. After resolving the cause, it can restart at `start()`.\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "`ApplicationInfo`: fixed reverse- DNS ID, display name, and version that distinguish the app.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`Peer`: app info, per-run UUID, PID, foreground/background status, start time, and the time the last signal was acknowledged. PID is not used as the identifier key to distinguish multiple runs of the same app like PID reuse.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`peers()` and `observedApplications` for QML contain current observable instances except itself, sorted in order UUID.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "It provides `peerAppeared`, `peerUpdated`, `peerDisappeared`, and `peersChanged`. It does not repeat metadata change events if only the alive signal is updated.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "`DepartureReason::Withdrawn` means the record has disappeared or become invalid, and `TimedOut` means the signal is disconnected. It is not a state that definitively determines the app's termination cause or OS process death.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "It does not judge that the app is running just by reading the stored file. It emits a discovery event only after the heartbeat sequence number increases. Records remaining after forced termination or reboot are not discovered, and files of other Helpers are not deleted.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "The default survival signal interval is 1 seconds, and observation expiration is 5 seconds. Discovery usually requires one or two renewals. It may be delayed according to OS scheduling. Participants changing the interval via `ObservationOptions` must use a timeout that accommodates each other's periods. Mutual discovery/interruption and recovery integration checks also use the actual default expiration time of 5 seconds. Do not mistake external volume file flush delay for a normal running participant's expiration, and the recovery check actually waits 5.5 seconds to stop the event loop to verify both expiration and new heartbeat rediscovery. Separate process checks also use a 5 second expiration, and the restart process runs for 10 seconds to observe until the normal termination event after confirming discovery.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Recurring presence publication, directory validation and peer-record reads run",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Expiration uses the monotonic clock inside the observer. The record's date or file modification time is not evidence of being alive. If the observer itself stops for more than the timeout and then returns, it checks for a new signal again.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "If execution fails to access the directory or record, it switches to `running=false` and provides `errorOccurred` / `errorString`. After resolving the cause, it can restart at `start()`.",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000114",
+      "kind": "blank",
+      "start_line": 345,
+      "end_line": 345,
+      "raw": "\n"
+    },
+    {
+      "id": "b000115",
+      "kind": "paragraph",
+      "start_line": 346,
+      "end_line": 346,
+      "raw": "This is confirmation of the existence of cooperating apps. It does not include searching all installed apps, collecting screen and document content, controlling processes, passing commands between apps, or discovery and synchronization between devices. App IDs are declared by participants, so they are not used for signature verification or authentication means.\n"
+    },
+    {
+      "id": "b000116",
+      "kind": "blank",
+      "start_line": 347,
+      "end_line": 347,
+      "raw": "\n"
+    },
+    {
+      "id": "b000117",
+      "kind": "html",
+      "start_line": 348,
+      "end_line": 348,
+      "raw": "<a id=\"c-객체-전송-070\"></a>\n"
+    },
+    {
+      "id": "b000118",
+      "kind": "blank",
+      "start_line": 349,
+      "end_line": 349,
+      "raw": "\n"
+    },
+    {
+      "id": "b000119",
+      "kind": "heading",
+      "start_line": 350,
+      "end_line": 350,
+      "raw": "## C++ object transfer (0.7.0)\n",
+      "level": 2,
+      "title": "C++ object transfer (0.7.0)"
+    },
+    {
+      "id": "b000120",
+      "kind": "blank",
+      "start_line": 351,
+      "end_line": 351,
+      "raw": "\n"
+    },
+    {
+      "id": "b000121",
+      "kind": "paragraph",
+      "start_line": 352,
+      "end_line": 352,
+      "raw": "`Helper::sendObject(topic, object)` synchronously serializes the current value of the object and puts it into the existing persistent delivery queue. On success, it returns message UUID, and on failure, it returns an empty string and `errorString()`. `dataQueued(id)` occurs after the actual queue insertion succeeds and one time. Modifying the original value, QObject deletion, or terminating the sending app after successful transmission does not change the value stored in the queue. First, configure the sending app and observer directory with `start()`. During the call, if the getter or serialization operator stops or restarts the Helper, the object is not put into another sending instance name but fails, and even if the Helper is destroyed, it does not perform the remaining object transmission.\n"
+    },
+    {
+      "id": "b000122",
+      "kind": "blank",
+      "start_line": 353,
+      "end_line": 353,
+      "raw": "\n"
+    },
+    {
+      "id": "b000123",
+      "kind": "table",
+      "start_line": 354,
+      "end_line": 359,
+      "raw": "|Transfer target|Transmit API|Restoration result|\n| --- | --- | --- |\n| `QObject*` / `const QObject*` / `const QObject&` | `sendObject(topic, object)` | `ObjectSnapshot { QString className; QVariantMap properties; }` |\n|Qt value·registered C++ struct/class| `sendObject(topic, value)` |Original Qt metatype preserved `QVariant`, `value<T>()` to C++ value restoration|\n|Already held `QVariant`| `sendObject(topic, variant)` |Type and content of the held value|\n|Existing JSON value bundle| `sendData(topic, map)` |Existing `QVariantMap` contract|\n",
+      "columns": [
+        "Transfer target",
+        "Transmit API",
+        "Restoration result"
+      ],
+      "rows": [
+        [
+          "`QObject*` / `const QObject*` / `const QObject&`",
+          "`sendObject(topic, object)`",
+          "`ObjectSnapshot { QString className; QVariantMap properties; }`"
+        ],
+        [
+          "Qt value·registered C++ struct/class",
+          "`sendObject(topic, value)`",
+          "Original Qt metatype preserved `QVariant`, `value<T>()` to C++ value restoration"
+        ],
+        [
+          "Already held `QVariant`",
+          "`sendObject(topic, variant)`",
+          "Type and content of the held value"
+        ],
+        [
+          "Existing JSON value bundle",
+          "`sendData(topic, map)`",
+          "Existing `QVariantMap` contract"
+        ]
+      ]
+    },
+    {
+      "id": "b000124",
+      "kind": "blank",
+      "start_line": 360,
+      "end_line": 360,
+      "raw": "\n"
+    },
+    {
+      "id": "b000125",
+      "kind": "paragraph",
+      "start_line": 361,
+      "end_line": 361,
+      "raw": "QObject uses the explicit storage contract if `Q_INVOKABLE QVariantMap toVariantMap() const` is present. Otherwise, it reads readable `STORED` Q_PROPERTY including inherited user properties. QObject default `objectName`, dynamic properties, and `STORED false` properties are not automatically collected. Nested QObject properties become nested `ObjectSnapshot` and null references become null values. Circular references are rejected. Objects must be read from their own thread, and getters must return valid value·references. The original QObject and execution method·ownership·memory address are not transmitted. If an instance of the original QObject class is needed, the receiving app uses the snapshot and that class's create·update API.\n"
+    },
+    {
+      "id": "b000126",
+      "kind": "blank",
+      "start_line": 362,
+      "end_line": 362,
+      "raw": "\n"
+    },
+    {
+      "id": "b000127",
+      "kind": "paragraph",
+      "start_line": 363,
+      "end_line": 363,
+      "raw": "The account model uses the existing full storage contract as is. After login, it holds 10 account fields and 20 author information, and does not automatically transmit via account reference connection alone, but transmits explicitly in the next call.\n"
+    },
+    {
+      "id": "b000128",
+      "kind": "blank",
+      "start_line": 364,
+      "end_line": 364,
+      "raw": "\n"
+    },
+    {
+      "id": "b000129",
+      "kind": "fenced_code",
+      "start_line": 365,
+      "end_line": 379,
+      "raw": "```cpp\n// Call on the same event-loop thread after helper.start(...) and login completion.\nhelper.setAccountManager(&accounts);\nconst QString id = helper.sendObject(\"account.profile\", helper.account());\n\n// Receiver: this is the corresponding message obtained from DeliveryStore or SocietyInbox.\nQString error;\nconst QVariant decoded = iiSocietyHelper::ObjectCodec::decode(message[\"payload\"].toMap(), &error);\nif (decoded.metaType() == QMetaType::fromType<iiSocietyHelper::ObjectSnapshot>()) {\n    const auto snapshot = decoded.value<iiSocietyHelper::ObjectSnapshot>();\n    iisacc::accounts::AccountManager reader;\n    if (snapshot.className == \"iisacc::accounts::Account\")\n        reader.readAccount(snapshot.properties);\n}\n```\n",
+      "language": "cpp",
+      "code": "// Call on the same event-loop thread after helper.start(...) and login completion.\nhelper.setAccountManager(&accounts);\nconst QString id = helper.sendObject(\"account.profile\", helper.account());\n\n// Receiver: this is the corresponding message obtained from DeliveryStore or SocietyInbox.\nQString error;\nconst QVariant decoded = iiSocietyHelper::ObjectCodec::decode(message[\"payload\"].toMap(), &error);\nif (decoded.metaType() == QMetaType::fromType<iiSocietyHelper::ObjectSnapshot>()) {\n    const auto snapshot = decoded.value<iiSocietyHelper::ObjectSnapshot>();\n    iisacc::accounts::AccountManager reader;\n    if (snapshot.className == \"iisacc::accounts::Account\")\n        reader.readAccount(snapshot.properties);\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000130",
+      "kind": "blank",
+      "start_line": 380,
+      "end_line": 380,
+      "raw": "\n"
+    },
+    {
+      "id": "b000131",
+      "kind": "paragraph",
+      "start_line": 381,
+      "end_line": 381,
+      "raw": "The account restored in this way is the received profile value. It does not issue login session and server authority. QObject can also be directly transmitted as `societyHelper.sendObject(\"account.profile\", societyHelper.account)` in QML.\n"
+    },
+    {
+      "id": "b000132",
+      "kind": "blank",
+      "start_line": 382,
+      "end_line": 382,
+      "raw": "\n"
+    },
+    {
+      "id": "b000133",
+      "kind": "paragraph",
+      "start_line": 383,
+      "end_line": 383,
+      "raw": "General C++ value objects must be copyable·default-constructible, and transmit·receive apps must share the same metatype and QDataStream operator. The next declaration·operator is placed in a common header, and the receive app also calls `qRegisterMetaType`.\n"
+    },
+    {
+      "id": "b000134",
+      "kind": "blank",
+      "start_line": 384,
+      "end_line": 384,
+      "raw": "\n"
+    },
+    {
+      "id": "b000135",
+      "kind": "fenced_code",
+      "start_line": 385,
+      "end_line": 413,
+      "raw": "```cpp\n#include <QDataStream>\n#include <QMetaType>\n#include <QString>\n\nstruct GenerationRequest { QString prompt; quint64 seed = 0; };\ninline QDataStream& operator<<(QDataStream& out, const GenerationRequest& value) {\n    return out << quint32(1) << value.prompt << value.seed;\n}\ninline QDataStream& operator>>(QDataStream& in, GenerationRequest& value) {\n    quint32 version = 0;\n    in >> version;\n    if (version != 1) { in.setStatus(QDataStream::ReadCorruptData); return in; }\n    return in >> value.prompt >> value.seed;\n}\nQ_DECLARE_METATYPE(GenerationRequest)\n\n// Run in both processes at app startup.\nqRegisterMetaType<GenerationRequest>();\nGenerationRequest request{\"a forest\", 18446744073709551615ULL};\nconst QString id = helper.sendObject(\"generation.request\", request);\n\n// Check the topic in the receiving app before processing it.\nQString error;\nconst QVariant value = iiSocietyHelper::ObjectCodec::decode(message[\"payload\"].toMap(), &error);\nif (value.metaType() == QMetaType::fromType<GenerationRequest>()) {\n    const auto restored = value.value<GenerationRequest>();\n}\n```\n",
+      "language": "cpp",
+      "code": "#include <QDataStream>\n#include <QMetaType>\n#include <QString>\n\nstruct GenerationRequest { QString prompt; quint64 seed = 0; };\ninline QDataStream& operator<<(QDataStream& out, const GenerationRequest& value) {\n    return out << quint32(1) << value.prompt << value.seed;\n}\ninline QDataStream& operator>>(QDataStream& in, GenerationRequest& value) {\n    quint32 version = 0;\n    in >> version;\n    if (version != 1) { in.setStatus(QDataStream::ReadCorruptData); return in; }\n    return in >> value.prompt >> value.seed;\n}\nQ_DECLARE_METATYPE(GenerationRequest)\n\n// Run in both processes at app startup.\nqRegisterMetaType<GenerationRequest>();\nGenerationRequest request{\"a forest\", 18446744073709551615ULL};\nconst QString id = helper.sendObject(\"generation.request\", request);\n\n// Check the topic in the receiving app before processing it.\nQString error;\nconst QVariant value = iiSocietyHelper::ObjectCodec::decode(message[\"payload\"].toMap(), &error);\nif (value.metaType() == QMetaType::fromType<GenerationRequest>()) {\n    const auto restored = value.value<GenerationRequest>();\n}\n",
+      "closed": true
+    },
+    {
+      "id": "b000136",
+      "kind": "blank",
+      "start_line": 414,
+      "end_line": 414,
+      "raw": "\n"
+    },
+    {
+      "id": "b000137",
+      "kind": "paragraph",
+      "start_line": 415,
+      "end_line": 415,
+      "raw": "User value types including Q_GADGET also follow the same stream operator contract. User value types contained in QObject must also be registered on the receiver side. Arbitrary C++ members are not automatically serialized by meta-type registration alone. User operators define field, schema version, and internal collection limits. `ObjectCodec::encode()` / `decode()` can be used separately from transmission. Unregistered receiver types, unsupported stream operators, primitive and QObject smart pointers within QVariant, truncated data, trailing bytes, incorrect Base64, and unsupported protocol versions are explicitly rejected. Failed objects are not left in the queue as partial messages.\n"
+    },
+    {
+      "id": "b000138",
+      "kind": "blank",
+      "start_line": 416,
+      "end_line": 416,
+      "raw": "\n"
+    },
+    {
+      "id": "b000139",
+      "kind": "paragraph",
+      "start_line": 417,
+      "end_line": 417,
+      "raw": "The payload consists of five fields: `format: \"iisacc.qt-object\"`, `version: 1`, `streamVersion: 22`, `typeName`, and `data`. `data` is the Base64 of Qt 6.8 QDataStream(BigEndian, DoublePrecision) bytes. This format preserves QByteArray, 64 signed and unsigned integers, QDateTime, QUrl, and user value types. Primitive stream writing is limited to 48 KiB, and the final payload including **metadata and Base64 follows the existing 64 KiB limit**. The QObject snapshot being checked and QVariantMap/List/Hash apply a nesting depth 16 and node 4096 limit. Large objects use repository files and references.\n"
+    },
+    {
+      "id": "b000140",
+      "kind": "blank",
+      "start_line": 418,
+      "end_line": 418,
+      "raw": "\n"
+    },
+    {
+      "id": "b000141",
+      "kind": "paragraph",
+      "start_line": 419,
+      "end_line": 419,
+      "raw": "The existing outbox/inbox, daemon receive, retry, and acknowledgment locations are used as is, without changing the DB schema. The daemon carries the object payload, and the receiving app restores it at `ObjectCodec::decode()`. No new external library or serialization engine is added by reusing the currently installed Qt Core's QMetaObject, QMetaType, and QDataStream. A separate process check and installation consumer verify restoration after send completion using the same API and public headers.\n"
+    },
+    {
+      "id": "b000142",
+      "kind": "blank",
+      "start_line": 420,
+      "end_line": 420,
+      "raw": "\n"
+    },
+    {
+      "id": "b000143",
+      "kind": "html",
+      "start_line": 421,
+      "end_line": 421,
+      "raw": "<a id=\"society-데몬으로-데이터-전달\"></a>\n"
+    },
+    {
+      "id": "b000144",
+      "kind": "blank",
+      "start_line": 422,
+      "end_line": 422,
+      "raw": "\n"
+    },
+    {
+      "id": "b000145",
+      "kind": "heading",
+      "start_line": 423,
+      "end_line": 423,
+      "raw": "## Data transfer via Society daemon\n",
+      "level": 2,
+      "title": "Data transfer via Society daemon"
+    },
+    {
+      "id": "b000146",
+      "kind": "blank",
+      "start_line": 424,
+      "end_line": 424,
+      "raw": "\n"
+    },
+    {
+      "id": "b000147",
+      "kind": "paragraph",
+      "start_line": 425,
+      "end_line": 425,
+      "raw": "`Helper::sendData(topic, payload)` places a JSON object of up to 64 KiB in the persistent outgoing queue and returns a message UUID. An empty string indicates a write failure; check `errorString()`. A successful return means **pending data has been stored on disk**, which is distinct from completed receipt by the daemon. Pass references to assets stored in Society rather than the large models or images themselves.\n"
+    },
+    {
+      "id": "b000148",
+      "kind": "blank",
+      "start_line": 426,
+      "end_line": 426,
+      "raw": "\n"
+    },
+    {
+      "id": "b000149",
+      "kind": "fenced_code",
+      "start_line": 427,
+      "end_line": 431,
+      "raw": "```cpp\nconst QString messageId = helper.sendData(\"generation.queued\", {\n    {\"jobId\", jobId}, {\"modelPath\", modelPath}\n});\n```\n",
+      "language": "cpp",
+      "code": "const QString messageId = helper.sendData(\"generation.queued\", {\n    {\"jobId\", jobId}, {\"modelPath\", modelPath}\n});\n",
+      "closed": true
+    },
+    {
+      "id": "b000150",
+      "kind": "blank",
+      "start_line": 432,
+      "end_line": 432,
+      "raw": "\n"
+    },
+    {
+      "id": "b000151",
+      "kind": "paragraph",
+      "start_line": 433,
+      "end_line": 433,
+      "raw": "The Helper also automatically records events `helper.started`, `helper.activity`, `helper.peerAppeared`, `helper.peerUpdated`, `helper.peerDisappeared`, and `helper.stopped`. History is not added for each survival signal. Even if the daemon is off, it remains in the send queue, and even if the Helper terminates, it does not disappear.\n"
+    },
+    {
+      "id": "b000152",
+      "kind": "blank",
+      "start_line": 434,
+      "end_line": 434,
+      "raw": "\n"
+    },
+    {
+      "id": "b000153",
+      "kind": "paragraph",
+      "start_line": 435,
+      "end_line": 435,
+      "raw": "Even if the first execution of multiple apps overlaps, process-level locking is used only for initialization to avoid conflicts with the initial schema and WAL settings. Normal send and receive use SQLite transactions.\n"
+    },
+    {
+      "id": "b000154",
+      "kind": "blank",
+      "start_line": 436,
+      "end_line": 436,
+      "raw": "\n"
+    },
+    {
+      "id": "b000155",
+      "kind": "paragraph",
+      "start_line": 437,
+      "end_line": 444,
+      "raw": "Opening a committed schema-1 WAL store does not acquire the initialization lease.\nIt applies connection-local FULL synchronization and owner-only permissions, while\nretaining path and DB/WAL/SHM symlink validation. First creation and journal/schema\nsetup still use the bounded initialization lease and re-read database state after\nacquisition. Driver loading occurs before that lease. Delivery regressions hold\nan initialization lease over an already ready store and require successful open\nwith retained data; they also verify that a new schema cannot be created under\nanother initializer's lease and that unsupported schemas remain rejected.\n"
+    },
+    {
+      "id": "b000156",
+      "kind": "blank",
+      "start_line": 445,
+      "end_line": 445,
+      "raw": "\n"
+    },
+    {
+      "id": "b000157",
+      "kind": "paragraph",
+      "start_line": 446,
+      "end_line": 446,
+      "raw": "The `delivery/delivery.sqlite` of the shared location contains the outbox, inbox, consumer acknowledgment location, and the last daemon snapshot. `DeliveryStore::receivePending()` moves the send data to receive by means of a single SQLite transaction. WAL and FULL synchronization and message ID uniqueness constraints are used, and if the transaction fails, the send data is held. Even if the process is terminated and processed again, the same ID is not stored redundantly. Errors returned by the Qt SQL driver and file system are passed to the caller.\n"
+    },
+    {
+      "id": "b000158",
+      "kind": "blank",
+      "start_line": 447,
+      "end_line": 447,
+      "raw": "\n"
+    },
+    {
+      "id": "b000159",
+      "kind": "paragraph",
+      "start_line": 448,
+      "end_line": 448,
+      "raw": "Society product's standalone executable `SocietyDaemon` performs this task. The app body receives data in sequence through `SocietyInbox`, and provides `dataReceived(QVariantMap)` ·recent 100 messages and page read API. `DeliveryStore::readAfter(sequence, limit)` allows reading past data received by the daemon as well. The daemon's last snapshot is the state at the recorded time and is not proof of current survival.\n"
+    },
+    {
+      "id": "b000160",
+      "kind": "blank",
+      "start_line": 449,
+      "end_line": 449,
+      "raw": "\n"
+    },
+    {
+      "id": "b000161",
+      "kind": "paragraph",
+      "start_line": 450,
+      "end_line": 450,
+      "raw": "Reading does not delete messages. The consumer must call `acknowledge(consumerId, sequence)` after finishing processing to start from after that upon re-execution. The checkpoint position does not go back and cannot check sequence numbers not yet received. Re-execution before confirmation can re-deliver the same message, so the consumer avoids duplicate processing using the message ID. Since the retention period is not yet defined, received records are not automatically deleted.\n"
+    },
+    {
+      "id": "b000162",
+      "kind": "blank",
+      "start_line": 451,
+      "end_line": 451,
+      "raw": "\n"
+    },
+    {
+      "id": "b000163",
+      "kind": "paragraph",
+      "start_line": 452,
+      "end_line": 452,
+      "raw": "Container-owned delivery state replaces the previous App Group Application Support default. The App Group remains an OS entitlement for participating apps; no new observation data is placed there by default. The Caches location in 0.2.0 contained no persistent delivery data, so observation records are rediscovered rather than migrated. iOS cannot run a permanent separate daemon, so the same receiving service runs while Society is running, and the shared outbound queue retains data while the app is suspended. Physical iOS device verification is separate.\n"
+    },
+    {
+      "id": "b000164",
+      "kind": "blank",
+      "start_line": 453,
+      "end_line": 453,
+      "raw": "\n"
+    },
+    {
+      "id": "b000165",
+      "kind": "paragraph",
+      "start_line": 454,
+      "end_line": 454,
+      "raw": "References for additional dependencies: the [Qt SQL driver](https://doc.qt.io/qt-6.8/sql-driver.html), [SQLite WAL](https://sqlite.org/wal.html), and [SQLite synchronization settings](https://sqlite.org/pragma.html#pragma_synchronous). Qt and SQLite components follow the licenses of the existing distributions.\n"
+    },
+    {
+      "id": "b000166",
+      "kind": "blank",
+      "start_line": 455,
+      "end_line": 455,
+      "raw": "\n"
+    },
+    {
+      "id": "b000167",
+      "kind": "html",
+      "start_line": 456,
+      "end_line": 456,
+      "raw": "<a id=\"저장-위치와-플랫폼\"></a>\n"
+    },
+    {
+      "id": "b000168",
+      "kind": "blank",
+      "start_line": 457,
+      "end_line": 457,
+      "raw": "\n"
+    },
+    {
+      "id": "b000169",
+      "kind": "heading",
+      "start_line": 458,
+      "end_line": 458,
+      "raw": "## Storage Location and Platform\n",
+      "level": 2,
+      "title": "Storage Location and Platform"
+    },
+    {
+      "id": "b000170",
+      "kind": "blank",
+      "start_line": 459,
+      "end_line": 459,
+      "raw": "\n"
+    },
+    {
+      "id": "b000171",
+      "kind": "paragraph",
+      "start_line": 460,
+      "end_line": 460,
+      "raw": "The default observation location is the selected valid `.societycontainer/.society-runtime/helpers/v1`. Participants selecting the same package share observations and delivery state there. Resolving the default path creates no directory; without a selected valid package, startup waits without using an OS AppData fallback. Observation state and the delivery database are private container state and are excluded from the public Files projection.\n"
+    },
+    {
+      "id": "b000172",
+      "kind": "blank",
+      "start_line": 461,
+      "end_line": 461,
+      "raw": "\n"
+    },
+    {
+      "id": "b000173",
+      "kind": "paragraph",
+      "start_line": 462,
+      "end_line": 462,
+      "raw": "iOS and Apple apps bundled with an App Group use `SocietyAppGroup` in Info.plist and the corresponding App Group entitlement. The path is `Library/Application Support/iiSocietyHelper/v1` in the group container and is not replaced with a separate private container for each app. It reuses the same `group.com.iisacc.society` contract set by the iOS app packaging function of existing iiSocietyContainer. An iOS app that is not configured returns a startup error. macOS sandbox apps also require the same App Group configuration.\n"
+    },
+    {
+      "id": "b000174",
+      "kind": "blank",
+      "start_line": 463,
+      "end_line": 463,
+      "raw": "\n"
+    },
+    {
+      "id": "b000175",
+      "kind": "paragraph",
+      "start_line": 464,
+      "end_line": 464,
+      "raw": "Background apps of iOS can be suspended by the OS. Suspended apps cannot refresh signals and expire in the observer, and when execution resumes, they are discovered again. It does not guarantee continuous background execution or waking up other apps. Both apps must be scheduled simultaneously for both observers to proceed. The Apple implementation uses Foundation API. On the current host, it validates the compilation of App Group path code, and running two signed iOS apps on two devices requires separate validation.\n"
+    },
+    {
+      "id": "b000176",
+      "kind": "blank",
+      "start_line": 465,
+      "end_line": 465,
+      "raw": "\n"
+    },
+    {
+      "id": "b000177",
+      "kind": "paragraph",
+      "start_line": 466,
+      "end_line": 466,
+      "raw": "Since 0.3.1, iOS builds as a static library. Static Qt apps include the SQLite driver through `qt_import_plugins(AppTarget INCLUDE Qt6::QSQLiteDriverPlugin)`. The shared delivery directory and existing DB/WAL/SHM use `NSFileProtectionCompleteUntilFirstUserAuthentication`, and new files inherit the directory's protection. Startup failures before the first unlock after reboot must be handled, with startup retried later. The host's `ios_directory_syntax` checks Foundation API types in this iOS branch. The app can disconnect with `stop()` when suspended and reconnect with `start()` on return. The Society app itself uses `SocietyRuntime` to manage this flow and failure retries.\n"
+    },
+    {
+      "id": "b000178",
+      "kind": "blank",
+      "start_line": 467,
+      "end_line": 467,
+      "raw": "\n"
+    },
+    {
+      "id": "b000179",
+      "kind": "paragraph",
+      "start_line": 468,
+      "end_line": 468,
+      "raw": "Android and WebAssembly require a native selected package or an explicitly integrated shared observation transport. Provider-only Android paths do not become host filesystem directories. Default Android inter-app IPC is not included in this version. Current runtime validation is macOS.\n"
+    },
+    {
+      "id": "b000180",
+      "kind": "blank",
+      "start_line": 469,
+      "end_line": 469,
+      "raw": "\n"
+    },
+    {
+      "id": "b000181",
+      "kind": "paragraph",
+      "start_line": 470,
+      "end_line": 470,
+      "raw": "`SOCIETY_HELPER_DIRECTORY` may select another private runtime directory only inside the currently selected package; outside overrides fail before creation. Low-level `ObservationOptions.directory` remains available for explicitly integrated device-local transports and isolated SDK tests. Society itself validates explicit paths against its selected package too. Public drive sections remain invalid observation locations because their content can be replicated. Do not use cloud-synchronized folders or network volumes for Helper transport. New final directories and records use owner-only access; existing permissions are preserved. Invalid, oversized, unsupported-version records and symbolic links are ignored.\n"
+    },
+    {
+      "id": "b000182",
+      "kind": "blank",
+      "start_line": 471,
+      "end_line": 471,
+      "raw": "\n"
+    },
+    {
+      "id": "b000183",
+      "kind": "html",
+      "start_line": 472,
+      "end_line": 472,
+      "raw": "<a id=\"구현과-의존성\"></a>\n"
+    },
+    {
+      "id": "b000184",
+      "kind": "blank",
+      "start_line": 473,
+      "end_line": 473,
+      "raw": "\n"
+    },
+    {
+      "id": "b000185",
+      "kind": "heading",
+      "start_line": 474,
+      "end_line": 474,
+      "raw": "## Implementation and Dependencies\n",
+      "level": 2,
+      "title": "Implementation and Dependencies"
+    },
+    {
+      "id": "b000186",
+      "kind": "blank",
+      "start_line": 475,
+      "end_line": 475,
+      "raw": "\n"
+    },
+    {
+      "id": "b000187",
+      "kind": "paragraph",
+      "start_line": 476,
+      "end_line": 476,
+      "raw": "`QSaveFile` from the existing Qt Core atomically records `<UUID>.json` for each run, while `QFileSystemWatcher` and timer polling are used together. Records are reread periodically even if watcher notifications are coalesced or missed. Data delivery additionally links Qt Sql and the QSQLITE driver from the existing Qt distribution. No separate message broker or external server package is installed. Maintained SQL APIs in Qt 6.8.3 and SQLite transactions reduce the recovery burden of a custom file journal. Qt usage and redistribution follow the installed distribution's license.\n"
+    },
+    {
+      "id": "b000188",
+      "kind": "blank",
+      "start_line": 477,
+      "end_line": 477,
+      "raw": "\n"
+    },
+    {
+      "id": "b000189",
+      "kind": "paragraph",
+      "start_line": 478,
+      "end_line": 478,
+      "raw": "The public header is at `src/iiSocietyHelper.h` of the root, and the implementation is placed at `src/Helper.cpp`, `src/ObjectCodec.cpp`, `src/FileSystem.cpp`, and `src/iiSocietyHelper.cpp` of the same root. Only Apple path resolution is at `src/platform/apple/ObservationDirectory.mm`. The previous `helloWorld()` symbol is maintained for existing consumer compatibility.\n"
+    },
+    {
+      "id": "b000190",
+      "kind": "blank",
+      "start_line": 479,
+      "end_line": 479,
+      "raw": "\n"
+    },
+    {
+      "id": "b000191",
+      "kind": "paragraph",
+      "start_line": 480,
+      "end_line": 480,
+      "raw": "References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpaths.html), [QSaveFile](https://doc.qt.io/qt-6.8/qsavefile.html), [QFileSystemWatcher](https://doc.qt.io/qt-6.8/qfilesystemwatcher.html), [monotonic clock](https://doc.qt.io/qt-6.8/qelapsedtimer.html), [Apple App Groups](https://developer.apple.com/documentation/xcode/configuring-app-groups), and [iOS background execution](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes).\n"
+    },
+    {
+      "id": "b000192",
+      "kind": "blank",
+      "start_line": 481,
+      "end_line": 481,
+      "raw": "\n"
+    },
+    {
+      "id": "b000193",
+      "kind": "html",
+      "start_line": 482,
+      "end_line": 482,
+      "raw": "<a id=\"빌드검증설치\"></a>\n"
+    },
+    {
+      "id": "b000194",
+      "kind": "blank",
+      "start_line": 483,
+      "end_line": 483,
+      "raw": "\n"
+    },
+    {
+      "id": "b000195",
+      "kind": "heading",
+      "start_line": 484,
+      "end_line": 484,
+      "raw": "## Build·Verify·Install\n",
+      "level": 2,
+      "title": "Build·Verify·Install"
+    },
+    {
+      "id": "b000196",
+      "kind": "blank",
+      "start_line": 485,
+      "end_line": 485,
+      "raw": "\n"
+    },
+    {
+      "id": "b000197",
+      "kind": "paragraph",
+      "start_line": 486,
+      "end_line": 490,
+      "raw": "Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,\niiAccountManager **0.2.8** or later, iiSharedCanvas **0.32.0** Core,\niiWebServer **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,\nQt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.\nBLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.\n"
+    },
+    {
+      "id": "b000198",
+      "kind": "blank",
+      "start_line": 491,
+      "end_line": 491,
+      "raw": "\n"
+    },
+    {
+      "id": "b000199",
+      "kind": "fenced_code",
+      "start_line": 492,
+      "end_line": 495,
+      "raw": "```sh\nCMAKE_PREFIX_PATH=\"/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install\" \\\n  INSTALL_PREFIX=\"$PWD/build/install\" ./install.sh\n```\n",
+      "language": "sh",
+      "code": "CMAKE_PREFIX_PATH=\"/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install\" \\\n  INSTALL_PREFIX=\"$PWD/build/install\" ./install.sh\n",
+      "closed": true
+    },
+    {
+      "id": "b000200",
+      "kind": "blank",
+      "start_line": 496,
+      "end_line": 496,
+      "raw": "\n"
+    },
+    {
+      "id": "b000201",
+      "kind": "paragraph",
+      "start_line": 497,
+      "end_line": 497,
+      "raw": "This script verifies the actual observation of an independent consumer that uses only public headers and libraries installed at `build/consumer/build/` after build·CTest·install. If `INSTALL_PREFIX` is omitted, it uses the default installation location `$HOME/.local/SDK/iiSocietyHelper` of the existing SDK. This task verifies the `build/install` installation of the Workspace.\n"
+    },
+    {
+      "id": "b000202",
+      "kind": "blank",
+      "start_line": 498,
+      "end_line": 498,
+      "raw": "\n"
+    },
+    {
+      "id": "b000203",
+      "kind": "fenced_code",
+      "start_line": 499,
+      "end_line": 508,
+      "raw": "```sh\ncmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=/Volumes/Storage/Qt/6.8.3/macos \\\n  -DiiSocietyContainer_DIR=/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \\\n  -DiiAccountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install/lib/cmake/iiAccountManager \\\n  -DCMAKE_INSTALL_PREFIX=\"$PWD/build/install\" -DBUILD_TESTING=ON\ncmake --build build --parallel\nctest --test-dir build --output-on-failure\ncmake --install build\n```\n",
+      "language": "sh",
+      "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=/Volumes/Storage/Qt/6.8.3/macos \\\n  -DiiSocietyContainer_DIR=/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \\\n  -DiiAccountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install/lib/cmake/iiAccountManager \\\n  -DCMAKE_INSTALL_PREFIX=\"$PWD/build/install\" -DBUILD_TESTING=ON\ncmake --build build --parallel\nctest --test-dir build --output-on-failure\ncmake --install build\n",
+      "closed": true
+    },
+    {
+      "id": "b000204",
+      "kind": "blank",
+      "start_line": 509,
+      "end_line": 509,
+      "raw": "\n"
+    },
+    {
+      "id": "b000205",
+      "kind": "paragraph",
+      "start_line": 510,
+      "end_line": 510,
+      "raw": "The test checks mutual discovery of three Helpers, multiple instances of the same app, state changes, normal termination, remaining records after forced termination, restart, process suspension and resumption, observer event loop suspension and resumption, incorrect settings, and directory boundary and isolation. Separate process tests actually run three executables. `iiSocietyHelper.account` and `iiSocietyHelper.installed_account` check object identity, full model access, update, initialization, replacement, destruction, thread boundary, QML reference, and observed data separation by connecting to the actual account SDK.\n"
+    },
+    {
+      "id": "b000206",
+      "kind": "blank",
+      "start_line": 511,
+      "end_line": 511,
+      "raw": "\n"
+    },
+    {
+      "id": "b000207",
+      "kind": "paragraph",
+      "start_line": 512,
+      "end_line": 512,
+      "raw": "In the 2026-09-09 0.6.0 account-reference verification, the Helper Release build and CTest **7/7**passed, as did CTest **5/5**in `build/account-reference/consumer`, which linked only against the `build/install` installation. Account-reference checks verified 9 cases on each run (11 passes including initialization and cleanup). The consumer's CMake finds and links only Helper, resolving iiAccountManager 0.2.0 as a dependency from `SDK/iiAccountManager/build/install`. `DYLD_LIBRARY_PATH`, `DYLD_FRAMEWORK_PATH`, and `DYLD_FALLBACK_LIBRARY_PATH` were removed at runtime. The result XML files are `build/account-reference-tests.xml` and `build/account-reference/consumer/account-reference-installed-tests.xml`. This reference verification does not include actual login requests, production deployment, or execution on Android/iOS devices.\n"
+    },
+    {
+      "id": "b000208",
+      "kind": "blank",
+      "start_line": 513,
+      "end_line": 513,
+      "raw": "\n"
+    },
+    {
+      "id": "b000209",
+      "kind": "paragraph",
+      "start_line": 514,
+      "end_line": 514,
+      "raw": "In the 2026-09-09 0.7.0 object-transfer verification, the Helper build and CTest **8/8**passed, as did CTest **6/6**in `build/object-transfer/consumer`, freshly built with the public headers and libraries from `build/install`. Object-transfer checks verified 12 cases on each run (14 passes including initialization and cleanup). They checked round trips for C++ value types, 64-bit integers, binary data, dates, and URLs; snapshots of QObject properties and the full account model; rejection of invalid formats, sizes, cycles, and threads; object destruction during getter execution and Helper restarts; and QML calls. Separate processes confirmed that the receiver restores objects from the persistent queue after the sender exits and reads the same message values on relaunch. The consumer resolved iiAccountManager 0.2.0 from the Workspace installation, with the three `DYLD_*` variables above removed at runtime. The result XML files are `build/object-transfer-tests.xml` and `build/object-transfer/consumer/object-transfer-installed-tests.xml`. This verification covers local inter-process delivery on macOS; it does not include production deployment, actual login, or execution on Android/iOS devices.\n"
+    },
+    {
+      "id": "b000210",
+      "kind": "blank",
+      "start_line": 515,
+      "end_line": 515,
+      "raw": "\n"
+    },
+    {
+      "id": "b000211",
+      "kind": "paragraph",
+      "start_line": 516,
+      "end_line": 516,
+      "raw": "Install the diagnostic executable as well. If executed from the same location in two terminals, you can check discovery, modification, and exit events in the form of JSON Lines from both sides. The diagnostic executable is also a participant.\n"
+    },
+    {
+      "id": "b000212",
+      "kind": "blank",
+      "start_line": 517,
+      "end_line": 517,
+      "raw": "\n"
+    },
+    {
+      "id": "b000213",
+      "kind": "fenced_code",
+      "start_line": 518,
+      "end_line": 523,
+      "raw": "```sh\nbuild/install/bin/ii-society-helper --directory \"$PWD/build/observe\" \\\n  --application-id com.iisacc.example.one --exit-after-ms 15000\nbuild/install/bin/ii-society-helper --directory \"$PWD/build/observe\" \\\n  --application-id com.iisacc.example.two --exit-after-ms 15000\n```\n",
+      "language": "sh",
+      "code": "build/install/bin/ii-society-helper --directory \"$PWD/build/observe\" \\\n  --application-id com.iisacc.example.one --exit-after-ms 15000\nbuild/install/bin/ii-society-helper --directory \"$PWD/build/observe\" \\\n  --application-id com.iisacc.example.two --exit-after-ms 15000\n",
+      "closed": true
+    },
+    {
+      "id": "b000214",
+      "kind": "blank",
+      "start_line": 524,
+      "end_line": 524,
+      "raw": "\n"
+    },
+    {
+      "id": "b000215",
+      "kind": "paragraph",
+      "start_line": 525,
+      "end_line": 525,
+      "raw": "The `iisacc.society.helper` Qt logs in the SDK record the start of observation and peer discovery, departure, and errors. UI, you can check whether actual bidirectional observation is enabled in the real app.\n"
+    },
+    {
+      "id": "b000216",
+      "kind": "blank",
+      "start_line": 526,
+      "end_line": 526,
+      "raw": "\n"
+    },
+    {
+      "id": "b000217",
+      "kind": "html",
+      "start_line": 527,
+      "end_line": 527,
+      "raw": "<a id=\"071-기기-내-협업-경계\"></a>\n"
+    },
+    {
+      "id": "b000218",
+      "kind": "blank",
+      "start_line": 528,
+      "end_line": 528,
+      "raw": "\n"
+    },
+    {
+      "id": "b000219",
+      "kind": "heading",
+      "start_line": 529,
+      "end_line": 529,
+      "raw": "## 0.7.1 collaboration boundary within the device\n",
+      "level": 2,
+      "title": "0.7.1 collaboration boundary within the device"
+    },
+    {
+      "id": "b000220",
+      "kind": "blank",
+      "start_line": 530,
+      "end_line": 530,
+      "raw": "\n"
+    },
+    {
+      "id": "b000221",
+      "kind": "paragraph",
+      "start_line": 531,
+      "end_line": 531,
+      "raw": "The runtime path of the Helper and DeliveryStore must be on the device's local location. Before starting, inspect all parent paths containing a Society manifest and known network file systems such as SMB / NFS, and do not create observation or message directories within those paths. Since the boundary is rechecked during execution, if the location of an already opened queue becomes a synchronization container, the next operation is rejected. The Helper runtime for an App Group maintains a separate location from the Society data area.\n"
+    },
+    {
+      "id": "b000222",
+      "kind": "blank",
+      "start_line": 532,
+      "end_line": 532,
+      "raw": "\n"
+    },
+    {
+      "id": "b000223",
+      "kind": "paragraph",
+      "start_line": 533,
+      "end_line": 535,
+      "raw": "File transfer, change logs, conflict resolution, and receiving from other devices are the responsibility of [the Sync component](docs/Sync/README.md). The Helper's SQLite outbox/inbox/ ACK, running instances, object snapshots, and account references are not part of the network synchronization protocol. Sync now resides in Helper Core and uses ServerHost. Local IPC retains its\nseparate persistence and network authorization boundaries; package tests reject\nimports of the retired SDK targets. The `delivery` check inspects for container boundary violations before starting and during execution, in addition to existing persistence transfer and duplicate prevention.\n"
+    },
+    {
+      "id": "b000224",
+      "kind": "blank",
+      "start_line": 536,
+      "end_line": 536,
+      "raw": "\n"
+    },
+    {
+      "id": "b000225",
+      "kind": "heading",
+      "start_line": 537,
+      "end_line": 537,
+      "raw": "## License\n",
+      "level": 2,
+      "title": "License"
+    },
+    {
+      "id": "b000226",
+      "kind": "blank",
+      "start_line": 538,
+      "end_line": 538,
+      "raw": "\n"
+    },
+    {
+      "id": "b000227",
+      "kind": "paragraph",
+      "start_line": 539,
+      "end_line": 539,
+      "raw": "SPDX-License-Identifier: MIT\n"
+    },
+    {
+      "id": "b000228",
+      "kind": "blank",
+      "start_line": 540,
+      "end_line": 540,
+      "raw": "\n"
+    },
+    {
+      "id": "b000229",
+      "kind": "paragraph",
+      "start_line": 541,
+      "end_line": 541,
+      "raw": "The self-written code and documentation of iiSocietyHelper are under the MIT License. The full terms follow [LICENSE](LICENSE). The licenses for external components such as Qt and Apple SDK remain unchanged.\n"
+    },
+    {
+      "id": "b000230",
+      "kind": "blank",
+      "start_line": 542,
+      "end_line": 542,
+      "raw": "\n"
+    },
+    {
+      "id": "b000231",
+      "kind": "html",
+      "start_line": 543,
+      "end_line": 543,
+      "raw": "<a id=\"android-공통-파일-시스템-05\"></a>\n"
+    },
+    {
+      "id": "b000232",
+      "kind": "blank",
+      "start_line": 544,
+      "end_line": 544,
+      "raw": "\n"
+    },
+    {
+      "id": "b000233",
+      "kind": "heading",
+      "start_line": 545,
+      "end_line": 545,
+      "raw": "## Android common file system ( 0.5 )\n",
+      "level": 2,
+      "title": "Android common file system ( 0.5 )"
+    },
+    {
+      "id": "b000234",
+      "kind": "blank",
+      "start_line": 546,
+      "end_line": 546,
+      "raw": "\n"
+    },
+    {
+      "id": "b000235",
+      "kind": "paragraph",
+      "start_line": 547,
+      "end_line": 547,
+      "raw": "Android consumer apps call `iiSocietyContainer_configure_android_client(target)` and sign with the same certificate as Society. The internal Society of the ContentProvider app responds to requests even when the app is closed. `fileSystem.open()` selects an existing Society UUID and does not create a separate container. `path()` and `url()` return content URIs from the Android consumer app. Reading and writing are performed via `QFile`, and folders are prepared and enumerated via `ensureDirectory()` and `entries(sectionKey, relativePath)`. Items `entries` are `name`, `path`, `isDirectory`, and `size`. Engines requiring native paths copy the URI to their own cache for use. The absolute path behavior for desktop and Society owned apps is maintained.\n"
+    },
+    {
+      "id": "b000236",
+      "kind": "blank",
+      "start_line": 548,
+      "end_line": 548,
+      "raw": "\n"
+    },
+    {
+      "id": "b000237",
+      "kind": "paragraph",
+      "start_line": 549,
+      "end_line": 549,
+      "raw": "The internal provider verifies the signature authority and the signature of the calling UID, and validates the UUID ·area·relative path of all requests. For public Android file apps, only the Files content continues to appear. This file system IPC does not remove the background execution limit for Android app observation. A separate `tests/android/` Qt app checks the creation, reading, writing, enumeration, and rejection of parent paths for 8 areas from the actual app UID via the Helper, and logs the results as `SOCIETY_ANDROID_PEER` JSON in logcat.\n"
+    },
+    {
+      "id": "b000238",
+      "kind": "blank",
+      "start_line": 550,
+      "end_line": 550,
+      "raw": "\n"
+    },
+    {
+      "id": "b000239",
+      "kind": "heading",
+      "start_line": 551,
+      "end_line": 551,
+      "raw": "## Source layout\n",
+      "level": 2,
+      "title": "Source layout"
+    },
+    {
+      "id": "b000240",
+      "kind": "blank",
+      "start_line": 552,
+      "end_line": 552,
+      "raw": "\n"
+    },
+    {
+      "id": "b000241",
+      "kind": "paragraph",
+      "start_line": 553,
+      "end_line": 553,
+      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
+    },
+    {
+      "id": "b000242",
+      "kind": "blank",
+      "start_line": 554,
+      "end_line": 554,
+      "raw": "\n"
+    },
+    {
+      "id": "b000243",
+      "kind": "paragraph",
+      "start_line": 555,
+      "end_line": 555,
+      "raw": "Account snapshots also include `societyContainerDrive`. Accounts without a drive preserve this field as null and do not omit it, and this is verified in object transfer and restoration tests.\n"
+    },
+    {
+      "id": "b000244",
+      "kind": "blank",
+      "start_line": 556,
+      "end_line": 556,
+      "raw": "\n"
+    },
+    {
+      "id": "b000245",
+      "kind": "heading",
+      "start_line": 557,
+      "end_line": 557,
+      "raw": "### Fresh generation models (0.7.2)\n",
+      "level": 3,
+      "title": "Fresh generation models (0.7.2)"
+    },
+    {
+      "id": "b000246",
+      "kind": "blank",
+      "start_line": 558,
+      "end_line": 558,
+      "raw": "\n"
+    },
+    {
+      "id": "b000247",
+      "kind": "paragraph",
+      "start_line": 559,
+      "end_line": 559,
+      "raw": "Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.\n"
+    },
+    {
+      "id": "b000248",
+      "kind": "blank",
+      "start_line": 560,
+      "end_line": 560,
+      "raw": "\n"
+    },
+    {
+      "id": "b000249",
+      "kind": "paragraph",
+      "start_line": 561,
+      "end_line": 561,
+      "raw": "The 0.8.3 package pins iiSharedCanvas 0.31.0 for matching application and storage-owner headers and runtime. Existing detached read/write behavior is covered by the filesystem and installed consumer tests.\n"
+    },
+    {
+      "id": "b000250",
+      "kind": "blank",
+      "start_line": 562,
+      "end_line": 562,
+      "raw": "\n"
+    },
+    {
+      "id": "b000251",
+      "kind": "paragraph",
+      "start_line": 563,
+      "end_line": 567,
+      "raw": "The 0.8.3 package aligns by-value canvas storage with iiSharedCanvas 0.31.0.\nNative IISC 1.21 mask stacks retain independent operands and appearance when\nsaved, read or rendered as a preview; application and storage-owner binaries\nmust be rebuilt together. Existing filesystem and installed-consumer checks\ncontinue to verify native save/reopen and stale-version rejection.\n"
+    },
+    {
+      "id": "b000252",
+      "kind": "blank",
+      "start_line": 568,
+      "end_line": 568,
+      "raw": "\n"
+    },
+    {
+      "id": "b000253",
+      "kind": "heading",
+      "start_line": 569,
+      "end_line": 569,
+      "raw": "### Container monitor subscription\n",
+      "level": 3,
+      "title": "Container monitor subscription"
+    },
+    {
+      "id": "b000254",
+      "kind": "blank",
+      "start_line": 570,
+      "end_line": 570,
+      "raw": "\n"
+    },
+    {
+      "id": "b000255",
+      "kind": "paragraph",
+      "start_line": 571,
+      "end_line": 577,
+      "raw": "`FileSystem` automatically subscribes to the Qt-free `iiSocietyHelper::Monitoring` service\nfor its pinned container. `containerState()` / the QML `containerState` property\ncontains the daemon identity, container UUID, revision, availability, heartbeat\nliveness, completeness, nine section inventories and changed section keys.\n`containerStateChanged()` is delivered on the FileSystem QObject's thread.\nOpening the same container preserves the subscription; switching containers\nclears its state and discards queued events from the previous subscription.\n"
+    },
+    {
+      "id": "b000256",
+      "kind": "blank",
+      "start_line": 578,
+      "end_line": 578,
+      "raw": "\n"
+    },
+    {
+      "id": "b000257",
+      "kind": "paragraph",
+      "start_line": 579,
+      "end_line": 588,
+      "raw": "A changed revision refreshes the existing read-only `Container` mirror and\nemits `storageChanged()`. Complete inventories of a local authority replace\nthe mirror's periodic metadata refresh while the daemon is live. Replicas retain\nthe fallback for preview-only/private download changes; partial inventories also\nretain it. Missing/stale/offline daemon state restores the\nexisting fallback refresh. A daemon heartbeat older than five seconds reports\n`daemonRunning=false`; availability and liveness have separate meanings.\nThe native daemon never copies model weights, reads document payloads or\nperforms network synchronization. Mobile platforms remain subject to their\nexisting background execution limits.\n"
+    },
+    {
+      "id": "b000258",
+      "kind": "blank",
+      "start_line": 589,
+      "end_line": 589,
+      "raw": "\n"
+    },
+    {
+      "id": "b000259",
+      "kind": "fenced_code",
+      "start_line": 590,
+      "end_line": 593,
+      "raw": "```cpp\nQObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,\n                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });\n```\n",
+      "language": "cpp",
+      "code": "QObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,\n                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });\n",
+      "closed": true
+    },
+    {
+      "id": "b000260",
+      "kind": "blank",
+      "start_line": 594,
+      "end_line": 594,
+      "raw": "\n"
+    },
+    {
+      "id": "b000261",
+      "kind": "paragraph",
+      "start_line": 595,
+      "end_line": 599,
+      "raw": "Monitoring is built and installed by this SDK; there is no separate monitoring\npackage to install first. Its native\nprocess and independent-consumer tests cover publication and late subscribers;\n`iiSocietyHelper.filesystem` covers two GUI consumers, queued delivery, same-drive\nreopening, selection changes and graceful daemon shutdown.\n"
+    },
+    {
+      "id": "b000262",
+      "kind": "blank",
+      "start_line": 600,
+      "end_line": 600,
+      "raw": "\n"
+    },
+    {
+      "id": "b000263",
+      "kind": "paragraph",
+      "start_line": 601,
+      "end_line": 603,
+      "raw": "The filesystem suite allows 120 seconds for durable writes on external storage,\nincluding the mask-stack storage/preview regression. This is a test deadline;\nproduction storage transaction and conflict behavior remain unchanged.\n"
+    },
+    {
+      "id": "b000264",
+      "kind": "blank",
+      "start_line": 604,
+      "end_line": 605,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000265",
+      "kind": "heading",
+      "start_line": 606,
+      "end_line": 606,
+      "raw": "### Native image export in 0.10.1\n",
+      "level": 3,
+      "title": "Native image export in 0.10.1"
+    },
+    {
+      "id": "b000266",
+      "kind": "blank",
+      "start_line": 607,
+      "end_line": 607,
+      "raw": "\n"
+    },
+    {
+      "id": "b000267",
+      "kind": "paragraph",
+      "start_line": 608,
+      "end_line": 612,
+      "raw": "The stateless media-export adapter now reads native IISC without authoring the\nsource and exports its complete frame-zero document view to PNG. Original raster\nand MP4 export still copy their bytes. Native read-only snapshots, source\npreservation, alpha/PNG text, atomic output and selected-drive isolation are\ncovered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.md).\n"
+    },
+    {
+      "id": "b000268",
+      "kind": "blank",
+      "start_line": 613,
+      "end_line": 613,
+      "raw": "\n"
+    },
+    {
+      "id": "b000269",
+      "kind": "heading",
+      "start_line": 614,
+      "end_line": 614,
+      "raw": "## Native publication metadata (0.11.0)\n",
+      "level": 2,
+      "title": "Native publication metadata (0.11.0)"
+    },
+    {
+      "id": "b000270",
+      "kind": "blank",
+      "start_line": 615,
+      "end_line": 615,
+      "raw": "\n"
+    },
+    {
+      "id": "b000271",
+      "kind": "paragraph",
+      "start_line": 616,
+      "end_line": 616,
+      "raw": "The package and its by-value canvas storage boundary rebuild against iiSharedCanvas 0.32.0 / ABI 0.32. The Helper library uses ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts.\n"
+    },
+    {
+      "id": "b000272",
+      "kind": "blank",
+      "start_line": 617,
+      "end_line": 617,
+      "raw": "\n"
+    },
+    {
+      "id": "b000273",
+      "kind": "paragraph",
+      "start_line": 618,
+      "end_line": 618,
+      "raw": "Related implementation contracts: [Sync journal startup and WAL snapshots](docs/SyncStartup.md).\n"
+    },
+    {
+      "id": "b000274",
+      "kind": "blank",
+      "start_line": 619,
+      "end_line": 619,
+      "raw": "\n"
+    },
+    {
+      "id": "b000275",
+      "kind": "html",
+      "start_line": 620,
+      "end_line": 620,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000276",
+      "kind": "heading",
+      "start_line": 621,
+      "end_line": 621,
+      "raw": "## Documentation entry points\n",
+      "level": 2,
+      "title": "Documentation entry points"
+    },
+    {
+      "id": "b000277",
+      "kind": "blank",
+      "start_line": 622,
+      "end_line": 622,
+      "raw": "\n"
+    },
+    {
+      "id": "b000278",
+      "kind": "list",
+      "start_line": 623,
+      "end_line": 626,
+      "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Human overview: this English `README.md`.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Agent instructions: [AGENT.md](AGENT.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Human documentation: [documentation index](docs/README.md).",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Structured agent documentation: [agent index](docs/agent-index.json).",
+          "checked": null
+        }
+      ]
+    },
+    {
+      "id": "b000279",
+      "kind": "html",
+      "start_line": 627,
+      "end_line": 627,
+      "raw": "<!-- workspace-docs:readme:end -->\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiSocietyHelper",
+      "anchor": "iisocietyhelper",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000025",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Container state and file ownership",
+      "anchor": "container-state-and-file-ownership",
+      "start_line": 83
+    },
+    {
+      "block_id": "b000057",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Use from app",
+      "anchor": "use-from-app",
+      "start_line": 195
+    },
+    {
+      "block_id": "b000069",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Account object reference ( 0.6.0 )",
+      "anchor": "account-object-reference--060-",
+      "start_line": 229
+    },
+    {
+      "block_id": "b000087",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Society file system access ( 0.4.0 )",
+      "anchor": "society-file-system-access--040-",
+      "start_line": 268
+    },
+    {
+      "block_id": "b000111",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Observation contract",
+      "anchor": "observation-contract",
+      "start_line": 314
+    },
+    {
+      "block_id": "b000119",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "C++ object transfer (0.7.0)",
+      "anchor": "c-object-transfer-070",
+      "start_line": 350
+    },
+    {
+      "block_id": "b000145",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Data transfer via Society daemon",
+      "anchor": "data-transfer-via-society-daemon",
+      "start_line": 423
+    },
+    {
+      "block_id": "b000169",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Storage Location and Platform",
+      "anchor": "storage-location-and-platform",
+      "start_line": 458
+    },
+    {
+      "block_id": "b000185",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Implementation and Dependencies",
+      "anchor": "implementation-and-dependencies",
+      "start_line": 474
+    },
+    {
+      "block_id": "b000195",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Build·Verify·Install",
+      "anchor": "buildverifyinstall",
+      "start_line": 484
+    },
+    {
+      "block_id": "b000219",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "0.7.1 collaboration boundary within the device",
+      "anchor": "071-collaboration-boundary-within-the-device",
+      "start_line": 529
+    },
+    {
+      "block_id": "b000225",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "License",
+      "anchor": "license",
+      "start_line": 537
+    },
+    {
+      "block_id": "b000233",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Android common file system ( 0.5 )",
+      "anchor": "android-common-file-system--05-",
+      "start_line": 545
+    },
+    {
+      "block_id": "b000239",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Source layout",
+      "anchor": "source-layout",
+      "start_line": 551
+    },
+    {
+      "block_id": "b000245",
+      "parent_id": "b000239",
+      "level": 3,
+      "title": "Fresh generation models (0.7.2)",
+      "anchor": "fresh-generation-models-072",
+      "start_line": 557
+    },
+    {
+      "block_id": "b000253",
+      "parent_id": "b000239",
+      "level": 3,
+      "title": "Container monitor subscription",
+      "anchor": "container-monitor-subscription",
+      "start_line": 569
+    },
+    {
+      "block_id": "b000265",
+      "parent_id": "b000239",
+      "level": 3,
+      "title": "Native image export in 0.10.1",
+      "anchor": "native-image-export-in-0101",
+      "start_line": 606
+    },
+    {
+      "block_id": "b000269",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Native publication metadata (0.11.0)",
+      "anchor": "native-publication-metadata-0110",
+      "start_line": 614
+    },
+    {
+      "block_id": "b000276",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Documentation entry points",
+      "anchor": "documentation-entry-points",
+      "start_line": 621
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 14,
+        "text": "contents; source timestamps never decide overwrite order. Core QueryPort reads",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 50,
+        "text": "publication on its own worker. It never creates a shared download-request file,",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 74,
+        "text": "applications and Helper must use the same canvas headers and library version.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 129,
+        "text": "objects once per batch. They do not reopen and revalidate the drive for every",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000035",
+        "line": 134,
+        "text": "listing and retain its readable `content:` source/preview addresses. They do not",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 150,
+        "text": "Applications never receive a writable DocumentFile binding.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000039",
+        "line": 151,
+        "text": "Helper's native write locks are hidden implementation files and are never",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000043",
+        "line": 165,
+        "text": "the caller owns scheduling. It never creates a FileSystem, opens a selected drive,",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000045",
+        "line": 177,
+        "text": "directory observer, or refresh a mirror. Callers own worker scheduling and must",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000051",
+        "line": 189,
+        "text": "is a separate component of this same package and never imports the Core facade. Local observation and delivery do not start a network session.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000063",
+        "line": 223,
+        "text": "The Helper is created after `QCoreApplication` and created and called from the app's event loop thread, and must remain alive during observation. Merely linking a DLL does not start observation. Call `start()` at the actual app entry point. At termination, `aboutToQuit`, destructor, or explicit `stop()` removes its own record. Upon restart after `stop()`, a new instance ID is issued. Duplicate start calls return an error while maintaining the existing observation. To remove an object in signal handling, use Qt's `deleteLater()`.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000079",
+        "line": 260,
+        "text": "If the same manager is set again, there is no duplicate notification. If replaced, the notification connection of the previous manager is broken, and when the manager is destroyed, both references are automatically cleared. Multiple Helpers can reference the same manager. Helper release and destruction do not perform the manager's logout or account initialization. `setAccountManager()` is called from the Helper's event loop thread and the manager is also maintained in the same thread. Other threads return `false` without changes. Even if replaced with another reference or the Helper is destroyed during change notification processing, it returns `false` without sending subsequent notifications of the previous reference.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000101",
+        "line": 304,
+        "text": "iOS consuming apps require the same App Group signature as the existing `iiSocietyContainer_configure_ios_client()` configuration. macOS sandbox apps must also use the original allowed by the OS. The private app directories for Android and WebAssembly are not public storage, and the host must explicitly specify the shared original. Android apps do not provide default shared storage or IPC between apps. [Apple App Group](https://developer.apple.com/documentation/xcode/configuring-app-groups)follows the shared container contract.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000113",
+        "line": 322,
+        "text": "- The default survival signal interval is 1 seconds, and observation expiration is 5 seconds. Discovery usually requires one or two renewals. It may be delayed according to OS scheduling. Participants changing the interval via `ObservationOptions` must use a timeout that accommodates each other's periods. Mutual discovery/interruption and recovery integration checks also use the actual default expiration time of 5 seconds. Do not mistake external volume file flush delay for a normal running participant's expiration, and the recovery check actually waits 5.5 seconds to stop the event loop to verify both expiration and new heartbeat rediscovery. Separate process checks also use a 5 second expiration, and the restart process runs for 10 seconds to observe until the normal termination event after confirming discovery.",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000113",
+        "line": 325,
+        "text": "coalesced while an operation is active; they do not queue an unbounded backlog",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000113",
+        "line": 341,
+        "text": "Slow history commits do not delay presence heartbeats. Unstarted storage-only",
+        "basis": "lexical_match",
+        "context": "list"
+      },
+      {
+        "block_id": "b000125",
+        "line": 361,
+        "text": "QObject uses the explicit storage contract if `Q_INVOKABLE QVariantMap toVariantMap() const` is present. Otherwise, it reads readable `STORED` Q_PROPERTY including inherited user properties. QObject default `objectName`, dynamic properties, and `STORED false` properties are not automatically collected. Nested QObject properties become nested `ObjectSnapshot` and null references become null values. Circular references are rejected. Objects must be read from their own thread, and getters must return valid value·references. The original QObject and execution method·ownership·memory address are not transmitted. If an instance of the original QObject class is needed, the receiving app uses the snapshot and that class's create·update API.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000133",
+        "line": 383,
+        "text": "General C++ value objects must be copyable·default-constructible, and transmit·receive apps must share the same metatype and QDataStream operator. The next declaration·operator is placed in a common header, and the receive app also calls `qRegisterMetaType`.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000137",
+        "line": 415,
+        "text": "User value types including Q_GADGET also follow the same stream operator contract. User value types contained in QObject must also be registered on the receiver side. Arbitrary C++ members are not automatically serialized by meta-type registration alone. User operators define field, schema version, and internal collection limits. `ObjectCodec::encode()` / `decode()` can be used separately from transmission. Unregistered receiver types, unsupported stream operators, primitive and QObject smart pointers within QVariant, truncated data, trailing bytes, incorrect Base64, and unsupported protocol versions are explicitly rejected. Failed objects are not left in the queue as partial messages.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000161",
+        "line": 450,
+        "text": "Reading does not delete messages. The consumer must call `acknowledge(consumerId, sequence)` after finishing processing to start from after that upon re-execution. The checkpoint position does not go back and cannot check sequence numbers not yet received. Re-execution before confirmation can re-deliver the same message, so the consumer avoids duplicate processing using the message ID. Since the retention period is not yet defined, received records are not automatically deleted.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000175",
+        "line": 464,
+        "text": "Background apps of iOS can be suspended by the OS. Suspended apps cannot refresh signals and expire in the observer, and when execution resumes, they are discovered again. It does not guarantee continuous background execution or waking up other apps. Both apps must be scheduled simultaneously for both observers to proceed. The Apple implementation uses Foundation API. On the current host, it validates the compilation of App Group path code, and running two signed iOS apps on two devices requires separate validation.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000177",
+        "line": 466,
+        "text": "Since 0.3.1, iOS builds as a static library. Static Qt apps include the SQLite driver through `qt_import_plugins(AppTarget INCLUDE Qt6::QSQLiteDriverPlugin)`. The shared delivery directory and existing DB/WAL/SHM use `NSFileProtectionCompleteUntilFirstUserAuthentication`, and new files inherit the directory's protection. Startup failures before the first unlock after reboot must be handled, with startup retried later. The host's `ios_directory_syntax` checks Foundation API types in this iOS branch. The app can disconnect with `stop()` when suspended and reconnect with `start()` on return. The Society app itself uses `SocietyRuntime` to manage this flow and failure retries.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000179",
+        "line": 468,
+        "text": "Android and WebAssembly require a native selected package or an explicitly integrated shared observation transport. Provider-only Android paths do not become host filesystem directories. Default Android inter-app IPC is not included in this version. Current runtime validation is macOS.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000181",
+        "line": 470,
+        "text": "`SOCIETY_HELPER_DIRECTORY` may select another private runtime directory only inside the currently selected package; outside overrides fail before creation. Low-level `ObservationOptions.directory` remains available for explicitly integrated device-local transports and isolated SDK tests. Society itself validates explicit paths against its selected package too. Public drive sections remain invalid observation locations because their content can be replicated. Do not use cloud-synchronized folders or network volumes for Helper transport. New final directories and records use owner-only access; existing permissions are preserved. Invalid, oversized, unsupported-version records and symbolic links are ignored.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000221",
+        "line": 531,
+        "text": "The runtime path of the Helper and DeliveryStore must be on the device's local location. Before starting, inspect all parent paths containing a Society manifest and known network file systems such as SMB / NFS, and do not create observation or message directories within those paths. Since the boundary is rechecked during execution, if the location of an already opened queue becomes a synchronization container, the next operation is rejected. The Helper runtime for an App Group maintains a separate location from the Society data area.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000243",
+        "line": 555,
+        "text": "Account snapshots also include `societyContainerDrive`. Accounts without a drive preserve this field as null and do not omit it, and this is verified in object transfer and restoration tests.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000247",
+        "line": 559,
+        "text": "Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000251",
+        "line": 566,
+        "text": "must be rebuilt together. Existing filesystem and installed-consumer checks",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000257",
+        "line": 586,
+        "text": "The native daemon never copies model weights, reads document payloads or",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000199",
+        "language": "sh",
+        "code": "CMAKE_PREFIX_PATH=\"/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install\" \\\n  INSTALL_PREFIX=\"$PWD/build/install\" ./install.sh\n"
+      },
+      {
+        "block_id": "b000203",
+        "language": "sh",
+        "code": "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \\\n  -DCMAKE_PREFIX_PATH=/Volumes/Storage/Qt/6.8.3/macos \\\n  -DiiSocietyContainer_DIR=/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \\\n  -DiiAccountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install/lib/cmake/iiAccountManager \\\n  -DCMAKE_INSTALL_PREFIX=\"$PWD/build/install\" -DBUILD_TESTING=ON\ncmake --build build --parallel\nctest --test-dir build --output-on-failure\ncmake --install build\n"
+      },
+      {
+        "block_id": "b000213",
+        "language": "sh",
+        "code": "build/install/bin/ii-society-helper --directory \"$PWD/build/observe\" \\\n  --application-id com.iisacc.example.one --exit-after-ms 15000\nbuild/install/bin/ii-society-helper --directory \"$PWD/build/observe\" \\\n  --application-id com.iisacc.example.two --exit-after-ms 15000\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "application storage",
+        "target": "docs/ApplicationStorage.md",
+        "kind": "relative",
+        "line": 10
+      },
+      {
+        "block_id": "b000005",
+        "label": "snapshot and status contracts",
+        "target": "docs/Sync/Snapshots.md",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000007",
+        "label": "managed files",
+        "target": "docs/ManagedFiles.md",
+        "kind": "relative",
+        "line": 23
+      },
+      {
+        "block_id": "b000009",
+        "label": "consolidation and component usage",
+        "target": "docs/Consolidation.md",
+        "kind": "relative",
+        "line": 27
+      },
+      {
+        "block_id": "b000013",
+        "label": "Windows build and execution",
+        "target": "docs/WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 35
+      },
+      {
+        "block_id": "b000015",
+        "label": "Consolidation.md",
+        "target": "docs/Consolidation.md",
+        "kind": "relative",
+        "line": 43
+      },
+      {
+        "block_id": "b000023",
+        "label": "migration and dependency direction",
+        "target": "docs/Migration.md",
+        "kind": "relative",
+        "line": 80
+      },
+      {
+        "block_id": "b000023",
+        "label": "host access",
+        "target": "docs/HostDrive.md",
+        "kind": "relative",
+        "line": 81
+      },
+      {
+        "block_id": "b000023",
+        "label": "account and connection lifecycle",
+        "target": "docs/Client.md",
+        "kind": "relative",
+        "line": 81
+      },
+      {
+        "block_id": "b000101",
+        "label": "Apple App Group",
+        "target": "https://developer.apple.com/documentation/xcode/configuring-app-groups",
+        "kind": "external",
+        "line": 304
+      },
+      {
+        "block_id": "b000103",
+        "label": "QFile",
+        "target": "https://doc.qt.io/qt-6.8/qfile.html",
+        "kind": "external",
+        "line": 306
+      },
+      {
+        "block_id": "b000103",
+        "label": ", QSaveFile, and",
+        "target": "https://doc.qt.io/qt-6.8/qsavefile.html",
+        "kind": "external",
+        "line": 306
+      },
+      {
+        "block_id": "b000165",
+        "label": "Qt SQL driver",
+        "target": "https://doc.qt.io/qt-6.8/sql-driver.html",
+        "kind": "external",
+        "line": 454
+      },
+      {
+        "block_id": "b000165",
+        "label": "SQLite WAL",
+        "target": "https://sqlite.org/wal.html",
+        "kind": "external",
+        "line": 454
+      },
+      {
+        "block_id": "b000165",
+        "label": "SQLite synchronization settings",
+        "target": "https://sqlite.org/pragma.html#pragma_synchronous",
+        "kind": "external",
+        "line": 454
+      },
+      {
+        "block_id": "b000191",
+        "label": "Qt shared storage locations",
+        "target": "https://doc.qt.io/qt-6.8/qstandardpaths.html",
+        "kind": "external",
+        "line": 480
+      },
+      {
+        "block_id": "b000191",
+        "label": "QSaveFile",
+        "target": "https://doc.qt.io/qt-6.8/qsavefile.html",
+        "kind": "external",
+        "line": 480
+      },
+      {
+        "block_id": "b000191",
+        "label": "QFileSystemWatcher",
+        "target": "https://doc.qt.io/qt-6.8/qfilesystemwatcher.html",
+        "kind": "external",
+        "line": 480
+      },
+      {
+        "block_id": "b000191",
+        "label": "monotonic clock",
+        "target": "https://doc.qt.io/qt-6.8/qelapsedtimer.html",
+        "kind": "external",
+        "line": 480
+      },
+      {
+        "block_id": "b000191",
+        "label": "Apple App Groups",
+        "target": "https://developer.apple.com/documentation/xcode/configuring-app-groups",
+        "kind": "external",
+        "line": 480
+      },
+      {
+        "block_id": "b000191",
+        "label": "iOS background execution",
+        "target": "https://developer.apple.com/documentation/xcode/configuring-background-execution-modes",
+        "kind": "external",
+        "line": 480
+      },
+      {
+        "block_id": "b000223",
+        "label": "the Sync component",
+        "target": "docs/Sync/README.md",
+        "kind": "relative",
+        "line": 533
+      },
+      {
+        "block_id": "b000229",
+        "label": "LICENSE",
+        "target": "LICENSE",
+        "kind": "relative",
+        "line": 541
+      },
+      {
+        "block_id": "b000267",
+        "label": "HostDrive",
+        "target": "docs/HostDrive.md",
+        "kind": "relative",
+        "line": 612
+      },
+      {
+        "block_id": "b000273",
+        "label": "Sync journal startup and WAL snapshots",
+        "target": "docs/SyncStartup.md",
+        "kind": "relative",
+        "line": 618
+      },
+      {
+        "block_id": "b000278",
+        "label": "AGENT.md",
+        "target": "AGENT.md",
+        "kind": "relative",
+        "line": 624
+      },
+      {
+        "block_id": "b000278",
+        "label": "documentation index",
+        "target": "docs/README.md",
+        "kind": "relative",
+        "line": 625
+      },
+      {
+        "block_id": "b000278",
+        "label": "agent index",
+        "target": "docs/agent-index.json",
+        "kind": "relative",
+        "line": 626
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000075",
+        "columns": [
+          "API / Qt property",
+          "Contract"
+        ],
+        "rows": [
+          [
+            "`setAccountManager(AccountManager*)`",
+            "Connects the manager in the same thread. `nullptr` is disconnect. It can also be called from QML."
+          ],
+          [
+            "`accountManager()` / `accountManager`",
+            "Is the manager object itself that was connected. After being disconnected or destroyed, it is `nullptr`."
+          ],
+          [
+            "`account()` / `account`",
+            "Is the manager's fixed `Account` object itself. If not connected, it is `nullptr`; if connected but before login, it is `present == false`."
+          ],
+          [
+            "`accountManagerChanged()`",
+            "Notifies of connect, replace, disconnect, and manager destruction."
+          ],
+          [
+            "`accountChanged()`",
+            "Notifies of reference replacement and account and nested author data changes. It sends after the entire changed value is reflected."
+          ]
+        ]
+      },
+      {
+        "block_id": "b000123",
+        "columns": [
+          "Transfer target",
+          "Transmit API",
+          "Restoration result"
+        ],
+        "rows": [
+          [
+            "`QObject*` / `const QObject*` / `const QObject&`",
+            "`sendObject(topic, object)`",
+            "`ObjectSnapshot { QString className; QVariantMap properties; }`"
+          ],
+          [
+            "Qt value·registered C++ struct/class",
+            "`sendObject(topic, value)`",
+            "Original Qt metatype preserved `QVariant`, `value<T>()` to C++ value restoration"
+          ],
+          [
+            "Already held `QVariant`",
+            "`sendObject(topic, variant)`",
+            "Type and content of the held value"
+          ],
+          [
+            "Existing JSON value bundle",
+            "`sendData(topic, map)`",
+            "Existing `QVariantMap` contract"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

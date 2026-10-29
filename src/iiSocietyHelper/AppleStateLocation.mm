@@ -3,7 +3,7 @@
 #include <QStandardPaths>
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrentRun>
-#include <iiAcountManager/SessionStore.h>
+#include <iiAccountManager/SessionStore.h>
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
 #include <TargetConditionals.h>

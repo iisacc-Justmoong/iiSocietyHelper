@@ -1,0 +1,85 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:8aa824210d23bdf8ead1f045f5280449eebf04b3084805032fe452fc302882b9",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/WindowsValidation.md",
+    "sha256": "e23afdd48f33e61a1110a0434400f98914469e3dd38872776267de3ef946879f",
+    "bytes": 563,
+    "line_count": 5,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Windows 실행 검증",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Windows 실행 검증\n",
+      "level": 1,
+      "title": "Windows 실행 검증"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "관찰 디렉터리는 native 저장소 handle로 고정되어 관찰 도중 이름 변경이 차단된다. 종료 후 이름 변경이 가능함까지 검증한다. 세 개의 실제 CLI 프로세스가 서로 발견하고, 강제 종료된 프로세스의 만료와 재시작을 검증한다. 실패 시 각 프로세스의 JSON 이벤트와 stderr를 기록한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "정상 CLI 종료는 Windows 파일 flush까지 완료한 후 15초 이내인지 검증한다. 발견·심박·프로세스 만료 제한은 기존 값을 유지한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Windows 실행 검증",
+      "anchor": "windows-실행-검증",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

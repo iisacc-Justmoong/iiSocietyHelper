@@ -1,5 +1,5 @@
 #include "iiSocietyHelper.h"
-#include <iiAcountManager/AccountManager.h>
+#include <iiAccountManager/AccountManager.h>
 
 #include <QFile>
 #include <QJsonDocument>

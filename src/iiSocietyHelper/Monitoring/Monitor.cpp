@@ -1,6 +1,7 @@
 #include <iiFileProviderStorage.h>
 #include "Monitor.h"
 #include <DirectoryStorage.h>
+#include <LogicalDisk.h>
 #include <FileTree.h>
 #include <iiFileProviderCoreIO.h>
 #include <iiSDKCore/Core/Serialization/Serialization.h>
@@ -214,7 +215,7 @@ bool field(const std::map<std::string, Scalar>& object, const char* key, Scalar:
     return it != object.end() && it->second.kind == kind && (value.empty() || it->second.value == value);
 }
 Result<std::string> identity(const fs::path& root, const std::string& expected) {
-    if (!direct(root, true) || !iiSocietyContainer::DirectoryStorage::isPackageDirectory(root))
+    if (!direct(root, true) || (!iiSocietyContainer::DirectoryStorage::isPackageDirectory(root) && !iiSocietyContainer::LogicalDisk::owner(root)))
         return std::unexpected("Container is missing, redirected or incomplete");
     const auto manifest = bytes(root/".society-drive.json", 16384);
     if (!manifest) return std::unexpected(manifest.error());

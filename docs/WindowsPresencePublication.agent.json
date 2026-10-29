@@ -1,0 +1,107 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:b83c6522e7a4af5ab83992ab8bf24420d9db2ece3a08fc20bdfe3d785854de23",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/WindowsPresencePublication.md",
+    "sha256": "49f56fe280e31bf0fd8a7acd3b08f2542ef37e42d8280a952de331865abb204f",
+    "bytes": 2042,
+    "line_count": 23,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Windows 프로세스 관찰 상태 게시",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Windows 프로세스 관찰 상태 게시\n",
+      "level": 1,
+      "title": "Windows 프로세스 관찰 상태 게시"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 15,
+      "raw": "세 관찰 프로세스가 상태 파일을 동시에 읽고 heartbeat를 교체하는 검사에서 기존 Qt\n저장이 액세스 거부로 실패하여 관찰이 중단되는 오류를 재현하였다. 상태 읽기는 삭제\n공유를 허용하는 네이티브 provider reader를 사용하고, 쓰기는 provider의 private\nstaging 파일을 완성·flush·close한 뒤 네이티브 원자적 교체로 게시한다. 기존 파일 크기\n제한, UUID·protocol 검증, owner 읽기·쓰기 권한과 경로 재지정 거절을 유지한다.\n읽기에서는 경로에서 먼저 조회한 크기 대신 열린 스냅샷의 실제 EOF까지 제한적으로\n읽는다. heartbeat 자리 수가 바뀌는 교체와 경로의 크기 조회가 겹쳐도 완전한 JSON을\n잘라서 읽지 않도록 한다. 응답성 검사에는 정상 실행 중인 양쪽 peer에 철회가 한 번도\n발생하지 않아야 한다는 조건도 추가한다.\n기존 peer의 파일이 열거되었지만 일시적으로 읽히지 않은 상태는 철회 증거로 취급하지\n않는다. 검증된 순번 증가만 timeout을 갱신하며, 유효하지 않은 신규 파일은 peer로\n승격하지 않는다. 기존 파일을 잠시 불완전한 JSON으로 바꾸고 복구하는 검사와 실제\n파일 삭제 후 철회 검사를 함께 실행한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 20,
+      "raw": "회귀 검사는 20ms heartbeat를 사용하는 Helper의 초기 상태 스냅샷을 열린 채로 유지한다.\n500ms 후에도 관찰이 실행 중이고 오류가 없으며 최신 상태의 heartbeat 순번이 증가하는지\n확인한다. 종료 후 상태 파일 제거도 확인한다. 별도 세 프로세스 검사에서는 상호 발견,\n강제 종료에 대한 timeout, 새 instance 식별 정보로 재시작과 정상 철회를 실제 실행한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 22,
+      "end_line": 23,
+      "raw": "프로세스 관찰 검사의 원문은 `build/process-observation-qt.txt`에도 보존한다. POSIX\nsuspend·resume 조건 제외와 Windows에서도 실행하는 crash·restart 검사를 구분한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Windows 프로세스 관찰 상태 게시",
+      "anchor": "windows-프로세스-관찰-상태-게시",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 14,
+        "text": "승격하지 않는다. 기존 파일을 잠시 불완전한 JSON으로 바꾸고 복구하는 검사와 실제",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -4,7 +4,7 @@
 #include <iiSocietyHelper/Client.h>
 #include <iiSocietyHelper/AccountSession.h>
 
-#include <iiAcountManager/AccountManager.h>
+#include <iiAccountManager/AccountManager.h>
 #include <SharedStorage.h>
 #include <Container.h>
 #include <iiSharedCanvas/Media/MediaIo.h>
@@ -136,6 +136,10 @@ public:
     Q_INVOKABLE QVariantMap alias(const QString &sectionKey, const QString &relativePath);
     Q_INVOKABLE QVariantMap aliasForPath(const QString &source);
     Q_INVOKABLE bool openForSource(const QString &source);
+    // Storage owners open the same iisacc suite disk on every platform. Desktop
+    // bootstrap uses the common user data root; mobile adapters retain their
+    // App Group / signed provider access boundaries.
+    Q_INVOKABLE bool openForApplication(const QString &application);
     Q_INVOKABLE bool selectDefaultContainer(const QString &source);
     Q_INVOKABLE QUrl preview(const QString &source);
     Q_INVOKABLE QString canvasDestination(const QString &destination);

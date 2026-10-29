@@ -1,0 +1,495 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:d2f3dbd8447f2688e5cc1ce67847fbf3b0cab2fd98ad7143f908528391ebb056",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Monitoring/Protocol.md",
+    "sha256": "4ce6fdee467d32a67c7af016c4ddb5b5ac16ce0694b512e65ca0852df411584e",
+    "bytes": 7390,
+    "line_count": 131,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Container monitor protocol v1",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Container monitor protocol v1\n",
+      "level": 1,
+      "title": "Container monitor protocol v1"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "`iiSocietyHelper::Monitoring` is a C++23 native SDK. `SocietyContainerDaemon` is its plain\nexecutable producer. Neither links Qt. It reuses `iiSocietyContainer::FileTree`\nfor bounded metadata traversal and `iiSDKCore` for CBOR and iiFileProvider CoreIO for atomic replacement.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "## Scope and identity\n",
+      "level": 2,
+      "title": "Scope and identity"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 17,
+      "raw": "The producer follows the existing Society selection document. The default is\n`~/Library/Preferences/iisacc/Society/storage.json` on macOS,\n`$XDG_CONFIG_HOME/iisacc/Society/storage.json` (or `~/.config/...`) on Linux,\nand `%LOCALAPPDATA%/iisacc/Society/storage.json` on Windows.\n`SOCIETY_STORAGE_SETTINGS_PATH` or `--selection-file` overrides it. The pointer\nmust contain numeric `schemaVersion: 1`, an absolute direct `path`, and a\n`containerId` UUID matching `.society-drive.json` (`type: SocietyDrive`, numeric\n`schemaVersion: 1`, `identifier`). Manifest and selection reads are limited to\n16 KiB and validate complete UTF-8 JSON, including escaped Unicode paths.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 19,
+      "end_line": 23,
+      "raw": "The producer pins the container's native filesystem identity and UUID. Redirected\nancestors, runtime/section symlinks and Windows reparse points are rejected.\nRemoving, redirecting or replacing the root stops publication there. A selected\ncontainer switch publishes offline state to the previous valid container and\nstarts a new publisher at the new valid root. No drive is created implicitly.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "## Inventory and delivery\n",
+      "level": 2,
+      "title": "Inventory and delivery"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 39,
+      "raw": "Public areas, in wire order, are `files`, `photos`, `asset-library`,\n`generation-history`, `models`, `thinking-space`, `forked`, `published`, `deleted`.\nEach contains availability, completeness, file/directory counts, logical file\nbytes, newest modification time (Unix milliseconds) and a metadata fingerprint.\nThe fingerprint covers relative paths, byte lengths, modification nanoseconds\nand permissions. It detects additions, removals, renames and metadata changes;\nit is not a content digest. Same-size edits with preserved modification times\nare outside this contract. Payload contents, model weights and credentials are\nnever read. Symlinks are excluded by FileTree. `.society-runtime` is outside all\npublic areas and cannot trigger its own inventory revisions.\nThe metadata stamp of `.society-sync/catalog.json` also invalidates all areas,\nso replica namespace changes are delivered before payloads are downloaded. Its\ncontents are not read and its bytes do not contribute to public-area counts.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 40,
+      "end_line": 40,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 41,
+      "end_line": 48,
+      "raw": "Default bounds are 100000 entries across all nine areas and 64 directory levels.\nThe root of each scanned area consumes one entry. Missing/unreadable areas or\nexhausted limits report `complete=false`; counts represent observed entries,\nnot proof of the entire disk. `available` describes a valid container, while\n`daemonRunning` describes the producer's heartbeat. They are separate fields.\nScans run serially, with a one-second wait after each scan by default. Slow\nfilesystems therefore increase detection latency. The interval and limits are\nconfigurable; the daemon does not overlap scans.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 56,
+      "raw": "The per-container owner lock is `.society-runtime/monitor/v1/owner.lock` (native\nOS file lock). A crashed process releases ownership without deleting a lock file.\nThe shared state is `.society-runtime/monitor/v1/state.cbor`, committed using\n`iiFileProvider::core::AtomicFile`. New runtime directories have owner-only permissions. This\nis same-user, local filesystem IPC. It is not a network transport or a substitute\nfor Society's authenticated synchronization service. Existing private-runtime\nsync exclusion continues to apply.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 65,
+      "raw": "Every successful scan atomically refreshes the heartbeat. `revision` changes\nonly on logical inventory/availability/error changes. `changedSections` records\nkeys changed in that revision. Each producer has a new `instanceId`; restart\ncontinues a readable previous revision and publishes a fresh revision. The\nsnapshot is a latest-state channel, not an event log: intermediate revisions may\nbe coalesced, and apps must reconcile from the full current state. A late\nsubscriber immediately receives the current state. GUI consumers refresh their\nexisting read-only mirror when a revision changes.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 67,
+      "end_line": 79,
+      "raw": "`read(root, expectedId)` rejects invalid identity, schema, redirected files and\noversized/malformed CBOR (1 MiB maximum). It reports `daemonRunning=false` after\nfive seconds without a heartbeat, or for an implausibly future heartbeat.\nCallers using scan intervals over five seconds must choose a matching\n`staleAfter` when reading. Graceful shutdown publishes `daemonRunning=false`;\nforced termination becomes stale. The native Subscription uses the default\nfive-second liveness timeout and polls snapshots every 250 ms. It suppresses\nheartbeat-only callbacks, delivers status/error transitions, and catches handler\nexceptions. Callbacks execute on its worker; GUI clients must marshal them to\ntheir UI thread. Partial inventories retain the GUI adapter's fallback refresh.\n`stop()` joins the worker; when invoked from its own callback it\nrequests shutdown and detaches that finishing worker. Publisher calls and\nSubscription lifecycle calls must each be serialized by their owner.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "heading",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "## CBOR and JSON\n",
+      "level": 2,
+      "title": "CBOR and JSON"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "The CBOR document is a fixed-order tuple:\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "fenced_code",
+      "start_line": 85,
+      "end_line": 88,
+      "raw": "```\n(schemaVersion, instanceId, containerId, rootPath, revision, observedAtMs,\n available, complete, daemonRunning, error, sections, changedSections)\n```\n",
+      "language": "",
+      "code": "(schemaVersion, instanceId, containerId, rootPath, revision, observedAtMs,\n available, complete, daemonRunning, error, sections, changedSections)\n",
+      "closed": true
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 90,
+      "end_line": 90,
+      "raw": "Each section is a tuple:\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "fenced_code",
+      "start_line": 92,
+      "end_line": 94,
+      "raw": "```\n(key, files, directories, bytes, fingerprint, lastModified, available, complete)\n```\n",
+      "language": "",
+      "code": "(key, files, directories, bytes, fingerprint, lastModified, available, complete)\n",
+      "closed": true
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 96,
+      "end_line": 99,
+      "raw": "`toJson` exposes named fields with `rootPath`. Revision and fingerprint are decimal\nstrings to preserve 64-bit identity in QML/JavaScript. Other counts are integers.\nNo QObject, pointer, account token or app-owned object crosses the process\nboundary. The binary schema must change before changing tuple order or types.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 100,
+      "end_line": 100,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "heading",
+      "start_line": 101,
+      "end_line": 101,
+      "raw": "## Native consumers\n",
+      "level": 2,
+      "title": "Native consumers"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 102,
+      "end_line": 102,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "fenced_code",
+      "start_line": 103,
+      "end_line": 110,
+      "raw": "```cpp\n#include <iiSocietyHelper/Monitoring/Monitor.h>\niiSocietyHelper::Monitoring::Subscription subscription;\nauto started = subscription.start(root, containerId, [](const auto& state) {\n    // Reconcile from state.sections; forward to the GUI thread if necessary.\n});\n// subscription.stop() or destruction joins its worker.\n```\n",
+      "language": "cpp",
+      "code": "#include <iiSocietyHelper/Monitoring/Monitor.h>\niiSocietyHelper::Monitoring::Subscription subscription;\nauto started = subscription.start(root, containerId, [](const auto& state) {\n    // Reconcile from state.sections; forward to the GUI thread if necessary.\n});\n// subscription.stop() or destruction joins its worker.\n",
+      "closed": true
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 111,
+      "end_line": 111,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 112,
+      "end_line": 116,
+      "raw": "Link the exported CMake target `iiSocietyHelper::Monitoring`. For GUI apps,\nuse `iiSocietyHelper::FileSystem::containerState` and `containerStateChanged`;\nthat adapter handles UI-thread delivery, obsolete events after selection changes\nand mirror refresh/fallback. On mobile, OS background limits still apply; this\nSDK does not install a persistent iOS/Android daemon.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 117,
+      "end_line": 117,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "heading",
+      "start_line": 118,
+      "end_line": 118,
+      "raw": "## Validation\n",
+      "level": 2,
+      "title": "Validation"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 119,
+      "end_line": 119,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 120,
+      "end_line": 126,
+      "raw": "`iiSocietyHelper.Monitoring.monitor` checks revisions, counts, single ownership, identity\nand graceful shutdown. `iiSocietyHelper.Monitoring.process` launches an independent daemon,\ntwo native consumers, late selection and selection switching, validates shared\nrevision delivery and preserves payload bytes. The process suite also force-kills\na producer and verifies subscription liveness expiry without another publisher\nwriting an offline snapshot. Helper's filesystem suite covers GUI-thread\ndelivery, two application consumers and subscription replacement.\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 127,
+      "end_line": 127,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "paragraph",
+      "start_line": 128,
+      "end_line": 131,
+      "raw": "Pure heartbeats intentionally do not emit subscription/GUI callbacks. The\n`observedAtMs` in a delivered callback describes that snapshot's observation;\napps should use `daemonRunning` for liveness instead of recomputing age from a\npreviously delivered revision. Direct `read()` returns the current heartbeat.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Container monitor protocol v1",
+      "anchor": "container-monitor-protocol-v1",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Scope and identity",
+      "anchor": "scope-and-identity",
+      "start_line": 7
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Inventory and delivery",
+      "anchor": "inventory-and-delivery",
+      "start_line": 25
+    },
+    {
+      "block_id": "b000023",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "CBOR and JSON",
+      "anchor": "cbor-and-json",
+      "start_line": 81
+    },
+    {
+      "block_id": "b000035",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Native consumers",
+      "anchor": "native-consumers",
+      "start_line": 101
+    },
+    {
+      "block_id": "b000041",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Validation",
+      "anchor": "validation",
+      "start_line": 118
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000007",
+        "line": 14,
+        "text": "must contain numeric `schemaVersion: 1`, an absolute direct `path`, and a",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 35,
+        "text": "never read. Symlinks are excluded by FileTree. `.society-runtime` is outside all",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 39,
+        "text": "contents are not read and its bytes do not contribute to public-area counts.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 63,
+        "text": "be coalesced, and apps must reconcile from the full current state. A late",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 70,
+        "text": "Callers using scan intervals over five seconds must choose a matching",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 75,
+        "text": "exceptions. Callbacks execute on its worker; GUI clients must marshal them to",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 79,
+        "text": "Subscription lifecycle calls must each be serialized by their owner.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000033",
+        "line": 99,
+        "text": "boundary. The binary schema must change before changing tuple order or types.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000045",
+        "line": 128,
+        "text": "Pure heartbeats intentionally do not emit subscription/GUI callbacks. The",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000045",
+        "line": 130,
+        "text": "apps should use `daemonRunning` for liveness instead of recomputing age from a",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

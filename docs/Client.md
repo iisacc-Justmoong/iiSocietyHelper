@@ -57,7 +57,7 @@ Implementation of AccountSession, NearbyDevices, AutomaticPairing, and GroupSess
 
 
 Synchronization is included in Helper Core. Dependencies include iiSocietyContainer
-0.16.1, iiWebServer 0.6.0, iiAcountManager 0.2.8, iiSharedCanvas Core 0.31.4,
+0.16.1, iiWebServer 0.6.0, iiAccountManager 0.2.8, iiSharedCanvas Core 0.31.4,
 iiFileProvider and the existing Qt adapters. Desktop state encryption uses OpenSSL Crypto and iOS uses CryptoKit. The consolidated SDK does not depend on higher-level Product sources. See Migration.md for the single Helper package and dependency direction. Headers are installed via the `iiSocietyHelper/Client.h` path. The consumer app calls start when creating the repository object, explicitly downloads/file publishes after synchronizeNow, and calls stop on background transition/termination.
 
 `AccountSession::storageScope()` is calculated using the authentication service origin and account sub, and LAN proof and server replication use the same namespace. Replicas of other accounts are not opened. If the initial Society configuration is not complete, a new host is not arbitrarily selected. `client-session.lock` occupancy failure is retried after waiting, and connections from other processes are not forcibly terminated.
@@ -74,13 +74,13 @@ Implementation files and their headers live together under `src/`. Existing feat
 after sign-in and every 30 seconds, the current account receives `societyContainerDrive` (disk ID,
 host device ID, image path and revision). Other devices retain their local replica/mount paths.
 A location refresh does not request pairing keys or emit account changes when the value is unchanged.
-The account API and SDK contract are documented in `iiAcountManager/docs/ACCOUNT_CONTRACT.md`.
+The account API and SDK contract are documented in `iiAccountManager/docs/ACCOUNT_CONTRACT.md`.
 
 <a id="계정-graphql-호환성"></a>
 
 ## Account GraphQL compatibility
 
-iiAcountManager 0.2.8 or higher is required. Login and container location synchronization use the `POST /Account/GraphQL` `appSession` mutation of the corresponding SDK. Pairing also sends `variables.input = {intent: "pairing", device: ...}` to the same endpoint. Storage occurs only after `data.appSession.pairing` is verified, and session expiration for HTTP 200 GraphQL errors is also passed to AccountManager. Cookie scope, account/device binding, key verification, and secure storage contract are maintained. Operational GraphQL server deployment must occur before new client deployment, and REST retry is not performed.
+iiAccountManager 0.2.8 or higher is required. Login and container location synchronization use the `POST /Account/GraphQL` `appSession` mutation of the corresponding SDK. Pairing also sends `variables.input = {intent: "pairing", device: ...}` to the same endpoint. Storage occurs only after `data.appSession.pairing` is verified, and session expiration for HTTP 200 GraphQL errors is also passed to AccountManager. Cookie scope, account/device binding, key verification, and secure storage contract are maintained. Operational GraphQL server deployment must occur before new client deployment, and REST retry is not performed.
 
 <a id="macos-개발-빌드의-로그인-저장소"></a>
 

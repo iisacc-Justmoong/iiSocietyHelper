@@ -1,0 +1,495 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:1fb33d3e4e98c40a6e8ef99936cc2072fb218cd73b43d63b5d33bc1baa9272c6",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/ConsolidationVerification.md",
+    "sha256": "c0a4e4779106676a91637868158af1b1c035ebcd769c152e31048ece51ea9eee",
+    "bytes": 6123,
+    "line_count": 95,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Society Helper consolidation verification (2026-10-20 to 2026-10-21)",
+    "role": "evidence",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Society Helper consolidation verification (2026-10-20 to 2026-10-21)\n",
+      "level": 1,
+      "title": "Society Helper consolidation verification (2026-10-20 to 2026-10-21)"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "## Delivered ownership\n",
+      "level": 2,
+      "title": "Delivered ownership"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 10,
+      "raw": "The active SDK is iiSocietyHelper **0.10.0**. The former Generation, Monitor and\nSync source projects and default installation prefixes have been retired.\nAll 30 original implementation/header files map to Helper ownership, including\nthe replacement export headers. Sync and Generation::Remote are in Core;\nMonitoring is native and Qt-free; desktop GenerationHost is optional. All three\nare components of one versioned package. See [the public contract](Consolidation.md).\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 17,
+      "raw": "Society, Dreamscapes and PhotoLibrary consumers use the new package, targets,\nheaders and namespaces. Society's actual NetworkDriveController compiles in the\napplication-consumer project. Mobile build plans, the Windows dependency graph,\nworkspace repository registry and installer ordering use the unified SDK.\nLower-level Container, Core, FileProvider and inference modules have no reverse\nHelper dependency. PhotoLibrary's Helper dependency is test-only.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "heading",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "## Recorded macOS validation\n",
+      "level": 2,
+      "title": "Recorded macOS validation"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 23,
+      "raw": "The host is native macOS arm64, AppleClang 21, CMake 4.4 and Qt 6.8.3 for the\nremaining Qt adapters. C++23 is required; no VM or interpreter is added to the\nSDK runtime. Test orchestration scripts are development tools.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "table",
+      "start_line": 25,
+      "end_line": 40,
+      "raw": "| Configuration | Result | Evidence in consolidation directory |\n| --- | --- | --- |\n| Full staged source suite | 28/28 passed | `tests-corrected.xml` |\n| Fresh build against default SDK dependencies | 28/28 passed | `default-source-tests.xml` |\n| Installed staged Core/Sync/GenerationHost | 11/11 passed | `consumer-tests.xml` |\n| Installed default SDK Core/Sync/GenerationHost | 11/11 passed | `default-consumer-tests.xml` |\n| Monitoring-only source, Qt discovery disabled | 2/2 passed | `native-final-tests.xml` |\n| Native installed consumer, Monitoring-only package | 1/1 passed | `native-consumer-retest.log` |\n| Native installed consumer, complete staged package | 1/1 passed | `full-native-tests.xml` |\n| Native installed consumer, default SDK | 1/1 passed; no Qt/Core facade/inference loaded | `default-native-tests.xml`, `default-native-loaded-libraries.log` |\n| Standard `install.sh`, end to end | Exit 0; source 28/28 and installed 11/11 passed | `installer-verified.log` |\n| Society/Dreamscapes application consumers | 4/4 passed | `products-tests.xml` |\n| PhotoLibrary, including installed consumers and real TLS integration | 8/8 passed | `photo-tests.xml` |\n| Workspace ownership/ordering/Windows metadata | 4/4 passed | `workspace-tests-final.log` |\n| Society mobile build plans and photo bridge | 3/3 and 2/2 passed | `ios-plan-tests.log`, `photo-plan-tests.log` |\n| FileProvider workspace creation audit | 0 violations, 0 unreadable sources | `file-creation-audit.json` |\n",
+      "columns": [
+        "Configuration",
+        "Result",
+        "Evidence in consolidation directory"
+      ],
+      "rows": [
+        [
+          "Full staged source suite",
+          "28/28 passed",
+          "`tests-corrected.xml`"
+        ],
+        [
+          "Fresh build against default SDK dependencies",
+          "28/28 passed",
+          "`default-source-tests.xml`"
+        ],
+        [
+          "Installed staged Core/Sync/GenerationHost",
+          "11/11 passed",
+          "`consumer-tests.xml`"
+        ],
+        [
+          "Installed default SDK Core/Sync/GenerationHost",
+          "11/11 passed",
+          "`default-consumer-tests.xml`"
+        ],
+        [
+          "Monitoring-only source, Qt discovery disabled",
+          "2/2 passed",
+          "`native-final-tests.xml`"
+        ],
+        [
+          "Native installed consumer, Monitoring-only package",
+          "1/1 passed",
+          "`native-consumer-retest.log`"
+        ],
+        [
+          "Native installed consumer, complete staged package",
+          "1/1 passed",
+          "`full-native-tests.xml`"
+        ],
+        [
+          "Native installed consumer, default SDK",
+          "1/1 passed; no Qt/Core facade/inference loaded",
+          "`default-native-tests.xml`, `default-native-loaded-libraries.log`"
+        ],
+        [
+          "Standard `install.sh`, end to end",
+          "Exit 0; source 28/28 and installed 11/11 passed",
+          "`installer-verified.log`"
+        ],
+        [
+          "Society/Dreamscapes application consumers",
+          "4/4 passed",
+          "`products-tests.xml`"
+        ],
+        [
+          "PhotoLibrary, including installed consumers and real TLS integration",
+          "8/8 passed",
+          "`photo-tests.xml`"
+        ],
+        [
+          "Workspace ownership/ordering/Windows metadata",
+          "4/4 passed",
+          "`workspace-tests-final.log`"
+        ],
+        [
+          "Society mobile build plans and photo bridge",
+          "3/3 and 2/2 passed",
+          "`ios-plan-tests.log`, `photo-plan-tests.log`"
+        ],
+        [
+          "FileProvider workspace creation audit",
+          "0 violations, 0 unreadable sources",
+          "`file-creation-audit.json`"
+        ]
+      ]
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 41,
+      "end_line": 41,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 42,
+      "end_line": 50,
+      "raw": "The evidence directory is\n`SDK/build/society-helper-merge-20261020` under Workspace. Results are per\nconfiguration; counts are not summed as unique application scenarios.\nMonitoring-only default package lookup rejects a missing Core explicitly;\n`COMPONENTS Monitoring` works without importing Qt, Core or inference targets.\nRepeated component discovery is tested. The default native consumer was also run\nwith loader tracing: it loaded no Qt, Helper Core facade or inference backend.\nBinary dependency records reject all\nthree retired library names and Qt dependencies from native Monitoring/daemon.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 56,
+      "raw": "Generation keeps `.society-runtime/iiSocietyGeneration` as a persistent data path.\nA regression checks the actual output paths. Existing wire schemas, IDs, hashes,\nconfinement, authorization, cancellation, recovery and publication rules remain.\nGeneration protocol tests use an injected inference engine and synthetic model;\nthey do not measure model quality or GPU inference.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "heading",
+      "start_line": 58,
+      "end_line": 58,
+      "raw": "## Installation and test scheduling repairs\n",
+      "level": 2,
+      "title": "Installation and test scheduling repairs"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 59,
+      "end_line": 59,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 60,
+      "end_line": 63,
+      "raw": "The default SDK dependency set required Canvas Core 0.31.2. The already validated\n0.31.2 package and its static libzip dependency were installed, with native\nlibrary paths relocated to the default SDK prefixes. Existing installations are\npreserved in `default-installations-before.zip`.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 65,
+      "end_line": 71,
+      "raw": "The first standard installer consumer reused compiler implicit include paths\nfrom a cache created with old SDK environment overrides. Installed Canvas and\ninference headers were present but their include directories were suppressed.\nThe installer now clears child-process header/loader overrides, discovers SDK\npeers, limits build parallelism and recreates only its owned consumer cache.\nA fresh default installed consumer subsequently built and passed all 11 tests.\nShell profiles and product build caches were not edited by this installer repair.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 73,
+      "end_line": 80,
+      "raw": "Some combined parallel runs exceeded existing 1.8-second/5-second transfer and\nfixture lock deadlines. The consolidated source and installed suites now share\na CTest storage resource lock. Timeouts and assertions were not relaxed, and\nconcurrent peers/threads inside scenarios remain tested. An isolated comparison\nran both the archived original Controller and merged Controller: both passed\nall 11 QtTest cases. The later complete source run passed 28/28 with parallel\nCTest requested and the resource lock in effect (`installer-verified.log`).\nFailed diagnostic logs remain alongside passing results.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "heading",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "## Preservation and scope\n",
+      "level": 2,
+      "title": "Preservation and scope"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 84,
+      "end_line": 88,
+      "raw": "Original repositories, complete Git history, ignored build files and existing\nworking changes are under `retired/`. HEAD and porcelain status matched before\nand after each move (`retired-modules.json`). The old default SDK prefixes are\nunder `retired-installations/`. No Git reset, remote repository deletion or live\ncontainer migration was performed. Source/consumer backups precede the changes.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 90,
+      "end_line": 95,
+      "raw": "These results establish native macOS source, runtime, package and consumer\nbehavior. Windows/Linux execution and physical Android/iOS validation were not\nperformed for this merged release. Historical Windows reports retain the former\npackage names and results; they are not merged-release execution evidence.\nApplication consumer tests create plain executables and fixture containers.\nProduct application deployment and process restart are separate operations.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Society Helper consolidation verification (2026-10-20 to 2026-10-21)",
+      "anchor": "society-helper-consolidation-verification-2026-10-20-to-2026-10-21",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000003",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Delivered ownership",
+      "anchor": "delivered-ownership",
+      "start_line": 3
+    },
+    {
+      "block_id": "b000009",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Recorded macOS validation",
+      "anchor": "recorded-macos-validation",
+      "start_line": 19
+    },
+    {
+      "block_id": "b000019",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Installation and test scheduling repairs",
+      "anchor": "installation-and-test-scheduling-repairs",
+      "start_line": 58
+    },
+    {
+      "block_id": "b000027",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Preservation and scope",
+      "anchor": "preservation-and-scope",
+      "start_line": 82
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000011",
+        "line": 22,
+        "text": "remaining Qt adapters. C++23 is required; no VM or interpreter is added to the",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 56,
+        "text": "they do not measure model quality or GPU inference.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 60,
+        "text": "The default SDK dependency set required Canvas Core 0.31.2. The already validated",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000005",
+        "label": "the public contract",
+        "target": "Consolidation.md",
+        "kind": "relative",
+        "line": 10
+      }
+    ],
+    "tables": [
+      {
+        "block_id": "b000013",
+        "columns": [
+          "Configuration",
+          "Result",
+          "Evidence in consolidation directory"
+        ],
+        "rows": [
+          [
+            "Full staged source suite",
+            "28/28 passed",
+            "`tests-corrected.xml`"
+          ],
+          [
+            "Fresh build against default SDK dependencies",
+            "28/28 passed",
+            "`default-source-tests.xml`"
+          ],
+          [
+            "Installed staged Core/Sync/GenerationHost",
+            "11/11 passed",
+            "`consumer-tests.xml`"
+          ],
+          [
+            "Installed default SDK Core/Sync/GenerationHost",
+            "11/11 passed",
+            "`default-consumer-tests.xml`"
+          ],
+          [
+            "Monitoring-only source, Qt discovery disabled",
+            "2/2 passed",
+            "`native-final-tests.xml`"
+          ],
+          [
+            "Native installed consumer, Monitoring-only package",
+            "1/1 passed",
+            "`native-consumer-retest.log`"
+          ],
+          [
+            "Native installed consumer, complete staged package",
+            "1/1 passed",
+            "`full-native-tests.xml`"
+          ],
+          [
+            "Native installed consumer, default SDK",
+            "1/1 passed; no Qt/Core facade/inference loaded",
+            "`default-native-tests.xml`, `default-native-loaded-libraries.log`"
+          ],
+          [
+            "Standard `install.sh`, end to end",
+            "Exit 0; source 28/28 and installed 11/11 passed",
+            "`installer-verified.log`"
+          ],
+          [
+            "Society/Dreamscapes application consumers",
+            "4/4 passed",
+            "`products-tests.xml`"
+          ],
+          [
+            "PhotoLibrary, including installed consumers and real TLS integration",
+            "8/8 passed",
+            "`photo-tests.xml`"
+          ],
+          [
+            "Workspace ownership/ordering/Windows metadata",
+            "4/4 passed",
+            "`workspace-tests-final.log`"
+          ],
+          [
+            "Society mobile build plans and photo bridge",
+            "3/3 and 2/2 passed",
+            "`ios-plan-tests.log`, `photo-plan-tests.log`"
+          ],
+          [
+            "FileProvider workspace creation audit",
+            "0 violations, 0 unreadable sources",
+            "`file-creation-audit.json`"
+          ]
+        ]
+      }
+    ]
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

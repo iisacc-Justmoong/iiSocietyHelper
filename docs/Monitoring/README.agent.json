@@ -1,0 +1,180 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:2d6978ad7297e573b6b2a01ceab8739c631d46db115516e461877e2a645e3c92",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Monitoring/README.md",
+    "sha256": "b5ba9a423895795c7df123d7f0c22db203f0232c85b2f42132286bc88b1a2a78",
+    "bytes": 1614,
+    "line_count": 33,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Native monitoring in iiSocietyHelper 0.10.0",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Native monitoring in iiSocietyHelper 0.10.0\n",
+      "level": 1,
+      "title": "Native monitoring in iiSocietyHelper 0.10.0"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "Monitoring and SocietyContainerDaemon belong to the single Helper package.\nThe C++23 native library uses iiSDKCore, iiFileProvider CoreIO and\n`iiSocietyContainer::FileTree`; it has no Qt header or binary dependency.\nAtomic snapshots are created through iiFileProvider CoreIO.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "From the Helper repository root, a monitoring-only build uses:\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "fenced_code",
+      "start_line": 10,
+      "end_line": 16,
+      "raw": "```sh\ncmake -S . -B build -DIISOCIETYHELPER_BUILD_CORE=OFF \\\n  -DCMAKE_DISABLE_FIND_PACKAGE_Qt6=ON -DBUILD_TESTING=ON\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n```\n",
+      "language": "sh",
+      "code": "cmake -S . -B build -DIISOCIETYHELPER_BUILD_CORE=OFF \\\n  -DCMAKE_DISABLE_FIND_PACKAGE_Qt6=ON -DBUILD_TESTING=ON\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n",
+      "closed": true
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 23,
+      "raw": "Select installed native dependencies through `CMAKE_PREFIX_PATH`. Consumers use\n`find_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED COMPONENTS Monitoring)` and\nlink `iiSocietyHelper::Monitoring`. Include\n`<iiSocietyHelper/Monitoring/Monitor.h>`; API namespace is\n`iiSocietyHelper::Monitoring`. A default package lookup requires Core even in a\nmonitoring-only installation. Repeated explicit component lookups are supported.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 30,
+      "raw": "`SocietyContainerDaemon --watch --root PATH` and `--read-state --root PATH`\nprovide JSON diagnostics without publication. See `--help` for bounded scans.\nThe [protocol](Protocol.md) describes state, liveness and ownership contracts.\nThe source tests are `tests/monitoring`, and `tests/native-consumer` independently\nrejects Qt, the Core facade and the inference target. Monitoring is also available\nin the complete Helper installation without importing those components.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 31,
+      "end_line": 31,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 32,
+      "end_line": 33,
+      "raw": "See [Windows build and execution](WindowsBuildAndRun.md) and\n[all component options](../Consolidation.md).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Native monitoring in iiSocietyHelper 0.10.0",
+      "anchor": "native-monitoring-in-iisocietyhelper-0100",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 19,
+        "text": "`find_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED COMPONENTS Monitoring)` and",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000007",
+        "language": "sh",
+        "code": "cmake -S . -B build -DIISOCIETYHELPER_BUILD_CORE=OFF \\\n  -DCMAKE_DISABLE_FIND_PACKAGE_Qt6=ON -DBUILD_TESTING=ON\ncmake --build build --parallel 4\nctest --test-dir build --output-on-failure\ncmake --install build\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000011",
+        "label": "protocol",
+        "target": "Protocol.md",
+        "kind": "relative",
+        "line": 27
+      },
+      {
+        "block_id": "b000013",
+        "label": "Windows build and execution",
+        "target": "WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 32
+      },
+      {
+        "block_id": "b000013",
+        "label": "all component options",
+        "target": "../Consolidation.md",
+        "kind": "relative",
+        "line": 33
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

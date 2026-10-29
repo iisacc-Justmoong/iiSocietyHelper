@@ -1,0 +1,160 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:90b289843bf3997eb5f2b88f55926754b547f38fe029d7ea0662977ac0f2de44",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/BuildComponents.md",
+    "sha256": "c6089e330482fad252324594f136857758c61056debea95d612d0026fa1f84e2",
+    "bytes": 1784,
+    "line_count": 30,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Backend dependency boundary",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Backend dependency boundary\n",
+      "level": 1,
+      "title": "Backend dependency boundary"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "iiSocietyHelper consumes `iiSharedCanvas::Core`, not the complete presentation\nfacade. Canvas persistence, previews and media import/export keep their existing\nAPI and behavior. They no longer require the Qt Quick items or QML library.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 10,
+      "raw": "The current Helper event-loop, account, network and delivery adapters still use\nQt Core, Network and Sql; media codecs still use Qt Gui. These are explicit\nremaining dependencies. The native container monitor and its FileTree storage\ndependency can be built and consumed without Qt.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 11,
+      "end_line": 11,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 17,
+      "raw": "Version 0.10.2 exports Core (the default), Monitoring and optional desktop\nGenerationHost from the same package. Core includes Sync and Generation::Remote.\nGenerationHost depends on Core; Monitoring is independent of Core. See\n[Consolidation.md](Consolidation.md) for targets, options and native-only usage.\nA monitoring-only installation requires `COMPONENTS Monitoring`; default package\ndiscovery continues to require Core and fails clearly if Core is unavailable.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "heading",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "# Native provider identity\n",
+      "level": 1,
+      "title": "Native provider identity"
+    },
+    {
+      "id": "b000009",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 25,
+      "raw": "The exported package resolves the Native provider version used by this build\nbefore CoreIO, whose lower minimum can otherwise import an older binary first.\nThis ordering does not add Qt to Monitoring. A sibling provider installation is\npreferred when present. Imported Native binaries must belong to the selected\nNative package; an incompatible pre-existing target is rejected during package\nconfiguration rather than failing later in the dynamic loader.\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "blank",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "paragraph",
+      "start_line": 27,
+      "end_line": 30,
+      "raw": "The installed consumer checks the actual imported binary location against its\npackage prefix as well as the transitive Canvas version. A correct `*_DIR` cache\nvalue alone is insufficient: a later package search may update that value while\nan older imported target remains defined.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Backend dependency boundary",
+      "anchor": "backend-dependency-boundary",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000008",
+      "parent_id": null,
+      "level": 1,
+      "title": "Native provider identity",
+      "anchor": "native-provider-identity",
+      "start_line": 18
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000010",
+        "line": 23,
+        "text": "preferred when present. Imported Native binaries must belong to the selected",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000007",
+        "label": "Consolidation.md",
+        "target": "Consolidation.md",
+        "kind": "relative",
+        "line": 15
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

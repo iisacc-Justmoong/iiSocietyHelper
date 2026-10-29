@@ -1,7 +1,7 @@
 #pragma once
 #include "Export.h"
 
-#include <iiAcountManager.h>
+#include <iiAccountManager.h>
 #include <QNetworkAccessManager>
 #include <QJsonObject>
 #include <QJsonArray>

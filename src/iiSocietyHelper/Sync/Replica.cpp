@@ -717,7 +717,13 @@ bool Replica::bindHost(const QString &peer, const QString &replica, const QStrin
     bool ok = d->sql("DELETE FROM detach"); qint64 count = 0;
     QSqlQuery detach(d->db);
     ok = ok && detach.prepare("INSERT INTO detach(path,target) VALUES(?,?)");
+    // An application-owned logical disk is a bootstrap workspace, not an
+    // unrelated selected package. Its pre-Society files remain resident and
+    // become ordinary proposals after the authenticated host bootstrap.
+    const bool preserveApplicationFiles = d->drive->storageKind() == iiSocietyContainer::SocietyDrive::StorageKind::LogicalDisk
+        && d->meta("host").isEmpty();
     for (const auto section : iiSocietyContainer::allStoreSections()) {
+        if (preserveApplicationFiles) break;
         const auto native = iiSocietyContainer::storeSectionName(section); bool listed;
         const auto names = d->files.list(native, &listed); if (!listed) { ok = false; break; }
         for (const auto &name : names) {

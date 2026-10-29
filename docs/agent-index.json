@@ -1,0 +1,272 @@
+{
+  "format": "iisacc.agent-document-index",
+  "schema_version": 1,
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "documentation_root": "docs",
+  "agent_schema": "docs/agent-document.schema.json",
+  "documents": [
+    {
+      "document_id": "urn:iisacc:document:f6521aba0c40705a200ff3c4497efbdfa4843a4b9a9e427f70d7ae10b04180da",
+      "source": "AGENT.md",
+      "agent_json": "docs/entrypoints/AGENT.agent.json",
+      "source_sha256": "1ee41a313b8aad9124230f32bc1c92accf9bad195e581d6d58fc2d046ae7334f",
+      "role": "instructions"
+    },
+    {
+      "document_id": "urn:iisacc:document:6e0d8fa2d2288ac54aa36e60db96988d4439d2796a75fbdc849da6fe57aa9722",
+      "source": "README.md",
+      "agent_json": "docs/entrypoints/README.agent.json",
+      "source_sha256": "73384b5927c27e63c28280cbe9400236c4183732f2c105051db95345bc6b8355",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:0f751afaad6c24d5c09e7207831f1e9b8808d206d894cc1ab5477192faf997f0",
+      "source": "docs/ApplicationStorage.md",
+      "agent_json": "docs/ApplicationStorage.agent.json",
+      "source_sha256": "5bcf46610deb1d5d6ebf6b191f54df0ed10c410ac7b7f0ba86ff4c2166bcf757",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:90b289843bf3997eb5f2b88f55926754b547f38fe029d7ea0662977ac0f2de44",
+      "source": "docs/BuildComponents.md",
+      "agent_json": "docs/BuildComponents.agent.json",
+      "source_sha256": "c6089e330482fad252324594f136857758c61056debea95d612d0026fa1f84e2",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b5f90c021dba0127d74664caff40e35ef531f16ba07a8a9c72954e943d355b8e",
+      "source": "docs/CanvasProfiles.md",
+      "agent_json": "docs/CanvasProfiles.agent.json",
+      "source_sha256": "3af9dd93d625cbd17caf708f5dd781c36762e0e3f8b57de4d407b3c4419b063d",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b20907bbaa7ee130d80d896ece54ef5aa99f8dc9cfd6358bb7e3891fa9694b60",
+      "source": "docs/Client.md",
+      "agent_json": "docs/Client.agent.json",
+      "source_sha256": "b83a814aa57f6629adf7fb3190d7448a04a0c8268f1bfeb2d659140cc6a5515a",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:9ef46e339aeebbcd232f75119831f4f8b1d778be51745f46f0b5a700e7d9f17f",
+      "source": "docs/Consolidation.md",
+      "agent_json": "docs/Consolidation.agent.json",
+      "source_sha256": "ab3dab6198fea685da0d3d8b8ad717995f741e22ab3dc8b914a5cfef4368ae17",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:1fb33d3e4e98c40a6e8ef99936cc2072fb218cd73b43d63b5d33bc1baa9272c6",
+      "source": "docs/ConsolidationVerification.md",
+      "agent_json": "docs/ConsolidationVerification.agent.json",
+      "source_sha256": "c0a4e4779106676a91637868158af1b1c035ebcd769c152e31048ece51ea9eee",
+      "role": "evidence"
+    },
+    {
+      "document_id": "urn:iisacc:document:fea6d9210dbc13c232e45a9b7968023c740b01d4bbc5d2a57456e5506a6030aa",
+      "source": "docs/FILE_PROVIDER.md",
+      "agent_json": "docs/FILE_PROVIDER.agent.json",
+      "source_sha256": "3b4e2761ccbd64824c555a060569780aa724b60c43fd575c34a6053f47a82998",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:9aee3420778737f55d11f7a3d1fd040c780391887e2ea145699ea04cdb43b553",
+      "source": "docs/FilePresentation.md",
+      "agent_json": "docs/FilePresentation.agent.json",
+      "source_sha256": "4ec02f62e4dae64d7aa75511e1928b4474786f5cd8fec0dd629536e13f2fa81c",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:3c305beb4ca9ca4bf636a50e51fa9e1f7b00ee56897ab944d111bfd2a9c85169",
+      "source": "docs/Generation/FILE_PROVIDER.md",
+      "agent_json": "docs/Generation/FILE_PROVIDER.agent.json",
+      "source_sha256": "c82bdab7f22e555376b3d896c7c10a90ba8f37e56f7c8c64391cd684d9b08a4d",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:6952cde9c15e8092a701a319fb3b23121bfe4a235ab15b76457e21ed05b9830d",
+      "source": "docs/Generation/README.md",
+      "agent_json": "docs/Generation/README.agent.json",
+      "source_sha256": "e0ea27ca8aef9ec76f6b0e9a9f6caf4ded1f857db0751f89efc310fe291a7581",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:bfbb2c3d00505ffd0880da0e4f088033f68c9fa327ba239eced7ddc6d15a67b5",
+      "source": "docs/Generation/WindowsBuildAndRun.md",
+      "agent_json": "docs/Generation/WindowsBuildAndRun.agent.json",
+      "source_sha256": "e4fc11a3a6585c661b3872df2b2a4063301251415b8ac7a2a592fca4c19ee411",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:88772e68f85fa755dc73a468fe81e10262461dff8c66e09bebcf67a36dbd0652",
+      "source": "docs/HostDrive.md",
+      "agent_json": "docs/HostDrive.agent.json",
+      "source_sha256": "e66021da2bd9c6e04536dcdd51ba1098b2b33712ecf1db194b848a8c610b0fae",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:ad2b4daea3f82d65b6211d0cccf1ff990034c8f0f6c72f7f1ed566220690ca3c",
+      "source": "docs/ManagedFiles.md",
+      "agent_json": "docs/ManagedFiles.agent.json",
+      "source_sha256": "281b04d2f6128bfbeda9ed50283961160c85999557111567f6ccdb239025fe91",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a300d73c76c76eeaa3adcb6a89b0d0745ca0354a31e5417e396eaa933de5d634",
+      "source": "docs/Migration.md",
+      "agent_json": "docs/Migration.agent.json",
+      "source_sha256": "6edc49c24187466cec0d863c015bcc282fdd656f5bc5f556c2eeab0aca0674ea",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:8a55116b4cf1af734c94215bc03e111ab57eb7bba35e545bc0357042954e49c7",
+      "source": "docs/Monitoring/FILE_PROVIDER.md",
+      "agent_json": "docs/Monitoring/FILE_PROVIDER.agent.json",
+      "source_sha256": "6b2ffb2557f4ba1f21c856b546ade1cd3ef611d4671c3bb5d0f6c941020120b4",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:d2f3dbd8447f2688e5cc1ce67847fbf3b0cab2fd98ad7143f908528391ebb056",
+      "source": "docs/Monitoring/Protocol.md",
+      "agent_json": "docs/Monitoring/Protocol.agent.json",
+      "source_sha256": "4ce6fdee467d32a67c7af016c4ddb5b5ac16ce0694b512e65ca0852df411584e",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:2d6978ad7297e573b6b2a01ceab8739c631d46db115516e461877e2a645e3c92",
+      "source": "docs/Monitoring/README.md",
+      "agent_json": "docs/Monitoring/README.agent.json",
+      "source_sha256": "b5ba9a423895795c7df123d7f0c22db203f0232c85b2f42132286bc88b1a2a78",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:0709106f0077c4b55c98717f431dfc647e668416e1ccb6b8450c75814561e27e",
+      "source": "docs/Monitoring/WindowsBuildAndRun.md",
+      "agent_json": "docs/Monitoring/WindowsBuildAndRun.agent.json",
+      "source_sha256": "5ec6ded45f5a380d3a543e78c9c91e215b26f9249bf6875f4f5ed3e159cac8db",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a22253e355216c2d11db174e0a6dc437e9725c6f7b72caa531483c3b94a27a62",
+      "source": "docs/README.md",
+      "agent_json": "docs/README.agent.json",
+      "source_sha256": "57b65cb69b021f881c9ce1e2699ccee5c46d14ad4a84da4a14dee18d38041850",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:5451ca2ab6b316ec7f1e1d593f887d43272ba6001f79b17b7b1d7a3c556f93c2",
+      "source": "docs/Sync/FILE_PROVIDER.md",
+      "agent_json": "docs/Sync/FILE_PROVIDER.agent.json",
+      "source_sha256": "8ee991f84ae58d13afce5035b4864a0320974f0d11c9949fd88d4d5f43bb1105",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:6a8fcdaa49f0863d232d3d3d4a710f7adac90c677cfac7c850c33eb7ecb557dc",
+      "source": "docs/Sync/Namespace.md",
+      "agent_json": "docs/Sync/Namespace.agent.json",
+      "source_sha256": "9cc7695a27b9452932488ef1c384bcdb26439aec0d43548d08b53c5c4c35c268",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:73465a5f12a37566f7f1b49cfab24478ce382507ff4c5ff64eae043122ccc91c",
+      "source": "docs/Sync/NearbySync.md",
+      "agent_json": "docs/Sync/NearbySync.agent.json",
+      "source_sha256": "b8575ef09783e4640c2a70bb35b83e76c6947633a8014240a592a00c39bb8f49",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:87e4fe6e7170fc3e8b29b2b4949ff02b98ee7d6c32f12a91163760268b8a0885",
+      "source": "docs/Sync/PERFORMANCE.md",
+      "agent_json": "docs/Sync/PERFORMANCE.agent.json",
+      "source_sha256": "429338510a82f9c96ef258584bde4b7b7c999c0856341e199dd79964fb92da78",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a03c56e3bb25caf98ac44fc4e016e4190f03177e38f1bd77e9d4a2faaf02dc5e",
+      "source": "docs/Sync/README.md",
+      "agent_json": "docs/Sync/README.agent.json",
+      "source_sha256": "2b26cee9389f017bd5097559ec3330ed0a9b1af1ac2fa5003f9e7419a5f780cd",
+      "role": "overview"
+    },
+    {
+      "document_id": "urn:iisacc:document:b94e85c4f1ece88f2d486fd4929d9481645cd658798559f97ae17b1ef05c5d9b",
+      "source": "docs/Sync/Snapshots.md",
+      "agent_json": "docs/Sync/Snapshots.agent.json",
+      "source_sha256": "6648abb3263da2372c026b7d9ef6e07a4f3ebfbd350939f3b67136ce68166a56",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:7107219c57519c79daa837afda7ecafeaef7f6ae60f12defb54c0588de82cd92",
+      "source": "docs/Sync/WindowsBuildAndRun.md",
+      "agent_json": "docs/Sync/WindowsBuildAndRun.agent.json",
+      "source_sha256": "ff1534706bb840da76dff609e6c48c023ba3cab609dc48b88262362d37d1bb2e",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:a555d837bf47112b72689b0e8766eccedceca9135bdb691f59af7bf70d608b2b",
+      "source": "docs/Sync/WindowsValidation.md",
+      "agent_json": "docs/Sync/WindowsValidation.agent.json",
+      "source_sha256": "f41ee98cb31fe64ca0be0a7ba5a8b43f1d4d282cba6a4e9956244330ced92bfc",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:f22c9550773631137c0ebec8ca2a6345075976f2fa4d6b93d97cf68f64c496fc",
+      "source": "docs/SyncStartup.md",
+      "agent_json": "docs/SyncStartup.agent.json",
+      "source_sha256": "360edc8a680e252e461656dba0ee68417c911006531b12f5ac73f1ede2738435",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:2e94d3fc5122ebbd6e6ab2c5765b349e3d0283f9d0c251ea24ebaf340b284a71",
+      "source": "docs/WindowsBuildAndRun.md",
+      "agent_json": "docs/WindowsBuildAndRun.agent.json",
+      "source_sha256": "9131722b4b87b59bfbf8e19b739651c677e8b054e95e0811780caa89c55f6058",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:8ec27893c6c9e942e8c3f0c6d84b9422c926488d2a662650b4b21c39e5fe599c",
+      "source": "docs/WindowsCanvasDashboard.md",
+      "agent_json": "docs/WindowsCanvasDashboard.agent.json",
+      "source_sha256": "0e78b91d4a830b9abc9f87c5cbe606221e0217377a48b87d7093a134357e8b34",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b83c6522e7a4af5ab83992ab8bf24420d9db2ece3a08fc20bdfe3d785854de23",
+      "source": "docs/WindowsPresencePublication.md",
+      "agent_json": "docs/WindowsPresencePublication.agent.json",
+      "source_sha256": "49f56fe280e31bf0fd8a7acd3b08f2542ef37e42d8280a952de331865abb204f",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:8aa824210d23bdf8ead1f045f5280449eebf04b3084805032fe452fc302882b9",
+      "source": "docs/WindowsValidation.md",
+      "agent_json": "docs/WindowsValidation.agent.json",
+      "source_sha256": "e23afdd48f33e61a1110a0434400f98914469e3dd38872776267de3ef946879f",
+      "role": "guide"
+    },
+    {
+      "document_id": "urn:iisacc:document:b1813dc95c70a25a603109b53aa9fd08ecf7ade84aab776b8d4b891c4e4fcd85",
+      "source": "docs/documentation-structure.md",
+      "agent_json": "docs/documentation-structure.agent.json",
+      "source_sha256": "2a26f766fbf4e3da88c5044e5619d204e1e6cf976342fdebf5acf9ae341798ed",
+      "role": "guide"
+    }
+  ],
+  "layout": {
+    "human_entry": "README.md",
+    "agent_entry": "AGENT.md",
+    "human_format": "markdown",
+    "agent_format": "structured_json",
+    "source_authority": "markdown"
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

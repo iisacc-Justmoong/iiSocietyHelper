@@ -1,0 +1,115 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:0709106f0077c4b55c98717f431dfc647e668416e1ccb6b8450c75814561e27e",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Monitoring/WindowsBuildAndRun.md",
+    "sha256": "5ec6ded45f5a380d3a543e78c9c91e215b26f9249bf6875f4f5ed3e159cac8db",
+    "bytes": 770,
+    "line_count": 13,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Monitoring in the unified Helper Windows build",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Monitoring in the unified Helper Windows build\n",
+      "level": 1,
+      "title": "Monitoring in the unified Helper Windows build"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "Build and install **iiSocietyHelper 0.10.0**, following the\n[common Windows procedure](../WindowsBuildAndRun.md). This feature no longer\nhas a standalone SDK directory, version, install script or CMake package.\nIts source tests are registered under `iiSocietyHelper.Monitoring.*` in Helper's `build/`.\nSee [component options and migrated headers](../Consolidation.md).\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 13,
+      "raw": "The former standalone package's Windows execution results remain in the\n[historical SDK verification record](../../../Windows/Verification-20261020.md).\nThey must not be reported as merged-release execution results. The current\nsource migration retains native platform implementations and their tests;\nactual execution evidence is platform-specific.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Monitoring in the unified Helper Windows build",
+      "anchor": "monitoring-in-the-unified-helper-windows-build",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 11,
+        "text": "They must not be reported as merged-release execution results. The current",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "common Windows procedure",
+        "target": "../WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 4
+      },
+      {
+        "block_id": "b000003",
+        "label": "component options and migrated headers",
+        "target": "../Consolidation.md",
+        "kind": "relative",
+        "line": 7
+      },
+      {
+        "block_id": "b000005",
+        "label": "historical SDK verification record",
+        "target": "../../../Windows/Verification-20261020.md",
+        "kind": "relative",
+        "line": 10
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

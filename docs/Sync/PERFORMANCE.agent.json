@@ -1,0 +1,113 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:87e4fe6e7170fc3e8b29b2b4949ff02b98ee7d6c32f12a91163760268b8a0885",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Sync/PERFORMANCE.md",
+    "sha256": "429338510a82f9c96ef258584bde4b7b7c999c0856341e199dd79964fb92da78",
+    "bytes": 1143,
+    "line_count": 20,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Host adoption journal",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Host adoption journal\n",
+      "level": 1,
+      "title": "Host adoption journal"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "`Replica::bindHost` prepares the detach-journal insert once for the whole\nadoption plan, then rebinds each path. It also avoids constructing a one-element\npath list for every top-level entry. Large mirror adoptions no longer parse and\nprepare the same SQL statement for each of up to 250,000 entries.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 11,
+      "raw": "The existing replica lock, single transaction, path confinement, item limit,\nrecovery-directory layout and rollback behavior are preserved. The statement is\nfinished before metadata updates and commit. Adoption remains serialized with\nother changes to that replica; independent replicas keep independent locks.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 14,
+      "raw": "Host-binding tests include multi-entry recovery and repeated binding, in addition\nto the existing authority and bootstrap cases.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 20,
+      "raw": "Installed synchronizer, namespace and on-demand scenario suites use the same\n600-second total execution budget as their source-build counterparts. These\nsuites perform many independent scenarios and bulk transfers; their internal\nresponse-time, non-blocking and cancellation assertions are unchanged. The\nother installed checks retain their existing 90-second suite budget.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Host adoption journal",
+      "anchor": "host-adoption-journal",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

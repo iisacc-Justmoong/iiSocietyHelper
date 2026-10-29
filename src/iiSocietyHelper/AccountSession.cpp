@@ -1,9 +1,9 @@
-#include <iiAcountManager/GraphQL.h>
+#include <iiAccountManager/GraphQL.h>
 #include "AccountSession.h"
 #include "DeviceInfo.h"
 #include "GroupSessionStore.h"
 #include "PairingCredentials.h"
-#include <iiAcountManager/SessionStore.h>
+#include <iiAccountManager/SessionStore.h>
 #include <QCoreApplication>
 #include <QTimer>
 #include <QNetworkCookie>

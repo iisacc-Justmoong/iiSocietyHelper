@@ -1,5 +1,14 @@
 # iiSocietyHelper
 
+All iisacc products access the common `.societycontainer` contract through
+`FileSystem::openForApplication()` and iiSocietyContainer. Windows/Linux use a
+suite-wide user data root, Apple uses its App Group, and Android uses the signed
+Society provider. Desktop deployments can set `IISACC_SHARED_STORAGE_ROOT`.
+Local model/image I/O works without a Society UI process, and later Society
+adoption preserves paths and managed history. Android clients currently require
+the provider package to be installed. See
+[application storage](docs/ApplicationStorage.md).
+
 Device replication now sends timestamped, revision-pinned local snapshots for
 host-side difference analysis before payload transfer. Conflicts preserve both
 contents; source timestamps never decide overwrite order. Core QueryPort reads
@@ -23,7 +32,7 @@ component. Desktop hosts select `iiSocietyHelper::GenerationHost`; mobile client
 use the remote generation API without linking the desktop inference host.
 
 
-[Windows 빌드 및 실행](docs/WindowsBuildAndRun.md)
+[Windows build and execution](docs/WindowsBuildAndRun.md)
 
 Package release: **0.11.0**. This package pins iiSharedCanvas 0.32.0 Core
 so exported package discovery and the compiled storage adapter use the same
@@ -219,7 +228,7 @@ Society and Dreamscapes' LVRS `configureEngine` link this lifetime. Qt Quick app
 
 ## Account object reference ( 0.6.0 )
 
-Connects the `iisacc::accounts::AccountManager` used in the app to the `helper.setAccountManager(&accounts)`. The actual package and header names are the same `iiAcountManager` as the existing repository. The Helper does not copy or own the manager and does not log in; the login is performed by the connected manager. The reference is used from before the observation `start()` and is maintained even after `stop()`.
+Connects the `iisacc::accounts::AccountManager` used in the app to the `helper.setAccountManager(&accounts)`. The actual package and header names are the same `iiAccountManager` as the existing repository. The Helper does not copy or own the manager and does not log in; the login is performed by the connected manager. The reference is used from before the observation `start()` and is maintained even after `stop()`.
 
 ```cpp
 #include <iiSocietyHelper.h> // Also includes the public headers for AccountManager and Account.
@@ -252,7 +261,7 @@ If the same manager is set again, there is no duplicate notification. If replace
 
 This connection is a QObject reference within the same process. It does not automatically save or broadcast account data and authentication cookies to the observation record or delivery queue, and does not change file system access permissions, storage location, or remote synchronization policy.
 
-The dependency direction is `iiSocietyHelper → iiAcountManager → Qt Core/Network`. It reuses the public API of the account SDK 0.2.x managed by the existing Workspace. There is no duplication of the account model or login implementation, nor the introduction of a new external package. The CMake target of the Helper exposes the account SDK and also finds the installation settings at `find_dependency`, so the consumer only needs to link the Helper. The account SDK does not reference the Helper or the Container.
+The dependency direction is `iiSocietyHelper → iiAccountManager → Qt Core/Network`. It reuses the public API of the account SDK 0.2.x managed by the existing Workspace. There is no duplication of the account model or login implementation, nor the introduction of a new external package. The CMake target of the Helper exposes the account SDK and also finds the installation settings at `find_dependency`, so the consumer only needs to link the Helper. The account SDK does not reference the Helper or the Container.
 
 <a id="society-파일-시스템-접근-040"></a>
 
@@ -475,13 +484,13 @@ References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpath
 ## Build·Verify·Install
 
 Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,
-iiAcountManager **0.2.8** or later, iiSharedCanvas **0.32.0** Core,
+iiAccountManager **0.2.8** or later, iiSharedCanvas **0.32.0** Core,
 iiWebServer **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,
 Qt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.
 BLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
 
 ```sh
-CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAcountManager/build/install" \
+CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install" \
   INSTALL_PREFIX="$PWD/build/install" ./install.sh
 ```
 
@@ -491,7 +500,7 @@ This script verifies the actual observation of an independent consumer that uses
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH=/Volumes/Storage/Qt/6.8.3/macos \
   -DiiSocietyContainer_DIR=/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \
-  -DiiAcountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAcountManager/build/install/lib/cmake/iiAcountManager \
+  -DiiAccountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install/lib/cmake/iiAccountManager \
   -DCMAKE_INSTALL_PREFIX="$PWD/build/install" -DBUILD_TESTING=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
@@ -500,9 +509,9 @@ cmake --install build
 
 The test checks mutual discovery of three Helpers, multiple instances of the same app, state changes, normal termination, remaining records after forced termination, restart, process suspension and resumption, observer event loop suspension and resumption, incorrect settings, and directory boundary and isolation. Separate process tests actually run three executables. `iiSocietyHelper.account` and `iiSocietyHelper.installed_account` check object identity, full model access, update, initialization, replacement, destruction, thread boundary, QML reference, and observed data separation by connecting to the actual account SDK.
 
-In the 2026-09-09 0.6.0 account-reference verification, the Helper Release build and CTest **7/7**passed, as did CTest **5/5**in `build/account-reference/consumer`, which linked only against the `build/install` installation. Account-reference checks verified 9 cases on each run (11 passes including initialization and cleanup). The consumer's CMake finds and links only Helper, resolving iiAcountManager 0.2.0 as a dependency from `SDK/iiAcountManager/build/install`. `DYLD_LIBRARY_PATH`, `DYLD_FRAMEWORK_PATH`, and `DYLD_FALLBACK_LIBRARY_PATH` were removed at runtime. The result XML files are `build/account-reference-tests.xml` and `build/account-reference/consumer/account-reference-installed-tests.xml`. This reference verification does not include actual login requests, production deployment, or execution on Android/iOS devices.
+In the 2026-09-09 0.6.0 account-reference verification, the Helper Release build and CTest **7/7**passed, as did CTest **5/5**in `build/account-reference/consumer`, which linked only against the `build/install` installation. Account-reference checks verified 9 cases on each run (11 passes including initialization and cleanup). The consumer's CMake finds and links only Helper, resolving iiAccountManager 0.2.0 as a dependency from `SDK/iiAccountManager/build/install`. `DYLD_LIBRARY_PATH`, `DYLD_FRAMEWORK_PATH`, and `DYLD_FALLBACK_LIBRARY_PATH` were removed at runtime. The result XML files are `build/account-reference-tests.xml` and `build/account-reference/consumer/account-reference-installed-tests.xml`. This reference verification does not include actual login requests, production deployment, or execution on Android/iOS devices.
 
-In the 2026-09-09 0.7.0 object-transfer verification, the Helper build and CTest **8/8**passed, as did CTest **6/6**in `build/object-transfer/consumer`, freshly built with the public headers and libraries from `build/install`. Object-transfer checks verified 12 cases on each run (14 passes including initialization and cleanup). They checked round trips for C++ value types, 64-bit integers, binary data, dates, and URLs; snapshots of QObject properties and the full account model; rejection of invalid formats, sizes, cycles, and threads; object destruction during getter execution and Helper restarts; and QML calls. Separate processes confirmed that the receiver restores objects from the persistent queue after the sender exits and reads the same message values on relaunch. The consumer resolved iiAcountManager 0.2.0 from the Workspace installation, with the three `DYLD_*` variables above removed at runtime. The result XML files are `build/object-transfer-tests.xml` and `build/object-transfer/consumer/object-transfer-installed-tests.xml`. This verification covers local inter-process delivery on macOS; it does not include production deployment, actual login, or execution on Android/iOS devices.
+In the 2026-09-09 0.7.0 object-transfer verification, the Helper build and CTest **8/8**passed, as did CTest **6/6**in `build/object-transfer/consumer`, freshly built with the public headers and libraries from `build/install`. Object-transfer checks verified 12 cases on each run (14 passes including initialization and cleanup). They checked round trips for C++ value types, 64-bit integers, binary data, dates, and URLs; snapshots of QObject properties and the full account model; rejection of invalid formats, sizes, cycles, and threads; object destruction during getter execution and Helper restarts; and QML calls. Separate processes confirmed that the receiver restores objects from the persistent queue after the sender exits and reads the same message values on relaunch. The consumer resolved iiAccountManager 0.2.0 from the Workspace installation, with the three `DYLD_*` variables above removed at runtime. The result XML files are `build/object-transfer-tests.xml` and `build/object-transfer/consumer/object-transfer-installed-tests.xml`. This verification covers local inter-process delivery on macOS; it does not include production deployment, actual login, or execution on Android/iOS devices.
 
 Install the diagnostic executable as well. If executed from the same location in two terminals, you can check discovery, modification, and exit events in the form of JSON Lines from both sides. The diagnostic executable is also a participant.
 
@@ -607,3 +616,12 @@ covered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.m
 The package and its by-value canvas storage boundary rebuild against iiSharedCanvas 0.32.0 / ABI 0.32. The Helper library uses ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts.
 
 Related implementation contracts: [Sync journal startup and WAL snapshots](docs/SyncStartup.md).
+
+<!-- workspace-docs:readme:start -->
+## Documentation entry points
+
+- Human overview: this English `README.md`.
+- Agent instructions: [AGENT.md](AGENT.md).
+- Human documentation: [documentation index](docs/README.md).
+- Structured agent documentation: [agent index](docs/agent-index.json).
+<!-- workspace-docs:readme:end -->

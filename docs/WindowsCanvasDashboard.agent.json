@@ -1,0 +1,86 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:8ec27893c6c9e942e8c3f0c6d84b9422c926488d2a662650b4b21c39e5fe599c",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/WindowsCanvasDashboard.md",
+    "sha256": "0e78b91d4a830b9abc9f87c5cbe606221e0217377a48b87d7093a134357e8b34",
+    "bytes": 577,
+    "line_count": 7,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Windows 캔버스 저장 소비자",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Windows 캔버스 저장 소비자\n",
+      "level": 1,
+      "title": "Windows 캔버스 저장 소비자"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 7,
+      "raw": "Helper의 캔버스 저장·미리보기·버전 충돌 검사는 실제 provider catalog가 생성된 뒤에도\n최근 파일에 사용자 캔버스 하나만 보이는지 확인한다. Helper의 alias 수집과\nSocietyContainer의 비동기 목록은 모두 상대 경로 전체에서 provider 제어 디렉터리를\n검사한다. 사용자 파일 수 기대값을 완화하지 않는다. 파일 이름이 점으로 시작하는 디렉터리의 Windows 표시 속성과\n파일 시스템에서 숨기는 정책을 혼동하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Windows 캔버스 저장 소비자",
+      "anchor": "windows-캔버스-저장-소비자",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 6,
+        "text": "검사한다. 사용자 파일 수 기대값을 완화하지 않는다. 파일 이름이 점으로 시작하는 디렉터리의 Windows 표시 속성과",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000003",
+        "line": 7,
+        "text": "파일 시스템에서 숨기는 정책을 혼동하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

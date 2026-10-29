@@ -1,0 +1,298 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:2e94d3fc5122ebbd6e6ab2c5765b349e3d0283f9d0c251ea24ebaf340b284a71",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/WindowsBuildAndRun.md",
+    "sha256": "9131722b4b87b59bfbf8e19b739651c677e8b054e95e0811780caa89c55f6058",
+    "bytes": 4059,
+    "line_count": 74,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "iiSocietyHelper: Windows build and execution",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiSocietyHelper: Windows build and execution\n",
+      "level": 1,
+      "title": "iiSocietyHelper: Windows build and execution"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 5,
+      "raw": "The 0.10.0 package includes account/client access, local IPC, synchronization,\nremote generation, native monitoring and optional desktop generation hosting.\nNo separate Generation, Monitor or Sync SDK is configured or linked.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "## Dependencies and components\n",
+      "level": 2,
+      "title": "Dependencies and components"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 14,
+      "raw": "Build the lower-level iiSDKCore, iiFileProvider (including CoreIO and Temporary),\niiSocietyContainer 0.16.1, iiWebServer 0.6.0, iiSharedCanvas Core 0.31.4 EXACT and\niiAccountManager 0.2.8 packages for the same architecture and compiler first.\nThe default Core facade uses Qt 6.8.3 EXACT Core/Gui/Sql/Network, optional Bluetooth,\nOpenSSL Crypto and DNS-SD. Native Monitoring uses only Core, CoreIO and FileTree.\nDesktop GenerationHost additionally requires iiLocalDiffusion and Qt Concurrent.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 21,
+      "raw": "Windows uses native file handles and reparse-point validation in Sync, native\nfile locks in Monitoring and the existing Windows account/discovery adapters.\nUse the SDK [Windows environment and validation tools](../../Windows/README.md)\nfor matching MSVC/Qt/vcpkg prefixes and the DNS-SD overlay. Do not mix MSVC and\nMinGW packages. These commands are run from the Helper repository root in the\nprepared developer shell:\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "fenced_code",
+      "start_line": 23,
+      "end_line": 45,
+      "raw": "```powershell\n$ErrorActionPreference = 'Stop'\n$prefix = (Join-Path $env:USERPROFILE '.local/SDK/iiSocietyHelper')\ncmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `\n  \"-DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH\" `\n  \"-DCMAKE_INSTALL_PREFIX=$prefix\" -DBUILD_TESTING=ON `\n  -DIISOCIETYHELPER_BUILD_GENERATION_HOST=ON\nif ($LASTEXITCODE -ne 0) { throw 'Configure failed' }\ncmake --build build --parallel 4\nif ($LASTEXITCODE -ne 0) { throw 'Build failed' }\nctest --test-dir build --output-on-failure --parallel 1 --no-tests=error\nif ($LASTEXITCODE -ne 0) { throw 'Tests failed' }\ncmake --install build\nif ($LASTEXITCODE -ne 0) { throw 'Install failed' }\ncmake -S tests/consumer -B build/consumer/build -G Ninja `\n  \"-DiiSocietyHelper_DIR=$prefix/lib/cmake/iiSocietyHelper\" `\n  \"-DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH\" -DCMAKE_BUILD_TYPE=Release\nif ($LASTEXITCODE -ne 0) { throw 'Consumer configure failed' }\ncmake --build build/consumer/build --parallel 4\nif ($LASTEXITCODE -ne 0) { throw 'Consumer build failed' }\nctest --test-dir build/consumer/build --output-on-failure --no-tests=error\nif ($LASTEXITCODE -ne 0) { throw 'Installed consumer failed' }\n```\n",
+      "language": "powershell",
+      "code": "$ErrorActionPreference = 'Stop'\n$prefix = (Join-Path $env:USERPROFILE '.local/SDK/iiSocietyHelper')\ncmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `\n  \"-DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH\" `\n  \"-DCMAKE_INSTALL_PREFIX=$prefix\" -DBUILD_TESTING=ON `\n  -DIISOCIETYHELPER_BUILD_GENERATION_HOST=ON\nif ($LASTEXITCODE -ne 0) { throw 'Configure failed' }\ncmake --build build --parallel 4\nif ($LASTEXITCODE -ne 0) { throw 'Build failed' }\nctest --test-dir build --output-on-failure --parallel 1 --no-tests=error\nif ($LASTEXITCODE -ne 0) { throw 'Tests failed' }\ncmake --install build\nif ($LASTEXITCODE -ne 0) { throw 'Install failed' }\ncmake -S tests/consumer -B build/consumer/build -G Ninja `\n  \"-DiiSocietyHelper_DIR=$prefix/lib/cmake/iiSocietyHelper\" `\n  \"-DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH\" -DCMAKE_BUILD_TYPE=Release\nif ($LASTEXITCODE -ne 0) { throw 'Consumer configure failed' }\ncmake --build build/consumer/build --parallel 4\nif ($LASTEXITCODE -ne 0) { throw 'Consumer build failed' }\nctest --test-dir build/consumer/build --output-on-failure --no-tests=error\nif ($LASTEXITCODE -ne 0) { throw 'Installed consumer failed' }\n",
+      "closed": true
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 47,
+      "end_line": 53,
+      "raw": "When iiLocalDiffusion is unavailable, explicitly set\n`IISOCIETYHELPER_BUILD_GENERATION_HOST=OFF`; Core Remote still builds.\nFor native-only monitoring use `IISOCIETYHELPER_BUILD_CORE=OFF` and\n`CMAKE_DISABLE_FIND_PACKAGE_Qt6=ON`, then configure `tests/native-consumer` instead\nof `tests/consumer`. Its package lookup explicitly requests Monitoring.\nAll build directories are named `build`; use a separate workspace evidence\nparent when verifying a second configuration.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "heading",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "## Runtime and verification limits\n",
+      "level": 2,
+      "title": "Runtime and verification limits"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 57,
+      "end_line": 62,
+      "raw": "Ensure the selected Helper `bin`, native dependency DLLs and Qt plugins are on\nthe process search paths. Core uses QSQLITE. SocietyContainerDaemon and\n`ii-society-helper` are plain executables, never nested app bundles. The daemon\nreports the Helper version. Sync reparse-point fixtures require Windows Developer\nMode or existing symbolic-link creation rights; a shortcut is not a symlink test.\nDo not run fixture tests on an existing user container.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 64,
+      "end_line": 70,
+      "raw": "The retained pre-consolidation Windows results are in the SDK's\n[2026-10-20 verification record](../../Windows/Verification-20261020.md).\nThose results cover the former packages and do not establish Windows execution\nof this merged release. Current consolidation evidence is recorded separately;\nmacOS build/runtime and source-level Windows graph checks cannot establish a\nnative Windows or physical mobile run. Protocol, storage and credential formats\nare preserved; no live container migration or application restart is performed.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 72,
+      "end_line": 74,
+      "raw": "See [component/API migration](Consolidation.md),\n[Sync contracts](Sync/README.md), [native monitor protocol](Monitoring/Protocol.md)\nand [generation protocol](Generation/README.md).\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiSocietyHelper: Windows build and execution",
+      "anchor": "iisocietyhelper-windows-build-and-execution",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Dependencies and components",
+      "anchor": "dependencies-and-components",
+      "start_line": 7
+    },
+    {
+      "block_id": "b000015",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Runtime and verification limits",
+      "anchor": "runtime-and-verification-limits",
+      "start_line": 55
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 19,
+        "text": "for matching MSVC/Qt/vcpkg prefixes and the DNS-SD overlay. Do not mix MSVC and",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 59,
+        "text": "`ii-society-helper` are plain executables, never nested app bundles. The daemon",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 62,
+        "text": "Do not run fixture tests on an existing user container.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000019",
+        "line": 66,
+        "text": "Those results cover the former packages and do not establish Windows execution",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [
+      {
+        "block_id": "b000011",
+        "language": "powershell",
+        "code": "$ErrorActionPreference = 'Stop'\n$prefix = (Join-Path $env:USERPROFILE '.local/SDK/iiSocietyHelper')\ncmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `\n  \"-DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH\" `\n  \"-DCMAKE_INSTALL_PREFIX=$prefix\" -DBUILD_TESTING=ON `\n  -DIISOCIETYHELPER_BUILD_GENERATION_HOST=ON\nif ($LASTEXITCODE -ne 0) { throw 'Configure failed' }\ncmake --build build --parallel 4\nif ($LASTEXITCODE -ne 0) { throw 'Build failed' }\nctest --test-dir build --output-on-failure --parallel 1 --no-tests=error\nif ($LASTEXITCODE -ne 0) { throw 'Tests failed' }\ncmake --install build\nif ($LASTEXITCODE -ne 0) { throw 'Install failed' }\ncmake -S tests/consumer -B build/consumer/build -G Ninja `\n  \"-DiiSocietyHelper_DIR=$prefix/lib/cmake/iiSocietyHelper\" `\n  \"-DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH\" -DCMAKE_BUILD_TYPE=Release\nif ($LASTEXITCODE -ne 0) { throw 'Consumer configure failed' }\ncmake --build build/consumer/build --parallel 4\nif ($LASTEXITCODE -ne 0) { throw 'Consumer build failed' }\nctest --test-dir build/consumer/build --output-on-failure --no-tests=error\nif ($LASTEXITCODE -ne 0) { throw 'Installed consumer failed' }\n"
+      }
+    ],
+    "links": [
+      {
+        "block_id": "b000009",
+        "label": "Windows environment and validation tools",
+        "target": "../../Windows/README.md",
+        "kind": "relative",
+        "line": 18
+      },
+      {
+        "block_id": "b000019",
+        "label": "2026-10-20 verification record",
+        "target": "../../Windows/Verification-20261020.md",
+        "kind": "relative",
+        "line": 65
+      },
+      {
+        "block_id": "b000021",
+        "label": "component/API migration",
+        "target": "Consolidation.md",
+        "kind": "relative",
+        "line": 72
+      },
+      {
+        "block_id": "b000021",
+        "label": "Sync contracts",
+        "target": "Sync/README.md",
+        "kind": "relative",
+        "line": 73
+      },
+      {
+        "block_id": "b000021",
+        "label": "native monitor protocol",
+        "target": "Monitoring/Protocol.md",
+        "kind": "relative",
+        "line": 73
+      },
+      {
+        "block_id": "b000021",
+        "label": "generation protocol",
+        "target": "Generation/README.md",
+        "kind": "relative",
+        "line": 74
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

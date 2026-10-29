@@ -7,6 +7,7 @@
 #include <utility>
 #include "iiSocietyHelper.h"
 #include <SharedStorage.h>
+#include <ApplicationStorage.h>
 #include <QDir>
 #include <QFileInfo>
 #include <QDirIterator>
@@ -23,6 +24,7 @@
 #include <iiSocietyHelper/Monitoring/Monitor.h>
 #ifdef Q_OS_ANDROID
 #include <AndroidStorage.h>
+#include <LogicalDisk.h>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -316,6 +318,18 @@ bool FileSystem::open(const QString &containerPath)
     synchronize();
     emit storageChanged();
     return available;
+}
+bool FileSystem::openForApplication(const QString &application) {
+#ifdef Q_OS_ANDROID
+    if (!iiSocietyContainer::LogicalDisk::validOwner(application.toStdString())) {
+        setError(QStringLiteral("Use a valid application identifier.")); return false;
+    }
+    return open();
+#else
+    QString error; const auto storage = iiSocietyContainer::ApplicationStorage::openForApplication(application, &error);
+    if (!storage) { setError(error); return false; }
+    return open(storage->drive().rootPath());
+#endif
 }
 
 PreparedStorage FileSystem::preparedStorage() const {

@@ -1,0 +1,156 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:0f751afaad6c24d5c09e7207831f1e9b8808d206d894cc1ab5477192faf997f0",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/ApplicationStorage.md",
+    "sha256": "5bcf46610deb1d5d6ebf6b191f54df0ed10c410ac7b7f0ba86ff4c2166bcf757",
+    "bytes": 2749,
+    "line_count": 36,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "iisacc 제품군의 공통 컨테이너 접근",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iisacc 제품군의 공통 컨테이너 접근\n",
+      "level": 1,
+      "title": "iisacc 제품군의 공통 컨테이너 접근"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 11,
+      "raw": "`FileSystem::openForApplication(\"com.iisacc.dreamscapes\")`는 기존 Society 선택을\n재사용하고, 선택이 없으면 iiSocietyContainer가 결정한 제품군 공통 논리 디스크를 연다.\nWindows·Linux는 앱 이름에 의존하지 않는 사용자 공유 데이터 위치를 사용한다.\n데스크톱의 `IISACC_SHARED_STORAGE_ROOT`는 모든 제품에 같은 공통 루트를 지정하는\n배포 설정이다. Apple은 실제 App Group, Android는 동일 서명을 검증하는 Provider로\n같은 `.societycontainer` 계약에 접근한다. Android 클라이언트에는 현재 Society의\nProvider 패키지 설치가 필요하다. 공유 권한이나 위치가 잘못되면 앱 전용 Documents·Cache로\n원본을 대체하지 않는다. 문서 보기 객체는 기존 `Initialization::Deferred`를\n유지하고 실제 저장소 소유자만 부트스트랩한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 16,
+      "raw": "Society가 실행되지 않아도 모델 파일과 생성 이미지를 같은 FileSystem·Alias·\n관리 원본 API로 읽고 쓸 수 있다. 이후 Society는 공유 등록을 인수하여 동일한\n경로·식별자·관리 이력을 사용한다. iOS의 원본은 App Group 안에 유지되며 File\nProvider의 시스템 복제 경로 또는 각 앱의 Documents를 원본으로 삼지 않는다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 22,
+      "raw": "논리 디스크가 처음 인증된 호스트의 미러로 전환될 때 기존 앱 파일을 공개 섹션에\n보존한다. 초기 호스트 상태 적용 후 이 파일을 일반 변경 제안으로 제출한다.\n충돌과 실제 바이트 검증은 기존 Replica·Synchronizer가 처리한다. 독립 패키지에\n대한 기존 보관·복구 동작은 유지한다. 호스트 논리 UUID가 바뀌어도 기기 내\n저장소 ID로 연결한 관리 이력은 유지한다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 26,
+      "raw": "Monitoring도 명시적인 논리 디스크 선언과 정상 드라이브 manifest를 확인하여\n같은 소스를 감시한다. 감시 데몬이나 Society 프로세스의 실행 여부가 로컬 파일\n입출력 성공 조건은 아니다.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 31,
+      "raw": "`tests/application_storage.cpp`는 로컬 모델·생성 이미지 저장과 Society 인수,\n서로 다른 제품의 같은 저장소 재사용, 잘못된 공유 루트의 대체 저장소 생성 거부,\n실제 LAN TLS를 사용한 모델 수신과\n기존 생성 결과의 호스트 이전을 검증한다.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 36,
+      "raw": "동기화 완료 신호는 해당 스냅샷 라운드의 완료를 나타낸다. 최초 호스트 상태 적용\n후 발견한 앱 원본은 후속 제안 라운드에서 제출될 수 있다. 회귀 테스트는 각 파일의\n수신과 충돌 사본 생성, 바이트 일치까지 기다리며 저장 장치 부하를 제품의 동기화\n지연 제한으로 해석하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iisacc 제품군의 공통 컨테이너 접근",
+      "anchor": "iisacc-제품군의-공통-컨테이너-접근",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 10,
+        "text": "원본을 대체하지 않는다. 문서 보기 객체는 기존 `Initialization::Deferred`를",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000013",
+        "line": 36,
+        "text": "지연 제한으로 해석하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

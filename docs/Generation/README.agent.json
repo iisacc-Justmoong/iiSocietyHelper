@@ -1,0 +1,227 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:6952cde9c15e8092a701a319fb3b23121bfe4a235ab15b76457e21ed05b9830d",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Generation/README.md",
+    "sha256": "e0ea27ca8aef9ec76f6b0e9a9f6caf4ded1f857db0751f89efc310fe291a7581",
+    "bytes": 3890,
+    "line_count": 26,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "iiSocietyHelper::Generation",
+    "role": "overview",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# iiSocietyHelper::Generation\n",
+      "level": 1,
+      "title": "iiSocietyHelper::Generation"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "[Windows 빌드 및 실행](WindowsBuildAndRun.md)\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 9,
+      "raw": "Part of iiSocietyHelper **0.10.0**. Remote belongs to the default Core target;\ndesktop Host requires `COMPONENTS GenerationHost` and\n`iiSocietyHelper::GenerationHost`. Public headers are\n`iiSocietyHelper/Generation/Remote.h` and `iiSocietyHelper/Generation/Host.h`.\nBuild from the Helper repository root; see [Consolidation.md](../Consolidation.md).\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 11,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "C++23 is the SDK that runs the model on Society's authenticated host. `Remote` connects to `iiSocietyHelper::Client`'s `requestHost` / `hostResponse`, and `Host` connects to Society's existing LAN TLS or account authentication relay request handler. No separate port or URL authentication repository is created.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 13,
+      "end_line": 13,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "`submit → status → read` does not transmit the model. The host verifies the original container and model reference and executes iiLocalDiffusion from the FIFO work queue. Results are stored in Society's device-specific runtime area and are published to Generation History after the client verifies SHA-256 and image size. Device-to-device replication of result files after generation is performed via Society synchronization.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 15,
+      "end_line": 15,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "paragraph",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "Progress responses are delivered together with `phase` and the `step/total` of the corresponding step. Since model preparation/loading and image generation steps are distinguished, the client's background progress indicator does not mistake the loading value for denoising progress.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 18,
+      "raw": "The host's default executor uses `generateNativeImageWithResidentWeights`. When a model file starts execution from the queue, its entire contents are loaded into anonymous process memory in a single sequential read; subsequent tensor loading uses that in-memory copy. No derived Q8 disk cache is created. Unsupported formats or failures in loading into memory return a job failure instead of falling back to disk streaming. The OS may compress or swap anonymous pages according to its own policies, but Society does not specify the swap location. If the original exists only on an external disk, the initial load must read it. Therefore, the “no external-disk use” guarantee applies to model-tensor reads and the Q8 cache after the initial transfer; it does not eliminate the initial copy from the external original into RAM.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 19,
+      "end_line": 19,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "The client requests model and generation resource downloads to StorageMap after `accepted`. This request is independent of generation and remains as Society's persistent download request even in case of failure, cancellation, or app switching. Download completion is not a condition for receiving remote results. Subsequent tasks for a fully downloaded model can use local inference.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "The caller must check authentication and host role. Host additionally checks the job owning device, UUID reuse, changed model reference, path deviation, request size, queue size, and result chunk range. Retransmission of the same UUID does not cause duplicate execution, and cancellation status is maintained even if cancellation arrives before submission. After connection disconnection, jobs of the same process are re-queried. Upon host process restart, the memory queue is not recovered and an explicit job-not-found error is returned.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 23,
+      "end_line": 23,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "Host output is limited to 64 MiB, concurrent pending jobs are 64, and session records are 4096. The mobile package builds only Remote. iOS Network transmission in the background follows OS execution permission, and already accepted host inference continues even if the app is suspended. Model download continues from an executable Society session.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 25,
+      "end_line": 25,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 26,
+      "end_line": 26,
+      "raw": "Build at `build/` and host pre-execution at `iiSocietyHelper.Generation.Protocol`, and verify reconnection, duplicate submission, cancellation, permission boundary, and result validation. The test injection engine provides transmission and scheduling evidence and does not substitute for actual model quality validation.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "iiSocietyHelper::Generation",
+      "anchor": "iisocietyhelpergeneration",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000013",
+        "line": 18,
+        "text": "The host's default executor uses `generateNativeImageWithResidentWeights`. When a model file starts execution from the queue, its entire contents are loaded into anonymous process memory in a single sequential read; subsequent tensor loading uses that in-memory copy. No derived Q8 disk cache is created. Unsupported formats or failures in loading into memory return a job failure instead of falling back to disk streaming. The OS may compress or swap anonymous pages according to its own policies, but Society does not specify the swap location. If the original exists only on an external disk, the initial load must read it. Therefore, the “no external-disk use” guarantee applies to model-tensor reads and the Q8 cache after the initial transfer; it does not eliminate the initial copy from the external original into RAM.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000017",
+        "line": 22,
+        "text": "The caller must check authentication and host role. Host additionally checks the job owning device, UUID reuse, changed model reference, path deviation, request size, queue size, and result chunk range. Retransmission of the same UUID does not cause duplicate execution, and cancellation status is maintained even if cancellation arrives before submission. After connection disconnection, jobs of the same process are re-queried. Upon host process restart, the memory queue is not recovered and an explicit job-not-found error is returned.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "Windows 빌드 및 실행",
+        "target": "WindowsBuildAndRun.md",
+        "kind": "relative",
+        "line": 3
+      },
+      {
+        "block_id": "b000005",
+        "label": "Consolidation.md",
+        "target": "../Consolidation.md",
+        "kind": "relative",
+        "line": 9
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

@@ -1,0 +1,578 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:b20907bbaa7ee130d80d896ece54ef5aa99f8dc9cfd6358bb7e3891fa9694b60",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Client.md",
+    "sha256": "b83a814aa57f6629adf7fb3190d7448a04a0c8268f1bfeb2d659140cc6a5515a",
+    "bytes": 10464,
+    "line_count": 99,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Account and host sessions",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Account and host sessions\n",
+      "level": 1,
+      "title": "Account and host sessions"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 4,
+      "raw": "기기간 동기화 상태는 `Client::synchronizationStatus()`의 iiSDKCore 쿼리에서\n정수로 조회·구독한다. [스냅샷과 상태 계약](Sync/Snapshots.md)을 따른다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "heading",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "## Container objects and direct host access\n",
+      "level": 2,
+      "title": "Container objects and direct host access"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 16,
+      "raw": "The consolidated 0.9.0 SDK preserves `Client::connectHost()` for authenticated access without a local\nreplica. `container()` exposes `iiSocietyContainer::Container` and `hostSections()`\nexposes all nine sections. Asynchronous list/stat/read/write/mkdir operations use\nthe live host drive and existing account-scoped LAN TLS or relay session.\nReads are version-pinned and chunked; atomic creation preserves existing files.\nApps on the registered host use the selected, identity-checked native drive\nwithout a self peer or another indexer. Other devices retain pinned LAN TLS or\naccount relay access.\nSee [HostDrive.md](HostDrive.md) for API, lifecycle, paging and size limits.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 17,
+      "end_line": 17,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 18,
+      "end_line": 19,
+      "raw": "`tests/consumer` verifies the installed public API and repeats native LAN TLS and\naccount-relay access against installed packages, independently of source targets.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 21,
+      "end_line": 21,
+      "raw": "## Saved host reconnection\n",
+      "level": 2,
+      "title": "Saved host reconnection"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 22,
+      "end_line": 22,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 23,
+      "end_line": 26,
+      "raw": "The encrypted group-session record retains the current registered host/container\nbinding and up to eight private LAN address/UDP-port hints. `savedHostConnection()`\nreturns nothing after account, host or container changes or logout. Routes are\nnot authentication and are never exposed as credentials through QML.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 27,
+      "end_line": 27,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 28,
+      "end_line": 43,
+      "raw": "On restart, `NearbyDevices::resumeHost()` immediately sends an account-signed\nfive-second discovery challenge to saved routes, alongside ordinary Bonjour/BLE\ndiscovery. The registered host returns its fresh signed discovery record and the\nchallenge. The caller validates account scope, host identity, source address,\nchallenge, lifetime and record signature before feeding normal automatic TLS\npairing. The host validates the client's current signed record first. No old QR,\nTLS socket, proof or execution nonce is restored; TLS pinning and fresh mutual\naccount authentication remain mandatory. Probes retry at five-second intervals\nand stop when connected, paused or inactive. Old hosts ignore the additional\nmessage and ordinary discovery remains the fallback for changed addresses.\nWhen a verified device returns with a fresh process nonce, stale discovery\nroutes and any invitation for its old process are retired immediately rather\nthan waiting for the automatic pairing attempt's 20-second timeout.\nNonces retired by a fresh authenticated resume exchange are ignored in delayed\nBonjour callbacks for 70 seconds (bounded to 128 entries). A fresh resume proof\ncan reactivate that process; signed but stale discovery alone cannot roll it back.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 44,
+      "end_line": 44,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 45,
+      "end_line": 46,
+      "raw": "Tests cover restart persistence, wrong-host rejection, logout, recovery without\nBonjour announcements, and rejection of a saved route with a wrong account key.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 48,
+      "end_line": 48,
+      "raw": "This is the authentication, search, and select download session shared by Society and the consumer app. Society UI process interruption still allows the app to use the Society container and authentication session within the same App Group. It maintains the host's verified namespace and existing TLS / HMAC pairing.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 49,
+      "end_line": 49,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 50,
+      "end_line": 50,
+      "raw": "`Client::start(container)` opens the existing Society replica and synchronizes metadata and local submissions. `StorageMap::request(keys)` leaves a fixed-version download request on the disk. Processing is facilitated by `Client::synchronizeNow()` and files are used only after `StorageMap::requestState(id)` is ready. Unverified partial files do not appear in the public path upon cancellation or failure.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 52,
+      "raw": "Model generation on the host sends a `society.generation` request via `requestHost` and receives `hostResponse`. The caller cannot specify address, credentials, or other hosts and uses only the authentication host connected to the current replica. Since model download and separate requests are handled separately, the host queue can be used before receiving the local model. Requests are not sent before connection or after logout. LAN validates both TLS and account relay in session tests.\n"
+    },
+    {
+      "id": "b000024",
+      "kind": "blank",
+      "start_line": 53,
+      "end_line": 53,
+      "raw": "\n"
+    },
+    {
+      "id": "b000025",
+      "kind": "paragraph",
+      "start_line": 54,
+      "end_line": 54,
+      "raw": "The app completes the generation result with an atomic rename/commit inside Society and then calls synchronizeNow. If the network is interrupted, the original file and submission journal remain, and it retries on the next connection. Account and pairing ciphertext is stored by GroupSessionStore inside the selected `.societycontainer/.society-runtime/state`; only the wrapping key remains in the platform credential store.\n"
+    },
+    {
+      "id": "b000026",
+      "kind": "blank",
+      "start_line": 55,
+      "end_line": 55,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 56,
+      "end_line": 56,
+      "raw": "Implementation of AccountSession, NearbyDevices, AutomaticPairing, and GroupSessionStore was migrated from the Society app to this SDK. Society's QML AccountController is a thin registration wrapper. The consumer app is responsible for app lifecycle, background execution permission, and status display policy.\n"
+    },
+    {
+      "id": "b000028",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 58,
+      "raw": "\n\n"
+    },
+    {
+      "id": "b000029",
+      "kind": "paragraph",
+      "start_line": 59,
+      "end_line": 61,
+      "raw": "Synchronization is included in Helper Core. Dependencies include iiSocietyContainer\n0.16.1, iiWebServer 0.6.0, iiAccountManager 0.2.8, iiSharedCanvas Core 0.31.4,\niiFileProvider and the existing Qt adapters. Desktop state encryption uses OpenSSL Crypto and iOS uses CryptoKit. The consolidated SDK does not depend on higher-level Product sources. See Migration.md for the single Helper package and dependency direction. Headers are installed via the `iiSocietyHelper/Client.h` path. The consumer app calls start when creating the repository object, explicitly downloads/file publishes after synchronizeNow, and calls stop on background transition/termination.\n"
+    },
+    {
+      "id": "b000030",
+      "kind": "blank",
+      "start_line": 62,
+      "end_line": 62,
+      "raw": "\n"
+    },
+    {
+      "id": "b000031",
+      "kind": "paragraph",
+      "start_line": 63,
+      "end_line": 63,
+      "raw": "`AccountSession::storageScope()` is calculated using the authentication service origin and account sub, and LAN proof and server replication use the same namespace. Replicas of other accounts are not opened. If the initial Society configuration is not complete, a new host is not arbitrarily selected. `client-session.lock` occupancy failure is retried after waiting, and connections from other processes are not forcibly terminated.\n"
+    },
+    {
+      "id": "b000032",
+      "kind": "blank",
+      "start_line": 64,
+      "end_line": 64,
+      "raw": "\n"
+    },
+    {
+      "id": "b000033",
+      "kind": "paragraph",
+      "start_line": 65,
+      "end_line": 65,
+      "raw": "`iiSocietyHelper.session` uses an isolated account service and repository, along with actual TLS or loopback relay. Without the Society app process, it checks model request, completion, local result upload, and logout cancellation from the missing original list. Delivery of search records is via injected DiscoveryService and is not an actual Bluetooth radio performance check. Testing disables real-use account restoration.\n"
+    },
+    {
+      "id": "b000034",
+      "kind": "blank",
+      "start_line": 66,
+      "end_line": 66,
+      "raw": "\n"
+    },
+    {
+      "id": "b000035",
+      "kind": "paragraph",
+      "start_line": 67,
+      "end_line": 67,
+      "raw": "SDK's installer automatically discovers the CMake project and dependencies in this directory. The installation order of Container, ServerHost, Sync, and Account can be verified with `SDK/install.sh --dry-run --only iiSocietyHelper`. This validation targets macOS and iOS arm64, and does not substitute for Android ·Windows packaging or device execution.\n"
+    },
+    {
+      "id": "b000036",
+      "kind": "blank",
+      "start_line": 68,
+      "end_line": 68,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "heading",
+      "start_line": 69,
+      "end_line": 69,
+      "raw": "## Source layout\n",
+      "level": 2,
+      "title": "Source layout"
+    },
+    {
+      "id": "b000038",
+      "kind": "blank",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "\n"
+    },
+    {
+      "id": "b000039",
+      "kind": "paragraph",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
+    },
+    {
+      "id": "b000040",
+      "kind": "blank",
+      "start_line": 72,
+      "end_line": 72,
+      "raw": "\n"
+    },
+    {
+      "id": "b000041",
+      "kind": "paragraph",
+      "start_line": 73,
+      "end_line": 77,
+      "raw": "`AccountSession` also enables the account SDK's private Society drive-location synchronization:\nafter sign-in and every 30 seconds, the current account receives `societyContainerDrive` (disk ID,\nhost device ID, image path and revision). Other devices retain their local replica/mount paths.\nA location refresh does not request pairing keys or emit account changes when the value is unchanged.\nThe account API and SDK contract are documented in `iiAccountManager/docs/ACCOUNT_CONTRACT.md`.\n"
+    },
+    {
+      "id": "b000042",
+      "kind": "blank",
+      "start_line": 78,
+      "end_line": 78,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "html",
+      "start_line": 79,
+      "end_line": 79,
+      "raw": "<a id=\"계정-graphql-호환성\"></a>\n"
+    },
+    {
+      "id": "b000044",
+      "kind": "blank",
+      "start_line": 80,
+      "end_line": 80,
+      "raw": "\n"
+    },
+    {
+      "id": "b000045",
+      "kind": "heading",
+      "start_line": 81,
+      "end_line": 81,
+      "raw": "## Account GraphQL compatibility\n",
+      "level": 2,
+      "title": "Account GraphQL compatibility"
+    },
+    {
+      "id": "b000046",
+      "kind": "blank",
+      "start_line": 82,
+      "end_line": 82,
+      "raw": "\n"
+    },
+    {
+      "id": "b000047",
+      "kind": "paragraph",
+      "start_line": 83,
+      "end_line": 83,
+      "raw": "iiAccountManager 0.2.8 or higher is required. Login and container location synchronization use the `POST /Account/GraphQL` `appSession` mutation of the corresponding SDK. Pairing also sends `variables.input = {intent: \"pairing\", device: ...}` to the same endpoint. Storage occurs only after `data.appSession.pairing` is verified, and session expiration for HTTP 200 GraphQL errors is also passed to AccountManager. Cookie scope, account/device binding, key verification, and secure storage contract are maintained. Operational GraphQL server deployment must occur before new client deployment, and REST retry is not performed.\n"
+    },
+    {
+      "id": "b000048",
+      "kind": "blank",
+      "start_line": 84,
+      "end_line": 84,
+      "raw": "\n"
+    },
+    {
+      "id": "b000049",
+      "kind": "html",
+      "start_line": 85,
+      "end_line": 85,
+      "raw": "<a id=\"macos-개발-빌드의-로그인-저장소\"></a>\n"
+    },
+    {
+      "id": "b000050",
+      "kind": "blank",
+      "start_line": 86,
+      "end_line": 86,
+      "raw": "\n"
+    },
+    {
+      "id": "b000051",
+      "kind": "heading",
+      "start_line": 87,
+      "end_line": 87,
+      "raw": "## Container-owned account state\n",
+      "level": 2,
+      "title": "Container-owned account state"
+    },
+    {
+      "id": "b000052",
+      "kind": "blank",
+      "start_line": 88,
+      "end_line": 88,
+      "raw": "\n"
+    },
+    {
+      "id": "b000053",
+      "kind": "paragraph",
+      "start_line": 89,
+      "end_line": 89,
+      "raw": "`GroupSessionStore::defaultDirectory()` resolves the selected valid `.societycontainer` without creating a directory. GUI, daemon and SDK consumers use `.society-runtime/state` inside that same package, regardless of the executable name or signing team. No selected package means no fallback directory and no filesystem writes. A created store follows subsequent package selections before writing.\n"
+    },
+    {
+      "id": "b000054",
+      "kind": "blank",
+      "start_line": 90,
+      "end_line": 90,
+      "raw": "\n"
+    },
+    {
+      "id": "b000055",
+      "kind": "paragraph",
+      "start_line": 91,
+      "end_line": 91,
+      "raw": "AES-256-GCM ciphertext, 0700/0600 permissions, revocation generations and ciphertext verification remain in use. The wrapping key remains in the platform credential store. Apple production and development signatures retain their distinct Keychain services; changing file placement does not bypass access controls or copy keys between signatures. iOS file protection remains applied to container-owned ciphertext.\n"
+    },
+    {
+      "id": "b000056",
+      "kind": "blank",
+      "start_line": 92,
+      "end_line": 92,
+      "raw": "\n"
+    },
+    {
+      "id": "b000057",
+      "kind": "paragraph",
+      "start_line": 93,
+      "end_line": 93,
+      "raw": "On the first read of a missing record, an existing previous OS Society state location is read only. Only the requested encrypted `.state` record and its revocation marker are copied byte for byte into the current package. Existing destination records or revocations take precedence, so logging out cannot resurrect an old session. Source records, locks and unrelated files are preserved. This transition does not restore or mount legacy disk images.\n"
+    },
+    {
+      "id": "b000058",
+      "kind": "blank",
+      "start_line": 94,
+      "end_line": 94,
+      "raw": "\n"
+    },
+    {
+      "id": "b000059",
+      "kind": "paragraph",
+      "start_line": 95,
+      "end_line": 95,
+      "raw": "`iiSocietyHelper.apple_state` checks that an actual ad-hoc app and daemon resolve the same selected package and that resolving paths creates no state. Society.GroupState covers preserved ciphertext migration, restart and revocation races.\n"
+    },
+    {
+      "id": "b000060",
+      "kind": "blank",
+      "start_line": 96,
+      "end_line": 96,
+      "raw": "\n"
+    },
+    {
+      "id": "b000061",
+      "kind": "paragraph",
+      "start_line": 97,
+      "end_line": 97,
+      "raw": "LAN clients require server-issued account pairing proofs. Both LAN and relay select the host and container in the authenticated account `societyContainerDrive`; missing registration or another host grants no synchronization. The registered replacement host adopts a fresh mirror while retaining previous files in recovery.\n"
+    },
+    {
+      "id": "b000062",
+      "kind": "blank",
+      "start_line": 98,
+      "end_line": 98,
+      "raw": "\n"
+    },
+    {
+      "id": "b000063",
+      "kind": "paragraph",
+      "start_line": 99,
+      "end_line": 99,
+      "raw": "Apple keychain reads, writes and duplicate-item checks execute on worker threads. Completion returns to the session store thread and is cancelled when its QObject is destroyed. Keychain access prompts therefore cannot block the Society or consumer application event loop; existing access controls and encrypted state are preserved.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Account and host sessions",
+      "anchor": "account-and-host-sessions",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000005",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Container objects and direct host access",
+      "anchor": "container-objects-and-direct-host-access",
+      "start_line": 6
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Saved host reconnection",
+      "anchor": "saved-host-reconnection",
+      "start_line": 21
+    },
+    {
+      "block_id": "b000037",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Source layout",
+      "anchor": "source-layout",
+      "start_line": 69
+    },
+    {
+      "block_id": "b000045",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Account GraphQL compatibility",
+      "anchor": "account-graphql-compatibility",
+      "start_line": 81
+    },
+    {
+      "block_id": "b000051",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Container-owned account state",
+      "anchor": "container-owned-account-state",
+      "start_line": 87
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000013",
+        "line": 26,
+        "text": "not authentication and are never exposed as credentials through QML.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 50,
+        "text": "`Client::start(container)` opens the existing Society replica and synchronizes metadata and local submissions. `StorageMap::request(keys)` leaves a fixed-version download request on the disk. Processing is facilitated by `Client::synchronizeNow()` and files are used only after `StorageMap::requestState(id)` is ready. Unverified partial files do not appear in the public path upon cancellation or failure.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000047",
+        "line": 83,
+        "text": "iiAccountManager 0.2.8 or higher is required. Login and container location synchronization use the `POST /Account/GraphQL` `appSession` mutation of the corresponding SDK. Pairing also sends `variables.input = {intent: \"pairing\", device: ...}` to the same endpoint. Storage occurs only after `data.appSession.pairing` is verified, and session expiration for HTTP 200 GraphQL errors is also passed to AccountManager. Cookie scope, account/device binding, key verification, and secure storage contract are maintained. Operational GraphQL server deployment must occur before new client deployment, and REST retry is not performed.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000003",
+        "label": "스냅샷과 상태 계약",
+        "target": "Sync/Snapshots.md",
+        "kind": "relative",
+        "line": 4
+      },
+      {
+        "block_id": "b000007",
+        "label": "HostDrive.md",
+        "target": "HostDrive.md",
+        "kind": "relative",
+        "line": 16
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

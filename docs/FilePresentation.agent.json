@@ -1,0 +1,226 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:9aee3420778737f55d11f7a3d1fd040c780391887e2ea145699ea04cdb43b553",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/FilePresentation.md",
+    "sha256": "4ec02f62e4dae64d7aa75511e1928b4474786f5cd8fec0dd629536e13f2fa81c",
+    "bytes": 3350,
+    "line_count": 54,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Canvas presentation through the file owner",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Canvas presentation through the file owner\n",
+      "level": 1,
+      "title": "Canvas presentation through the file owner"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "heading",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "## Rich container information\n",
+      "level": 2,
+      "title": "Rich container information"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 13,
+      "raw": "`FileSystem::fileInformation(sectionKey, relativePath)` exposes the selected\ncontainer's provider-owned `iiFileProvider.FileInformation` schema-1 document.\nThe result contains real details, a bounded embedded preview and the validated\npublished classification: title, description, keywords, rating, color label,\ncustom fields and collection names/keys. `classification.status` distinguishes\n`ready`, `absent` and `invalid`. This is a blocking QObject-thread API; GUI code\nshould use a copied `SharedStorage` on its I/O worker for local selection, or the\nasynchronous Client API for a host. Filesystem aliases and entries carry an\n`informationKey`; original contents are not fetched while merely listing them.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 14,
+      "end_line": 14,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 15,
+      "end_line": 23,
+      "raw": "`Client::inspectHostFile(logicalPath)` works through the same authenticated host\nas direct file reads. It returns a request ID immediately and emits one\n`hostDriveResponse` with `information` when complete. It fetches only the bounded\ninformation document, assembles version-pinned 256-KiB chunks, verifies the\nwhole-document SHA-256 and rejects invalid sizes, offsets, revisions or\ncontainer/path mismatches. Inspection is limited to eight concurrent requests,\n3 MiB per document and a 30-second overall deadline. Disconnect cancels pending\nresults. Remote aliases advertise `informationAvailable` and `informationKey`;\ntheir original `source` remains empty until separately requested.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 27,
+      "raw": "The container [file-information contract](../../iiSocietyContainer/docs/FilePresentation.md)\ndefines details and explicit failure states. The native implementation and\nprovider ownership remain below the Helper/Container application adapters.\n"
+    },
+    {
+      "id": "b000010",
+      "kind": "blank",
+      "start_line": 28,
+      "end_line": 28,
+      "raw": "\n"
+    },
+    {
+      "id": "b000011",
+      "kind": "heading",
+      "start_line": 29,
+      "end_line": 29,
+      "raw": "## Canvas integration\n",
+      "level": 2,
+      "title": "Canvas integration"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 30,
+      "end_line": 30,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "paragraph",
+      "start_line": 31,
+      "end_line": 36,
+      "raw": "FileSystem installs a read-only `.iisc` renderer in iiFileProvider 0.7 through\n`Presentation::setRenderer`. The adapter uses the existing iiSharedCanvas\n`readIiscPreview` compositor and PNG encoder, fits frame 0 within 512 pixels and\nuses the provider's 32 MiB source admission budget and a 16-Mpixel total decoded\nraster budget. Native-size projections retain exact mask coverage. Snapshot and working-file\ndecoding remain owned by iiSharedCanvas; the provider has no upward SDK link.\n"
+    },
+    {
+      "id": "b000014",
+      "kind": "blank",
+      "start_line": 37,
+      "end_line": 37,
+      "raw": "\n"
+    },
+    {
+      "id": "b000015",
+      "kind": "paragraph",
+      "start_line": 38,
+      "end_line": 42,
+      "raw": "The common owner stores PNG bytes and source-bound file details in native\nattributes plus a portable hidden companion. Existing information cards can be\nupgraded once the domain renderer is available. Canvas saves notify the owner\nafter the working file closes; IISC WAL changes are part of the native source\nversion. Renderer retirement waits for in-flight work before Qt codec teardown.\n"
+    },
+    {
+      "id": "b000016",
+      "kind": "blank",
+      "start_line": 43,
+      "end_line": 43,
+      "raw": "\n"
+    },
+    {
+      "id": "b000017",
+      "kind": "paragraph",
+      "start_line": 44,
+      "end_line": 50,
+      "raw": "FileSystem's existing canvas preview API keeps returning a private runtime PNG\nURL. It now materializes the provider's bounded embedded PNG instead of rendering\nan unbounded full-resolution canvas for that cache. Annotation documents and\noriginal source bytes are retained. Generated image history remains PNG and\neditor persistence remains IISC.\nUser file listings exclude provider presentation, catalog, staging and lock\ndocuments while preserving ordinary public hidden files.\n"
+    },
+    {
+      "id": "b000018",
+      "kind": "blank",
+      "start_line": 51,
+      "end_line": 51,
+      "raw": "\n"
+    },
+    {
+      "id": "b000019",
+      "kind": "paragraph",
+      "start_line": 52,
+      "end_line": 54,
+      "raw": "See the shared [presentation contract](../../iiFileProvider/docs/FILE_PRESENTATION.md).\nRegression covers actual composed canvas pixels, a changed embedded preview after\nediting, strict save-version conflicts and existing Helper filesystem behavior.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Canvas presentation through the file owner",
+      "anchor": "canvas-presentation-through-the-file-owner",
+      "start_line": 1
+    },
+    {
+      "block_id": "b000003",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Rich container information",
+      "anchor": "rich-container-information",
+      "start_line": 3
+    },
+    {
+      "block_id": "b000011",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Canvas integration",
+      "anchor": "canvas-integration",
+      "start_line": 29
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000005",
+        "line": 11,
+        "text": "should use a copied `SharedStorage` on its I/O worker for local selection, or the",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [
+      {
+        "block_id": "b000009",
+        "label": "file-information contract",
+        "target": "../../iiSocietyContainer/docs/FilePresentation.md",
+        "kind": "relative",
+        "line": 25
+      },
+      {
+        "block_id": "b000019",
+        "label": "presentation contract",
+        "target": "../../iiFileProvider/docs/FILE_PRESENTATION.md",
+        "kind": "relative",
+        "line": 52
+      }
+    ],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

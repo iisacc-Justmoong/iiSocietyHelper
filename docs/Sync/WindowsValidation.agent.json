@@ -1,0 +1,128 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:a555d837bf47112b72689b0e8766eccedceca9135bdb691f59af7bf70d608b2b",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/Sync/WindowsValidation.md",
+    "sha256": "f41ee98cb31fe64ca0be0a7ba5a8b43f1d4d282cba6a4e9956244330ced92bfc",
+    "bytes": 1403,
+    "line_count": 9,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Windows 파일 시스템 검증",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Windows 파일 시스템 검증\n",
+      "level": 1,
+      "title": "Windows 파일 시스템 검증"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 3,
+      "raw": "native directory handle은 delete 공유를 차단하여 활성 replica의 루트 및 journal 이름 변경을 방지한다. 종료 후 잠금이 해제됨을 검증한다. 디렉터리 handle은 읽기·쓰기 공유를 허용하여 hard-link capability probe와 함께 동작하며, payload 파일의 write 공유는 허용하지 않는다. watcher는 native reparse 속성을 검사하여 실제 심볼릭 링크 루트와 하위 항목을 제외한다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 4,
+      "end_line": 4,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 5,
+      "end_line": 5,
+      "raw": "동기화 한 회차의 사진 identity 예산 16개는 업로드 승인 후 재조회에도 유지된다. 재시작한 다음 회차에 나머지 항목이 내려받아지는 기존 회귀 시나리오와 중복 없는 16개 경로를 검증한다. 다수의 실제 파일 전송 시나리오를 포함한 Qt 테스트 실행 파일의 총 CTest 제한은 600초이다. 개별 작업·전송 응답 제한은 유지한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 6,
+      "end_line": 6,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "MetadataFirst의 사진 identity 예산은 실제 commit한 파일을 기준으로 start 한 번당 16개이다. 저널 재조회는 선택 목록만 갱신하며 완료 예산을 초기화하지 않는다.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 8,
+      "end_line": 8,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 9,
+      "end_line": 9,
+      "raw": "전체 manifest 순서 회귀 테스트의 Windows 대기 예산은 외장 NTFS의 파일별 metadata I/O를 반영하여 60초이다. 실제 manifest가 모두 교환되기 전 파일 바이트가 전송되지 않는다는 assertion과 transfer window 검증은 유지한다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Windows 파일 시스템 검증",
+      "anchor": "windows-파일-시스템-검증",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 3,
+        "text": "native directory handle은 delete 공유를 차단하여 활성 replica의 루트 및 journal 이름 변경을 방지한다. 종료 후 잠금이 해제됨을 검증한다. 디렉터리 handle은 읽기·쓰기 공유를 허용하여 hard-link capability probe와 함께 동작하며, payload 파일의 write 공유는 허용하지 않는다. watcher는 native reparse 속성을 검사하여 실제 심볼릭 링크 루트와 하위 항목을 제외한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 7,
+        "text": "MetadataFirst의 사진 identity 예산은 실제 commit한 파일을 기준으로 start 한 번당 16개이다. 저널 재조회는 선택 목록만 갱신하며 완료 예산을 초기화하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}
