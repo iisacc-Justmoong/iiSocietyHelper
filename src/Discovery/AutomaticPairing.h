@@ -20,6 +20,7 @@ signals:
     void changed();
 private:
     void schedule();
+    void armDeadline();
     void pump();
     void finish(bool success);
     void reset();

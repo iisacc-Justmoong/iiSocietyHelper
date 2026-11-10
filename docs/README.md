@@ -11,10 +11,13 @@ Markdown is the maintained human source. Agent JSON is a structured, source-trac
 | [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |
 | [`docs/ApplicationStorage.md`](ApplicationStorage.md) | [JSON](ApplicationStorage.agent.json) |
 | [`docs/BuildComponents.md`](BuildComponents.md) | [JSON](BuildComponents.agent.json) |
+| [`docs/BuildLayout.md`](BuildLayout.md) | [JSON](BuildLayout.agent.json) |
 | [`docs/CanvasProfiles.md`](CanvasProfiles.md) | [JSON](CanvasProfiles.agent.json) |
 | [`docs/Client.md`](Client.md) | [JSON](Client.agent.json) |
 | [`docs/Consolidation.md`](Consolidation.md) | [JSON](Consolidation.agent.json) |
 | [`docs/ConsolidationVerification.md`](ConsolidationVerification.md) | [JSON](ConsolidationVerification.agent.json) |
+| [`docs/DynamicLinking.md`](DynamicLinking.md) | [JSON](DynamicLinking.agent.json) |
+| [`docs/FILESYSTEM_SHUTDOWN.md`](FILESYSTEM_SHUTDOWN.md) | [JSON](FILESYSTEM_SHUTDOWN.agent.json) |
 | [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |
 | [`docs/FilePresentation.md`](FilePresentation.md) | [JSON](FilePresentation.agent.json) |
 | [`docs/Generation/FILE_PROVIDER.md`](Generation/FILE_PROVIDER.md) | [JSON](Generation/FILE_PROVIDER.agent.json) |

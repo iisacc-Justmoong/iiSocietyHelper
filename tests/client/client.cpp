@@ -1,5 +1,9 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Client.h>
 #include <iiSocietyHelper/FileDownload.h>
+#include <iiSocietyHelper/FileHost.h>
+#include <iiSocietyHelper/LocalClient.h>
+#include <iiSocietyHelper/LocalService.h>
 #include <iiSocietyHelper.h>
 #include <iiSocietyHelper/GroupSessionStore.h>
 #include <QScopeGuard>
@@ -14,14 +18,18 @@
 #include "MemorySessionStore.h"
 #include "FakeDiscoveryService.h"
 #include "PairingCredentialsFixture.h"
+#include "../../src/Client/LocalFrame.h"
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QLockFile>
+#include <QLocalSocket>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QImage>
 #include <QBuffer>
+#include <utility>
 #include <iiFileProviderPresentation.h>
 class ClientTests : public QObject {
     Q_OBJECT
@@ -52,7 +60,16 @@ class ClientTests : public QObject {
         QVERIFY(other.connectHost()); QTRY_VERIFY_WITH_TIMEOUT(other.connected(), 10000);
         QSignalSpy otherResponses(&other, &iiSocietyHelper::Client::hostDriveResponse);
         iiSocietyHelper::Client client(&account, &discovery, QHostAddress::LocalHost);
-        iiSocietyHelper::FileDownload download(&files, &client);
+        QTemporaryDir serviceRoot((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/local-service-XXXXXX"))); QVERIFY(serviceRoot.isValid());
+        iiSocietyHelper::LocalService service(&account, [](const QString &product, const QString &app) {
+            return product == "dreamscapes" && app == "com.iisacc.dreamscapes";
+        }, &discovery, QHostAddress::LocalHost);
+        QVERIFY(service.listen(serviceRoot.path()));
+        iiSocietyHelper::LocalClient transport("dreamscapes", "com.iisacc.dreamscapes",
+            account.manager()->deviceInfo().value("id").toString(), service.path());
+        transport.setExpectedSubject(account.manager()->account()->sub());
+        QSignalSpy transferResponses(&transport, &iiSocietyHelper::FileHost::hostDriveResponse);
+        iiSocietyHelper::FileDownload download(&files, transport);
         QSignalSpy ready(&download, &iiSocietyHelper::FileDownload::ready);
         const auto id = files.containerId();
         // A different app may own its normal sync session. Explicit hydration
@@ -60,14 +77,28 @@ class ClientTests : public QObject {
         QLockFile otherSession(replicaRoot.filePath(".society-sync/client-session.lock"));
         otherSession.setStaleLockTime(0); QVERIFY(otherSession.tryLock());
         const auto queuedBefore = QDir(replicaRoot.filePath(".society-sync/requests")).entryList({"*.json"}, QDir::Files);
-        const auto wait = [&] { return QTest::qWaitFor([&] { return !download.active(); }, 35000); };
+        // The application's per-request deadline remains 30 seconds; the
+        // complete transfer may legitimately require several such requests.
+        const auto wait = [&] { return QTest::qWaitFor([&] { return !download.active(); }, 120000); };
         const auto contents = [](const QString &path) { QFile file(path); return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{}; };
+        {
+            iiSocietyHelper::FileDownload legacy(&files, &client);
+            QVERIFY(legacy.start("files/legacy.bin", id));
+            QVERIFY(QTest::qWaitFor([&] { return !legacy.active(); }, 120000));
+            QCOMPARE(legacy.state().value("state").toString(), "ready");
+            QCOMPARE(contents(replicaRoot.filePath("Files/legacy.bin")), QByteArray(300123, 'l'));
+        }
         for (const auto &key : {QString("files/nested % #/document.iisc"), QString("generation-history/download.png")}) {
             const auto relative = iiSocietyContainer::StorageMap::physicalPath(key);
             QVERIFY(!QFileInfo::exists(replicaRoot.filePath(relative)));
             QVERIFY(download.start(key, id)); QVERIFY(download.start(key, id));
             QVERIFY2(wait(), qPrintable(QJsonDocument::fromVariant(download.state()).toJson() + client.status().toUtf8()));
-            QCOMPARE(download.state().value("state").toString(), "ready");
+            QVERIFY2(download.state().value("state").toString() == "ready",
+                     qPrintable(QJsonDocument::fromVariant(download.state()).toJson(QJsonDocument::Compact)
+                                + " client=" + QJsonDocument(transport.hostBinding()).toJson(QJsonDocument::Compact)
+                                + " connected=" + QByteArray::number(transport.connected())
+                                + " responses=" + QByteArray::number(transferResponses.size())
+                                + " other=" + QByteArray::number(other.connected())));
             QVERIFY(!ready.isEmpty()); const auto file = ready.last().first().toMap();
             QCOMPARE(file.value("key").toString(), key); QVERIFY(file.value("available").toBool());
             QCOMPARE(file.value("source").toUrl().toLocalFile(), replicaRoot.filePath(relative));
@@ -76,6 +107,7 @@ class ClientTests : public QObject {
             QVERIFY(other.connected());
             QVERIFY(driveResponse(otherResponses, other.statHostEntry("models/model.safetensors")).value("ok").toBool());
         }
+        QVERIFY(transferResponses.size() >= 6);
         const auto beforeCancel = ready.size();
         bool cancelAfterChunk = true;
         const auto cancellation = connect(&download, &iiSocietyHelper::FileDownload::changed, this, [&] {
@@ -100,7 +132,7 @@ class ClientTests : public QObject {
         QVERIFY(!download.start("../outside", id));
         QVERIFY(!download.start("files/cancel.bin", "stale-container"));
         QVERIFY(download.start("files/switch.bin", id));
-        QTemporaryDir second(CLIENT_TEST_DIRECTORY "/download-switch-XXXXXX.societycontainer");
+        QTemporaryDir second((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/download-switch-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(second.path())); QVERIFY(files.open(second.path()));
         QVERIFY(!download.active()); QCOMPARE(download.state().value("state").toString(), "cancelled");
         QTest::qWait(100); QCOMPARE(ready.size(), beforeCorrupt);
@@ -111,7 +143,8 @@ class ClientTests : public QObject {
         QVERIFY(offline.start("files/local.txt", files.containerId())); QTRY_COMPARE(localReady.size(), 1);
         QCOMPARE(offline.state().value("state").toString(), "ready");
     }
-    void verifyDirectHostAccess(AccountSession &account, FakeDiscoveryService &discovery, const QTemporaryDir &hostRoot) {
+    void verifyDirectHostAccess(AccountSession &account, FakeDiscoveryService &discovery, const QTemporaryDir &hostRoot,
+                                int &inspectionFaults, int &injectedFaults) {
         iiSocietyHelper::Client client(&account, &discovery, QHostAddress::LocalHost);
         const auto mirror = client.container(); QVERIFY(mirror); QVERIFY(!mirror->available());
         QVERIFY(client.metaObject()->indexOfProperty("container") >= 0);
@@ -150,12 +183,19 @@ class ClientTests : public QObject {
         QByteArray png; QBuffer output(&png); QVERIFY(output.open(QIODevice::WriteOnly)); QVERIFY(image.save(&output, "PNG"));
         const iiFileProvider::native::FilePreview preview{"image/png", "image", png.toStdString(), 512, 512};
         (void)iiFileProvider::native::Presentation::attach(std::filesystem::path(hostRoot.filePath("Models/model.safetensors").toStdU16String()), preview);
+        inspectionFaults = 1;
         const auto rich = response(client.inspectHostFile("models/model.safetensors"));
         QVERIFY2(rich.value("ok").toBool(), qPrintable(rich.value("error").toString()));
+        QCOMPARE(injectedFaults, 1);
         const auto remotePreview = rich.value("information").toObject().value("preview").toObject();
         QCOMPARE(remotePreview.value("kind").toString(), "image");
         QVERIFY(remotePreview.value("data").toString().size() > iiSocietyHelper::Sync::Replica::ChunkBytes);
         QCOMPARE(QByteArray::fromBase64(remotePreview.value("data").toString().toLatin1()), png);
+        inspectionFaults = 100; const auto beforeFailures = injectedFaults;
+        const auto unstable = response(client.inspectHostFile("models/model.safetensors"));
+        QCOMPARE(unstable.value("error").toString(), QStringLiteral("drive_information_changed"));
+        QCOMPARE(injectedFaults - beforeFailures, 3);
+        inspectionFaults = 0;
         auto busy = std::make_shared<QLockFile>(hostRoot.filePath(".society-sync/operation.lock"));
         busy->setStaleLockTime(0); QVERIFY(busy->tryLock(2000));
         QTimer::singleShot(300, &client, [busy] { busy->unlock(); });
@@ -192,8 +232,43 @@ class ClientTests : public QObject {
         QVERIFY(client.listHostDirectory().isEmpty());
     }
 private slots:
+    void automaticPairingIdleDoesNotPoll() {
+        FakeDiscoveryService discovery;
+        NearbyDevices nearby(&discovery, QHostAddress::LocalHost);
+        iiWebServer::LanPeer peer;
+        AutomaticPairing pairing(&nearby, &peer, [] { return false; }, [](const QString &) { return false; }, [] {});
+        auto *timer = pairing.findChild<QTimer *>(QString(), Qt::FindDirectChildrenOnly);
+        QVERIFY(timer);
+        QVERIFY(timer->isSingleShot());
+        QCoreApplication::processEvents();
+        QVERIFY(!timer->isActive());
+        pairing.setEnabled(false);
+        QVERIFY(!timer->isActive());
+    }
+    void automaticPairingRetriesAtDeadline() {
+        FakeDiscoveryService hostDiscovery, phoneDiscovery;
+        phoneDiscovery.publishDepartures = true;
+        NearbyDevices host(&hostDiscovery, QHostAddress::LocalHost);
+        NearbyDevices phone(&phoneDiscovery, QHostAddress::LocalHost);
+        iiWebServer::LanPeer peer;
+        int attempts = 0;
+        AutomaticPairing pairing(&host, &peer, [&] { ++attempts; return false; }, [](const QString &) { return false; }, [] {});
+        const auto scope = QString(64, 'a');
+        const auto credentials = pairingCredentialsFixture(scope);
+        host.setIdentity(scope, "host", "Host", "pc", true);
+        phone.setIdentity(scope, "phone", "Phone", "phone", false);
+        host.setCredentials(credentials, true, "host");
+        phone.setCredentials(credentials, false, "host");
+        QVERIFY(host.authenticated()); QVERIFY(phone.authenticated());
+        phoneDiscovery.announceTo(hostDiscovery);
+        QTRY_VERIFY_WITH_TIMEOUT(attempts >= 2, 3000);
+        phoneDiscovery.stop();
+        auto *timer = pairing.findChild<QTimer *>(QString(), Qt::FindDirectChildrenOnly);
+        QVERIFY(timer);
+        QTRY_VERIFY(!timer->isActive());
+    }
     void applicationsOnTheRegisteredHostUseItsNativeDriveWithoutASelfPeer() {
-        QTemporaryDir root(CLIENT_TEST_DIRECTORY "/same-device-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/same-device-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         QFile model(root.filePath("Models/registered.bin")); QVERIFY(model.open(QIODevice::WriteOnly)); model.write("indexed model"); model.close();
         AccountServer authority; QVERIFY(authority.server.listen(QHostAddress::LocalHost));
@@ -210,7 +285,7 @@ private slots:
         QFile unindexed(root.filePath("Files/not-indexed.txt")); QVERIFY(unindexed.open(QIODevice::WriteOnly)); unindexed.write("live native data"); unindexed.close();
         const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
         const auto restore = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", previous); });
-        QTemporaryDir unrelated(CLIENT_TEST_DIRECTORY "/unrelated-host-XXXXXX.societycontainer");
+        QTemporaryDir unrelated((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/unrelated-host-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(unrelated.path()));
         qputenv("SOCIETY_CONTAINER_PATH", unrelated.path().toUtf8());
         FakeDiscoveryService discovery; iiSocietyHelper::Client client(&account, &discovery, QHostAddress::LocalHost);
@@ -245,7 +320,7 @@ private slots:
         QVERIFY(!client.connectHost()); QVERIFY(!client.container()->available());
     }
     void stateCreatedBeforeSelectionSavesAfterThePackageAppears() {
-        QTemporaryDir fixture(CLIENT_TEST_DIRECTORY "/late-group-XXXXXX.societycontainer");
+        QTemporaryDir fixture((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/late-group-XXXXXX.societycontainer")));
         QVERIFY(fixture.isValid());
         const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
         const auto cleanup = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", previous); });
@@ -261,6 +336,44 @@ private slots:
         QCOMPARE(store.directory(), fixture.filePath(".society-runtime/state"));
         done = false; store.read("late-selection-fixture", [&](auto value) { result = value; done = true; });
         QTRY_VERIFY(done); QCOMPARE(result.data, QByteArray("synthetic record"));
+    }
+
+    void stateRemovalReportsLegacyFailure() {
+        QTemporaryDir fixture((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/group-remove-XXXXXX"))); QVERIFY(fixture.isValid());
+        MemorySessionStore keys, legacy; legacy.failRemove = true;
+        GroupSessionStore store(fixture.path(), &keys, &legacy);
+        using Store = iisacc::accounts::SessionStore;
+        Store::Result result; bool done = false;
+        store.remove("synthetic", [&](auto value) { result = value; done = true; });
+        QTRY_VERIFY(done); QCOMPARE(result.error, Store::Error::Unavailable);
+    }
+
+    void stateRemovalAcceptsMissingLegacyEntry() {
+        class MissingLegacy final : public MemorySessionStore {
+            void remove(const QString &, Completion done) override { done({Error::Missing, {}}); }
+        } legacy;
+        QTemporaryDir fixture((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/group-missing-XXXXXX"))); QVERIFY(fixture.isValid());
+        MemorySessionStore keys;
+        GroupSessionStore store(fixture.path(), &keys, &legacy);
+        using Store = iisacc::accounts::SessionStore;
+        Store::Result result; bool done = false;
+        store.remove("synthetic", [&](auto value) { result = value; done = true; });
+        QTRY_VERIFY(done); QCOMPARE(result.error, Store::Error::None);
+    }
+
+    void stateRemovalReportsTombstoneFailure() {
+        QTemporaryDir fixture((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/group-tombstone-XXXXXX"))); QVERIFY(fixture.isValid());
+        MemorySessionStore keys;
+        GroupSessionStore store(fixture.path(), &keys, nullptr);
+        const auto name = QString::fromLatin1(QCryptographicHash::hash(QByteArray("synthetic"), QCryptographicHash::Sha256).toHex()) + ".state";
+        const auto target = fixture.filePath("untouched-target");
+        QFile file(target); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("fixture"); file.close();
+        QVERIFY(QFile::link(target, fixture.filePath(name)));
+        using Store = iisacc::accounts::SessionStore;
+        Store::Result result; bool done = false;
+        store.remove("synthetic", [&](auto value) { result = value; done = true; });
+        QTRY_VERIFY(done); QCOMPARE(result.error, Store::Error::Unavailable);
+        QVERIFY(file.open(QIODevice::ReadOnly)); QCOMPARE(file.readAll(), QByteArray("fixture"));
     }
 
     void savedHostRoutesReconnectWithoutBonjourAndRequireFreshProof() {
@@ -349,11 +462,84 @@ private slots:
         discovery->stop();
         discovery->stop();
     }
+    void localServiceEnforcesDeviceAndCurrentEntitlement() {
+#if defined(Q_OS_UNIX)
+        AccountServer authority; QVERIFY(authority.server.listen(QHostAddress::LocalHost));
+        MemorySessionStore state; AccountSession account(authority.url(), &state, nullptr);
+        QVERIFY(account.login("builder@example.com", "FixtureOnly1!")); QTRY_VERIFY(account.signedIn()); QTRY_VERIFY(!account.busy());
+        QTemporaryDir root((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/broker-XXXXXX"))); QVERIFY(root.isValid());
+        bool authorized = true; int checks = 0;
+        iiSocietyHelper::LocalService service(&account, [&](const QString &product, const QString &app) {
+            ++checks;
+            return authorized && product == "dreamscapes" && app == "com.iisacc.dreamscapes";
+        });
+        QVERIFY(service.listen(root.path()));
+        const auto hello = [&](const QString &device) { return iiSocietyHelper::LocalFrame::encode({{"op", "hello"},
+            {"productId", "dreamscapes"}, {"appId", "com.iisacc.dreamscapes"}, {"deviceId", device}}); };
+        QLocalSocket wrong; wrong.connectToServer(service.path()); QTRY_COMPARE(wrong.state(), QLocalSocket::ConnectedState);
+        QVERIFY(wrong.write(hello(QString(64, 'f'))) > 0); wrong.flush(); QTRY_COMPARE(wrong.state(), QLocalSocket::UnconnectedState);
+        QLocalSocket socket; socket.connectToServer(service.path()); QTRY_COMPARE(socket.state(), QLocalSocket::ConnectedState);
+        QVERIFY(socket.write(hello(account.manager()->deviceInfo().value("id").toString())) > 0); socket.flush();
+        iiSocietyHelper::LocalFrame responses; QTRY_VERIFY(socket.bytesAvailable() > 0);
+        QVERIFY(responses.append(socket.readAll()));
+        QJsonObject ready;
+        QTRY_VERIFY(([&] { if (!ready.isEmpty()) return true; if (auto value = responses.take()) { ready = *value; return true; }
+            if (socket.bytesAvailable()) responses.append(socket.readAll()); return false; })());
+        QCOMPARE(ready.value("type").toString(), "ready");
+        authorized = false;
+        QVERIFY(socket.write(iiSocietyHelper::LocalFrame::encode({{"op", "sync"}})) > 0); socket.flush();
+        QTRY_COMPARE(socket.state(), QLocalSocket::UnconnectedState);
+        authorized = true; const auto before = checks;
+        iiSocietyHelper::LocalClient proxy("dreamscapes", "com.iisacc.dreamscapes",
+            account.manager()->deviceInfo().value("id").toString(), service.path());
+        proxy.setExpectedSubject("different-account"); QVERIFY(proxy.observe());
+        QTRY_VERIFY(checks > before); QTest::qWait(100); QVERIFY(!proxy.sessionBound());
+        proxy.setExpectedSubject(account.manager()->account()->sub()); QTRY_VERIFY(proxy.sessionBound());
+        QSignalSpy boundChanges(&proxy, &iiSocietyHelper::LocalClient::sessionChanged);
+        authorized = false; proxy.synchronizeNow(); QTRY_VERIFY(!proxy.sessionBound());
+        QVERIFY(!boundChanges.isEmpty()); QCOMPARE(boundChanges.last().first().toBool(), false);
+        service.stop();
+#endif
+    }
+    void pairingRequestedDuringRestoreIsRetriedAfterRestore() {
+        AccountServer authority; QVERIFY(authority.server.listen(QHostAddress::LocalHost));
+        MemorySessionStore state; state.holdRead = true;
+        AccountSession account(authority.url(), &state, nullptr);
+        QVERIFY(account.login("builder@example.com", "FixtureOnly1!")); QTRY_VERIFY(account.signedIn());
+        QTRY_VERIFY(!account.busy()); QTRY_VERIFY(bool(state.releaseRead));
+        account.requestPairingCredentials();
+        QVERIFY(account.pairingCredentials().isEmpty());
+        const auto release = std::move(state.releaseRead); release();
+        QTRY_VERIFY(!account.pairingCredentials().isEmpty());
+        int requests = 0;
+        for (const auto &request : authority.requests) if (request.value("intent") == "pairing") ++requests;
+        QCOMPARE(requests, 1);
+    }
+    void pairingRequestedDuringRestoreIsDiscardedOnLogout() {
+        AccountServer authority; QVERIFY(authority.server.listen(QHostAddress::LocalHost));
+        MemorySessionStore state; state.holdRead = true;
+        AccountSession account(authority.url(), &state, nullptr);
+        QVERIFY(account.login("builder@example.com", "FixtureOnly1!")); QTRY_VERIFY(account.signedIn());
+        QTRY_VERIFY(!account.busy()); QTRY_VERIFY(bool(state.releaseRead));
+        account.requestPairingCredentials(); QVERIFY(account.logout());
+        const auto release = std::move(state.releaseRead); release();
+        QTRY_VERIFY(!account.signedIn()); QTest::qWait(100);
+        QVERIFY(account.pairingCredentials().isEmpty());
+        for (const auto &request : authority.requests) QVERIFY(request.value("intent") != "pairing");
+    }
     void accountProofRejectsTamperingExpiryAndCrossAccount() {
         AccountServer authority; QVERIFY(authority.server.listen(QHostAddress::LocalHost));
         MemorySessionStore state; AccountSession account(authority.url(), &state, nullptr);
         QVERIFY(account.login("builder@example.com", "FixtureOnly1!")); QTRY_VERIFY(account.signedIn());
         QTRY_VERIFY(!account.busy()); account.requestPairingCredentials(); QTRY_VERIFY(!account.pairingCredentials().isEmpty());
+        int pairingRequest = -1;
+        for (qsizetype i = 0; i < authority.requests.size(); ++i)
+            if (authority.requests[i].value("intent") == "pairing") pairingRequest = int(i);
+        QVERIFY(pairingRequest >= 0);
+        const auto headers = authority.headers.at(pairingRequest).toLower();
+        QVERIFY(headers.contains("origin: " + authority.url().toEncoded()));
+        QVERIFY(headers.contains("iisacc_login_session=fixture-session"));
+        QVERIFY(headers.contains("cache-control: no-store"));
         const auto credentials = account.pairingCredentials(); const QByteArray context("client\nunique-offer-and-nonce");
         const auto proof = SocietyPairingCredentials::sign(credentials, context); QVERIFY(!proof.isEmpty());
         QVERIFY(SocietyPairingCredentials::verify(credentials, context, proof));
@@ -386,24 +572,30 @@ private slots:
 
     void downloadsAndUploadsWithoutASocietyApplicationProcess_data() {
         QTest::addColumn<bool>("useRelay");
-        QTest::newRow("saved-server") << true;
-        QTest::newRow("automatic-local-network") << false;
+        QTest::addColumn<bool>("verifyDirect");
+        QTest::newRow("saved-server") << true << true;
+        QTest::newRow("automatic-local-network") << false << true;
+        // Isolate gateway coverage from unrelated provider-preview inspection.
+        QTest::newRow("gateway-relay") << true << false;
+        QTest::newRow("gateway-lan") << false << false;
     }
     void downloadsAndUploadsWithoutASocietyApplicationProcess() {
         QFETCH(bool, useRelay);
+        QFETCH(bool, verifyDirect);
         AccountServer authority; QVERIFY(authority.server.listen(QHostAddress::LocalHost)); QVERIFY(!authority.profile.isEmpty());
         MemorySessionStore state; AccountSession account(authority.url(), &state, nullptr);
         auto device = account.manager()->deviceInfo(); device["id"] = QString(64, '2');
         QVERIFY(account.manager()->setDeviceInfo(device));
         QVERIFY(account.login("builder@example.com", "FixtureOnly1!")); QTRY_VERIFY(account.signedIn());
         QTRY_VERIFY(!account.busy());
-        QTemporaryDir hostRoot(CLIENT_TEST_DIRECTORY "/host-XXXXXX.societycontainer"), phoneRoot(CLIENT_TEST_DIRECTORY "/phone-XXXXXX.societycontainer");
+        QTemporaryDir hostRoot((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/host-XXXXXX.societycontainer"))), phoneRoot((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/phone-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(hostRoot.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(phoneRoot.path()));
         QFile model(hostRoot.filePath("Models/model.safetensors")); QVERIFY(model.open(QIODevice::WriteOnly)); model.write(QByteArray(800123, 'm')); model.close();
         QVERIFY(QDir().mkpath(hostRoot.filePath("Files/nested % #")));
         const QMap<QString, QByteArray> downloadFiles{{"Files/nested % #/document.iisc", QByteArray(600123, 'f')},
             {"Generation History/download.png", QByteArray(700123, 'h')}, {"Files/cancel.bin", QByteArray(900123, 'c')},
-            {"Files/corrupt.bin", QByteArray(900123, 'o')}, {"Files/switch.bin", QByteArray(900123, 's')}};
+            {"Files/corrupt.bin", QByteArray(900123, 'o')}, {"Files/switch.bin", QByteArray(900123, 's')},
+            {"Files/legacy.bin", QByteArray(300123, 'l')}};
         for (auto it = downloadFiles.cbegin(); it != downloadFiles.cend(); ++it) {
             QFile file(hostRoot.filePath(it.key())); QVERIFY(file.open(QIODevice::WriteOnly)); QCOMPARE(file.write(it.value()), it.value().size());
         }
@@ -434,9 +626,16 @@ private slots:
         hosting.setPeers({phoneId}, {});
         QSet<QString> authorizedSessions{phoneId};
         iiWebServer::Peer host;
+        int inspectionFaults = 0, injectedFaults = 0;
         const auto handle = [&](const QString &peer, const QJsonObject &payload) {
             if (payload.value("op") == "society.generation")
                 return QJsonObject{{"ok", true}, {"peer", peer}, {"echo", payload}};
+            const auto message = payload.value("message").toObject();
+            if (message.value("action") == "drive.inspect" && message.value("offset").toString().toLongLong() > 0
+                && inspectionFaults > 0) {
+                --inspectionFaults; ++injectedFaults;
+                return QJsonObject{{"ok", true}, {"result", QJsonObject{{"ok", false}, {"error", "drive_information_changed"}}}};
+            }
             // As in Society's host, the LAN/relay handler receives only an
             // authenticated account peer. Direct clients need not advertise a
             // hosted file service in the relay's host directory.
@@ -473,18 +672,26 @@ private slots:
             });
             announcements.start(50);
         }
-        verifyDirectHostAccess(account, discovery, hostRoot);
-        if (QTest::currentTestFailed()) return;
+        if (verifyDirect) {
+            verifyDirectHostAccess(account, discovery, hostRoot, inspectionFaults, injectedFaults);
+            if (QTest::currentTestFailed()) return;
+        }
         verifyNativeFileDownloads(account, discovery, hostDiscovery, hostRoot, phoneRoot);
         if (QTest::currentTestFailed()) return;
-        iiSocietyHelper::Client consumer(&account, &discovery, QHostAddress::LocalHost);
+        QTemporaryDir localRoot((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/local-generation-XXXXXX"))); QVERIFY(localRoot.isValid());
+        iiSocietyHelper::LocalService gateway(&account, [](const QString &product, const QString &app) {
+            return product == "dreamscapes" && app == "com.iisacc.dreamscapes";
+        }, &discovery, QHostAddress::LocalHost);
+        QVERIFY(gateway.listen(localRoot.path()));
+        iiSocietyHelper::LocalClient consumer("dreamscapes", "com.iisacc.dreamscapes", phoneId, gateway.path());
+        consumer.setExpectedSubject(account.manager()->account()->sub());
         QVERIFY(consumer.requestHost({{"op", "society.generation"}}).isEmpty());
         // Completed direct-session fixtures are retired by the bounded nearby
         // endpoint lifetime; reconnect using the SDK's 30-second open budget.
         QVERIFY(consumer.start(phoneRoot.path())); QTRY_VERIFY2_WITH_TIMEOUT(consumer.connected(),
-            qPrintable(consumer.status() + ' ' + hostPairing.status() + ' ' + hostLan.phase() + ' ' + hostLan.errorString()), 30000);
+            qPrintable(hostPairing.status() + ' ' + hostLan.phase() + ' ' + hostLan.errorString()), 30000);
         iiSocietyContainer::StorageMap map(*iiSocietyContainer::SocietyDrive::open(phoneRoot.path()));
-        QSignalSpy responses(&consumer, &iiSocietyHelper::Client::hostResponse);
+        QSignalSpy responses(&consumer, &iiSocietyHelper::LocalClient::hostResponse);
         const auto rpc = consumer.requestHost({{"op", "society.generation"}, {"action", "submit"}});
         QVERIFY(!rpc.isEmpty()); QTRY_COMPARE(responses.size(), 1);
         QCOMPARE(responses[0][0].toString(), rpc);
@@ -496,9 +703,13 @@ private slots:
         QFile image(phoneRoot.filePath("Generation History/generated.png")); QVERIFY(image.open(QIODevice::WriteOnly)); image.write("completed output"); image.close();
         consumer.synchronizeNow();
         QTRY_VERIFY_WITH_TIMEOUT(QFileInfo::exists(hostRoot.filePath("Generation History/generated.png")), 30000);
+        consumer.setExpectedSubject("different-account"); QVERIFY(!consumer.connected());
+        QTest::qWait(200); QVERIFY(!consumer.connected());
+        QVERIFY(consumer.requestHost({{"op", "society.generation"}}).isEmpty());
+        consumer.setExpectedSubject(account.manager()->account()->sub());
+        QTRY_VERIFY_WITH_TIMEOUT(consumer.connected(), 30000);
         QVERIFY(account.logout()); QTRY_VERIFY(!account.signedIn()); QTRY_VERIFY(!consumer.connected());
-        QVERIFY(!consumer.container()->available()); QVERIFY(consumer.container()->aliases().isEmpty());
-        QVERIFY(consumer.hostSections().isEmpty()); QVERIFY(consumer.statHostEntry("models/model.safetensors").isEmpty());
+        QVERIFY(consumer.hostBinding().isEmpty()); QVERIFY(consumer.statHostEntry("models/model.safetensors").isEmpty());
         QVERIFY(consumer.requestHost({{"op", "society.generation"}}).isEmpty());
         consumer.stop(); hosting.closeAndWait(); host.stop(); relay.stop();
     }

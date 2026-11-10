@@ -1,9 +1,13 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Generation/Host.h>
 #include <iiSocietyHelper/Generation/Remote.h>
 #include <SharedStorage.h>
 #include <QTemporaryDir>
 #include <QFile>
 #include <QSignalSpy>
+#include <QElapsedTimer>
+#include <QSemaphore>
+#include <QScopeGuard>
 #include <QImage>
 #include <QTest>
 #include <QUuid>
@@ -32,8 +36,42 @@ iiLocalDiffusion::NativeGenerationResult pixels(const iiLocalDiffusion::NativeGe
 class GenerationTests : public QObject {
     Q_OBJECT
 private slots:
+    void destructionDoesNotWaitForAnUnresponsiveInference() {
+        QTemporaryDir root((society_test::root(QString::fromUtf8(GENERATION_TEST_DIRECTORY)) + QStringLiteral("/host-stop-XXXXXX.societycontainer")));
+        QVERIFY(setup(root.path()));
+        auto entered = std::make_shared<QSemaphore>();
+        auto release = std::make_shared<QSemaphore>();
+        auto finished = std::make_shared<QSemaphore>();
+        const auto unblock = qScopeGuard([release] { release->release(); });
+        // A bounded watchdog makes the regression fail rather than hang when
+        // a destructor accidentally waits for the blocked engine.
+        std::jthread watchdog([release](std::stop_token stop) {
+            for (int i = 0; i < 300 && !stop.stop_requested(); ++i)
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            if (!stop.stop_requested()) release->release();
+        });
+        auto host = std::make_unique<Host>([=](const auto &, const auto &, const auto &, const auto &progress) {
+            entered->release(); release->acquire();
+            progress({iiLocalDiffusion::NativeGenerationStage::Loading, 1, 1});
+            finished->release();
+            iiLocalDiffusion::NativeGenerationResult result; result.cancelled = true; return result;
+        });
+        QVERIFY(host->open(root.path()));
+        const auto job = makeJob(root.path());
+        QVERIFY(host->handle("phone", wire(job, "submit")).value("ok").toBool());
+        QTRY_VERIFY_WITH_TIMEOUT(entered->available() > 0, 3000);
+        QElapsedTimer elapsed; elapsed.start();
+        host->shutdownAsync();
+        host.reset();
+        QVERIFY2(elapsed.elapsed() < 500, "Host destruction waited for inference");
+        release->release();
+        QTRY_VERIFY_WITH_TIMEOUT(finished->available() > 0, 3000);
+        QCoreApplication::processEvents();
+        QVERIFY(!QFile::exists(root.path() + "/Models/.society-runtime/iiSocietyGeneration/"
+                               + job.value("id").toString() + ".png"));
+    }
     void serializesMultipleClientsWithoutLosingCompletedJobs() {
-        QTemporaryDir root(GENERATION_TEST_DIRECTORY "/host-XXXXXX.societycontainer"); QVERIFY(setup(root.path()));
+        QTemporaryDir root((society_test::root(QString::fromUtf8(GENERATION_TEST_DIRECTORY)) + QStringLiteral("/host-XXXXXX.societycontainer"))); QVERIFY(setup(root.path()));
         std::atomic_int running{0}, peak{0}, runs{0};
         Host host([&](const auto &request, const auto &, const auto &, const auto &) {
             const int count = ++running; peak.store(std::max(peak.load(), count)); ++runs;
@@ -51,7 +89,7 @@ private slots:
                                   + job.value("id").toString() + ".png"));
     }
     void remoteCompletesWithoutAnyLocalModelAndRetriesSubmitOnce() {
-        QTemporaryDir root(GENERATION_TEST_DIRECTORY "/host-XXXXXX.societycontainer"); QVERIFY(setup(root.path()));
+        QTemporaryDir root((society_test::root(QString::fromUtf8(GENERATION_TEST_DIRECTORY)) + QStringLiteral("/host-XXXXXX.societycontainer"))); QVERIFY(setup(root.path()));
         std::atomic_int runs{0};
         bool defaultModifiers = true;
         Host host([&](const auto &request, const auto &options, const auto &, const auto &progress) {
@@ -80,7 +118,7 @@ private slots:
         QCOMPARE(finished[0][2].toJsonObject().value("backend").toString(), QString("society-host"));
     }
     void rejectsDifferentOwnerChangedReferenceAndIdReuse() {
-        QTemporaryDir root(GENERATION_TEST_DIRECTORY "/host-XXXXXX.societycontainer"); QVERIFY(setup(root.path()));
+        QTemporaryDir root((society_test::root(QString::fromUtf8(GENERATION_TEST_DIRECTORY)) + QStringLiteral("/host-XXXXXX.societycontainer"))); QVERIFY(setup(root.path()));
         Host host([](const auto &request, const auto &, const auto &, const auto &) { return pixels(request); });
         QVERIFY(host.open(root.path())); const auto job = makeJob(root.path());
         QVERIFY(host.handle("phone", wire(job, "submit")).value("ok").toBool());
@@ -94,7 +132,7 @@ private slots:
         QVERIFY(!host.handle("phone", wire(changed, "submit")).value("ok").toBool());
     }
     void cancellationBeforeSubmitAndDuringInference() {
-        QTemporaryDir root(GENERATION_TEST_DIRECTORY "/host-XXXXXX.societycontainer"); QVERIFY(setup(root.path()));
+        QTemporaryDir root((society_test::root(QString::fromUtf8(GENERATION_TEST_DIRECTORY)) + QStringLiteral("/host-XXXXXX.societycontainer"))); QVERIFY(setup(root.path()));
         std::atomic_int runs{0};
         Host host([&](const auto &, const auto &, const auto &cancelled, const auto &) {
             ++runs; while (!cancelled) std::this_thread::sleep_for(std::chrono::milliseconds(2));
@@ -109,7 +147,7 @@ private slots:
         QTRY_COMPARE(host.handle("phone", wire(active, "status")).value("state").toString(), QString("cancelled"));
     }
     void rejectsCorruptImageWithoutReportingCompletion() {
-        QTemporaryDir root(GENERATION_TEST_DIRECTORY "/host-XXXXXX.societycontainer"); QVERIFY(setup(root.path()));
+        QTemporaryDir root((society_test::root(QString::fromUtf8(GENERATION_TEST_DIRECTORY)) + QStringLiteral("/host-XXXXXX.societycontainer"))); QVERIFY(setup(root.path()));
         Host host([](const auto &request, const auto &, const auto &, const auto &) { return pixels(request); });
         QVERIFY(host.open(root.path())); int serial = 0; Remote *receiver = nullptr;
         Remote remote([&](const QJsonObject &request) {

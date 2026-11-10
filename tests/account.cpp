@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include "iiSocietyHelper.h"
 #include <iiAccountManager/AccountManager.h>
 
@@ -243,7 +244,7 @@ private slots:
 
     void observationDoesNotPublishTheReferencedAccount()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/account-presence-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/account-presence-XXXXXX")));
         QVERIFY(directory.isValid());
         AccountManager manager;
         Helper helper;

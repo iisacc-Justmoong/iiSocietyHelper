@@ -10,6 +10,7 @@
 #include <QMap>
 #include <QUuid>
 #include <algorithm>
+#include <limits>
 
 namespace iiSocietyHelper::Sync {
 namespace {
@@ -30,8 +31,8 @@ void order(QList<QJsonObject> &entries) {
 }
 class Synchronizer::Private {
 public:
-    Synchronizer *q; Replica *store; QTimer timeout;
-    Status status;
+    Synchronizer *q; Replica *store; QTimer timeout; QElapsedTimer requestClock;
+    StatusSource status;
     QJsonObject snapshot;
     bool snapshotAcknowledged = false;
     bool active = false; quint64 generation = 0;
@@ -66,12 +67,21 @@ public:
     std::function<void()> manifestReady;
     QElapsedTimer transferSlice;
     bool transferredInSlice = false;
+    void armRequestDeadline() {
+        if (!active || requests.isEmpty()) { timeout.stop(); return; }
+        qint64 earliest = (std::numeric_limits<qint64>::max)();
+        for (const auto &request : std::as_const(requests)) earliest = qMin(earliest, request->deadline);
+        const auto remaining = qBound(qint64(0), earliest - requestClock.elapsed(), qint64((std::numeric_limits<int>::max)()));
+        timeout.start(int(remaining));
+    }
     explicit Private(Synchronizer *owner, Replica *replica) : q(owner), store(replica) {
-        timeout.setInterval(250);
+        requestClock.start(); timeout.setParent(q); timeout.setObjectName(QStringLiteral("Sync.requestDeadline"));
+        timeout.setSingleShot(true); timeout.setTimerType(Qt::PreciseTimer);
         QObject::connect(&timeout, &QTimer::timeout, owner, [this] {
-            const auto now = QDateTime::currentMSecsSinceEpoch();
+            const auto now = requestClock.elapsed();
             for (const auto &request : std::as_const(requests))
                 if (request->deadline <= now) { finish(false, "sync_request_timeout"); return; }
+            armRequestDeadline();
         });
     }
     void finish(bool ok, const QString &error = {}) {
@@ -131,8 +141,8 @@ public:
         auto request = std::make_shared<Request>(); request->callback = std::move(done);
         request->envelope = {{"op", "society.sync"}, {"protocol", 2}, {"namespaceVersion", 1}, {"scope", store->accountScope()},
             {"token", QUuid::createUuid().toString(QUuid::WithoutBraces)}, {"message", message}};
-        request->deadline = QDateTime::currentMSecsSinceEpoch() + 120000;
-        requests.insert(id, request); transmit(id);
+        request->deadline = requestClock.elapsed() + 120000;
+        requests.insert(id, request); armRequestDeadline(); transmit(id);
     }
     void describe() {
         remoteContainer.clear(); remoteId.clear(); earlyPush = false;
@@ -505,7 +515,7 @@ public:
 Synchronizer::Synchronizer(Replica *replica, QObject *parent) : QObject(parent), d(std::make_unique<Private>(this, replica)) {}
 Synchronizer::~Synchronizer() { stop(); }
 bool Synchronizer::busy() const { return d->active; }
-Status &Synchronizer::status() { return d->status; }
+Status &Synchronizer::status() { return d->status.status(); }
 bool Synchronizer::setContentPolicy(ContentPolicy policy) {
     if (d->active) return false;
     d->policy = policy; return true;
@@ -521,7 +531,7 @@ bool Synchronizer::start(const QString &peer) {
     d->transferSlice.invalidate(); d->transferredInSlice = false;
     d->previewsDone = false; d->previews = {}; d->previewIndex = 0;
     d->photoIdentities.clear(); d->hydratedPhotoIdentities.clear();
-    d->pulled = 0; d->pushed = 0; d->timeout.start(); d->describe(); return true;
+    d->pulled = 0; d->pushed = 0; d->describe(); return true;
 }
 void Synchronizer::setExpectedHost(QString host, QString container) {
     stop(); d->expectedHost = std::move(host); d->expectedContainer = std::move(container);
@@ -537,10 +547,10 @@ void Synchronizer::receive(const QString &requestId, const QJsonObject &response
         QTimer::singleShot(delay, this, [guard, revision, requestId] { if (guard && guard->d->active && guard->d->generation == revision) guard->d->transmit(requestId); }); return;
     }
     if (!response.value("result").isObject()) { d->finish(false, "invalid_sync_response"); return; }
-    d->requests.remove(requestId);
+    d->requests.remove(requestId); d->armRequestDeadline();
     if(qEnvironmentVariableIntValue("SOCIETY_SYNC_TRACE")==1)
         qInfo("Society sync request action=%s elapsed_ms=%lld",qPrintable(request->envelope.value("message").toObject().value("action").toString()),
-            120000-(request->deadline-QDateTime::currentMSecsSinceEpoch()));
+            120000-(request->deadline-d->requestClock.elapsed()));
     const auto done = std::move(request->callback); if (done) done(response.value("result").toObject());
 }
 }

@@ -16,6 +16,7 @@
 #include <QTimer>
 #include <QUuid>
 #include <atomic>
+#include <limits>
 #include <utility>
 #ifdef Q_OS_UNIX
 #include <sys/resource.h>
@@ -328,12 +329,19 @@ public:
     std::shared_ptr<std::atomic<quint64>> cancellation = std::make_shared<std::atomic<quint64>>(0);
     std::shared_ptr<std::atomic<quint64>> inspection = std::make_shared<std::atomic<quint64>>(0);
     QMap<QString, Job> jobs; QHash<QString, QString> transportIds; QSet<QString> authorized;
-    Status syncStatus;
+    StatusSource syncStatus;
     QHash<QString, qint64> incomingSnapshots;
     QElapsedTimer snapshotClock;
     QTimer snapshotTimeout;
     QString path, scope, error; bool ready = false, busy = false, opening = false, shutdown = false, hostAccess = false;
     QSet<QThread *> providerThreads;
+    void scheduleSnapshotTimeout() {
+        if (incomingSnapshots.isEmpty() || shutdown) { snapshotTimeout.stop(); return; }
+        qint64 earliest = (std::numeric_limits<qint64>::max)();
+        for (const auto deadline : std::as_const(incomingSnapshots)) earliest = qMin(earliest, deadline);
+        const auto remaining = qBound(qint64(0), earliest - snapshotClock.elapsed(), qint64((std::numeric_limits<int>::max)()));
+        snapshotTimeout.start(int(remaining));
+    }
     void providerTask(const QString &objectPath, std::shared_ptr<ObjectProvider> provider, bool restore) {
         if (shutdown || !provider) return;
         if (!ready || providerThreads.size() >= 2) {
@@ -360,16 +368,17 @@ public:
         task->start();
     }
     Private(Controller *owner, RequestSender sender) : q(owner), send(std::move(sender)), worker(new SyncWorker) {
-        snapshotClock.start(); snapshotTimeout.setInterval(1000);
+        snapshotClock.start(); snapshotTimeout.setParent(q); snapshotTimeout.setObjectName(QStringLiteral("Sync.snapshotDeadline"));
+        snapshotTimeout.setSingleShot(true); snapshotTimeout.setTimerType(Qt::PreciseTimer);
         QObject::connect(&snapshotTimeout, &QTimer::timeout, q, [this] {
             bool expired = false;
             for (auto it = incomingSnapshots.begin(); it != incomingSnapshots.end();) {
                 if (it.value() <= snapshotClock.elapsed()) { it = incomingSnapshots.erase(it); expired = true; }
                 else ++it;
             }
+            scheduleSnapshotTimeout();
             if (expired && incomingSnapshots.isEmpty() && !busy) syncStatus.publish(StatusCode::Failed);
         });
-        snapshotTimeout.start();
         worker->cancellation = cancellation; worker->inspection = inspection; worker->moveToThread(thread);
         thread->setObjectName("iiSocietyHelper::Sync-worker");
         QObject::connect(worker, &SyncWorker::namespaceChanged, q, [this](quint64 generation, QJsonObject state) {
@@ -407,6 +416,7 @@ public:
             const auto peer = jobs[key].peer;
             if (incomingSnapshots.contains(peer) && (!result.value("ok").toBool() || message.value("action") == "snapshot.complete")) {
                 incomingSnapshots.remove(peer);
+                scheduleSnapshotTimeout();
                 if (!busy && incomingSnapshots.isEmpty()) syncStatus.publish(result.value("ok").toBool() ? StatusCode::Complete : StatusCode::Failed);
             }
         });
@@ -441,7 +451,7 @@ Controller::Controller(RequestSender sender, QObject *parent) : QObject(parent),
 Controller::~Controller() { close(); }
 bool Controller::available() const { return d->ready; }
 bool Controller::busy() const { return d->busy; }
-Status &Controller::status() { return d->syncStatus; }
+Status &Controller::status() { return d->syncStatus.status(); }
 QString Controller::errorString() const { return d->error; }
 void Controller::open(const QString &container, const QString &accountScope) {
     openInternal(container, accountScope, false);
@@ -454,7 +464,7 @@ void Controller::openInternal(const QString &container, const QString &accountSc
     if (d->path == container && d->scope == accountScope && d->hostAccess == hostAccess && !accountScope.isEmpty() && (d->ready || d->opening)) return;
     const auto revision = ++*d->cancellation;
     const bool cancelled = container.isEmpty() && (d->busy || !d->incomingSnapshots.isEmpty());
-    d->incomingSnapshots.clear(); d->syncStatus.publish(cancelled ? StatusCode::Cancelled : StatusCode::Before);
+    d->incomingSnapshots.clear(); d->scheduleSnapshotTimeout(); d->syncStatus.publish(cancelled ? StatusCode::Cancelled : StatusCode::Before);
     d->path = container; d->scope = accountScope; d->ready = false; d->busy = false; d->error.clear();
     d->opening = !accountScope.isEmpty(); d->hostAccess = hostAccess;
     d->jobs.clear(); d->transportIds.clear(); d->authorized.clear();
@@ -496,6 +506,7 @@ void Controller::setPeers(const QStringList &authorizedPeers, const QStringList 
         if (!d->authorized.contains(it.key())) { it = d->incomingSnapshots.erase(it); cancelled = true; }
         else ++it;
     }
+    d->scheduleSnapshotTimeout();
     if (cancelled && d->incomingSnapshots.isEmpty() && !d->busy) d->syncStatus.publish(StatusCode::Cancelled);
     QStringList hosts; for (const auto &host : remoteHosts) if (d->authorized.contains(host)) hosts.append(host);
     const auto revision = d->cancellation->load();
@@ -570,6 +581,7 @@ QJsonObject Controller::handle(const QString &peer, const QJsonObject &envelope)
         d->incomingSnapshots.insert(peer, d->snapshotClock.elapsed() + 120000);
     if (d->incomingSnapshots.contains(peer)) {
         d->incomingSnapshots[peer] = d->snapshotClock.elapsed() + 120000;
+        d->scheduleSnapshotTimeout();
         d->syncStatus.publish(StatusCode::InProgress);
     }
     QMetaObject::invokeMethod(d->worker, [w = d->worker, revision, key, peer, message,deadline=now+120000] {

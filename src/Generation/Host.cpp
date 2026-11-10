@@ -1,9 +1,9 @@
 #include <iiFileProviderDevice.h>
 #include "Host.h"
+#include <CallbackGate_p.h>
 #include <SharedStorage.h>
-#include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
-#include <QPointer>
+#include <QPromise>
 #include <QImage>
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QUuid>
 #include <deque>
+#include <thread>
 
 namespace iiSocietyHelper::Generation {
 namespace {
@@ -50,9 +51,12 @@ public:
     QMap<QString, Job> jobs;
     std::deque<QString> queue;
     QFutureWatcher<Result> worker;
+    std::shared_ptr<iiSocietyHelper::detail::CallbackGate> callbacks;
     QString active;
     quint64 epoch = 0;
-    Private(Host *owner, Engine run) : q(owner), engine(std::move(run)) {
+    bool retired = false;
+    Private(Host *owner, Engine run)
+        : q(owner), engine(std::move(run)), callbacks(std::make_shared<iiSocietyHelper::detail::CallbackGate>(owner)) {
         if (!engine) engine = [](const auto &request, const auto &options, const auto &cancelled, const auto &progress) {
             return iiLocalDiffusion::generateNativeImageWithResidentWeights(request, options, cancelled, progress);
         };
@@ -107,17 +111,18 @@ public:
         const auto currentEpoch = epoch;
         const auto cancelled = job.cancelled;
         const auto run = engine;
-        const QPointer<Host> self(q);
-        worker.setFuture(QtConcurrent::run([self, run, request, options, cancelled, id, output, currentEpoch] {
+        const auto gate = callbacks;
+        auto *owner = q;
+        auto operation = [gate, owner, run, request, options, cancelled, id, output, currentEpoch] {
             Result result; result.id = id; result.epoch = currentEpoch;
             try {
-                const auto pixels = run(request, options, *cancelled, [self, id, currentEpoch](const auto &event) {
-                    if (self) QMetaObject::invokeMethod(self, [self, id, currentEpoch, event] {
-                        if (!self || self->d->epoch != currentEpoch || !self->d->jobs.contains(id)) return;
-                        auto &status = self->d->jobs[id].status;
+                const auto pixels = run(request, options, *cancelled, [gate, owner, id, currentEpoch](const auto &event) {
+                    gate->post([owner, id, currentEpoch, event] {
+                        if (owner->d->epoch != currentEpoch || !owner->d->jobs.contains(id)) return;
+                        auto &status = owner->d->jobs[id].status;
                         status["phase"] = phase(event.stage);
                         status["step"] = event.step; status["total"] = event.total;
-                    }, Qt::QueuedConnection);
+                    });
                 });
                 result.cancelled = *cancelled || pixels.cancelled;
                 if (result.cancelled) return result;
@@ -135,19 +140,34 @@ public:
                 if (*cancelled) { result.cancelled = true; return result; }
                 if (iiFileProvider::FileDevice::exists(output)) { result.error = "A host result already exists for this job."; return result; }
                 iiFileProvider::SaveFile file(output);
-                if (!file.open(QIODevice::WriteOnly) || file.write(png) != png.size() || !file.commit()) {
+                if (!file.open(QIODevice::WriteOnly) || file.write(png) != png.size()) {
                     result.error = "Cannot save the generated host image."; return result;
                 }
+                if (*cancelled) { file.cancelWriting(); result.cancelled = true; return result; }
+                if (!file.commit()) { result.error = "Cannot save the generated host image."; return result; }
                 result.bytes = png.size(); result.hash = QCryptographicHash::hash(png, QCryptographicHash::Sha256).toHex();
             } catch (const std::exception &error) { result.error = QString::fromUtf8(error.what()); }
             catch (...) { result.error = "The host inference engine failed."; }
             return result;
-        }));
+        };
+        QPromise<Result> promise;
+        promise.start();
+        auto future = promise.future();
+        std::thread([promise = std::move(promise), operation = std::move(operation)]() mutable {
+            promise.addResult(operation());
+            promise.finish();
+        }).detach();
+        worker.setFuture(future);
     }
 };
 Host::Host(Engine engine, QObject *parent) : QObject(parent), d(std::make_unique<Private>(this, std::move(engine))) {}
-Host::~Host() { close(); d->worker.waitForFinished(); }
+Host::~Host() {
+    close();
+    d->callbacks->close();
+    if (!d->retired) d->worker.waitForFinished();
+}
 bool Host::open(const QString &container) {
+    if (d->retired) return false;
     if (d->storage && d->storage->drive().rootPath() == container && d->storage->drive().isReady()) return true;
     close(); d->storage = iiSocietyContainer::SharedStorage::open(container); return d->storage.has_value();
 }
@@ -155,6 +175,12 @@ void Host::close() {
     ++d->epoch;
     for (auto &job : d->jobs) *job.cancelled = true;
     d->storage.reset(); d->jobs.clear(); d->queue.clear();
+}
+void Host::shutdownAsync() {
+    if (d->retired) return;
+    close();
+    d->callbacks->close();
+    d->retired = true;
 }
 QJsonObject Host::handle(const QString &peer, const QJsonObject &request) {
     if (peer.isEmpty() || !d->storage) return failure("generation_host_unavailable");

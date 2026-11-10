@@ -3,16 +3,19 @@
 #include <DirectoryStorage.h>
 #include <LogicalDisk.h>
 #include <FileTree.h>
+#include <InventoryIndex.h>
 #include <iiFileProviderCoreIO.h>
 #include <iiSDKCore/Core/Serialization/Serialization.h>
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <thread>
@@ -276,7 +279,13 @@ void hash(Section& section, std::string_view value) {
     section.fingerprint ^= 0xff; section.fingerprint *= 1099511628211ULL;
 }
 std::size_t summarize(const iiSocietyContainer::FileTree::Entry& entry, Section& section) {
-    hash(section, utf8(entry.relativePath));
+    const auto relative = utf8(entry.relativePath);
+    hash(section, relative);
+    // FileTree deliberately rejects these portable logical-path spellings.
+    // Do not present a section as complete when one cannot be addressed.
+    if (relative.find(':') != std::string::npos || relative.find('\\') != std::string::npos)
+        section.complete = false;
+    hash(section, entry.kind == iiSocietyContainer::FileTree::Kind::Directory ? "directory" : "file");
     hash(section, std::to_string(entry.size));
 #ifdef _MSC_VER
     const auto systemModified = std::chrono::clock_cast<std::chrono::system_clock>(entry.lastModified);
@@ -307,6 +316,71 @@ std::string quote(std::string_view value) {
     }
     out << '"'; return out.str();
 }
+
+// Index publication must never delay heartbeat polling. The worker keeps only
+// the newest snapshot and owns no Publisher/QObject state. A stopped selection
+// rejects its in-flight transaction before publication.
+class IndexWorker final {
+    struct Task {
+        fs::path root;
+        std::string id;
+        std::pair<std::uint64_t, std::uint64_t> pinned;
+        std::vector<iiSocietyContainer::InventorySection> sections;
+    };
+    struct Shared {
+        std::mutex mutex;
+        std::condition_variable changed;
+        std::optional<Task> pending;
+        std::atomic_bool stopped = false;
+        std::atomic_bool failed = true;
+        bool active = false;
+    };
+public:
+    IndexWorker() : state(std::make_shared<Shared>()), thread([shared = state] {
+        for (;;) {
+            std::optional<Task> task;
+            {
+                std::unique_lock lock(shared->mutex);
+                shared->changed.wait(lock, [&] { return shared->stopped || shared->pending.has_value(); });
+                if (shared->stopped) return;
+                task = std::move(shared->pending); shared->pending.reset(); shared->active = true;
+            }
+            const auto valid = [shared, &task] {
+                return !shared->stopped && node(task->root) == Result<std::pair<std::uint64_t, std::uint64_t>>(task->pinned)
+                    && bool(identity(task->root, task->id));
+            };
+            const auto result = iiSocietyContainer::InventoryIndex::publish(task->root, task->id, task->sections, valid);
+            if (!shared->stopped) shared->failed = !result.has_value();
+            { std::lock_guard lock(shared->mutex); shared->active = false; }
+            shared->changed.notify_all();
+        }
+    }) {}
+    ~IndexWorker() {
+        state->stopped = true;
+        { std::lock_guard lock(state->mutex); state->pending.reset(); }
+        state->changed.notify_one();
+        // An OS filesystem call may be uninterruptible. Shared state and the
+        // cancellation gate outlive the Publisher until that call returns.
+        if (thread.joinable()) thread.detach();
+    }
+    bool failed() const { return state->failed; }
+    bool waitFor(std::chrono::milliseconds timeout) {
+        std::unique_lock lock(state->mutex);
+        return state->changed.wait_for(lock, timeout, [&] {
+            return state->stopped || (!state->active && !state->pending);
+        }) && !state->stopped && !state->failed;
+    }
+    void submit(fs::path root, std::string id, std::pair<std::uint64_t, std::uint64_t> pinned,
+                std::vector<iiSocietyContainer::InventorySection> sections) {
+        std::lock_guard lock(state->mutex);
+        if (state->stopped) return;
+        state->pending = Task{std::move(root), std::move(id), pinned, std::move(sections)};
+        state->changed.notify_one();
+    }
+private:
+    std::shared_ptr<Shared> state;
+    std::thread thread;
+};
 }
 class Publisher::Private {
 public:
@@ -314,6 +388,7 @@ public:
     Options options;
     std::pair<std::uint64_t, std::uint64_t> pinned{};
     bool running = false, initial = true;
+    std::unique_ptr<IndexWorker> index;
 #ifdef _WIN32
     HANDLE owner = INVALID_HANDLE_VALUE;
 #else
@@ -321,6 +396,7 @@ public:
 #endif
     void release() {
         running = false;
+        index.reset();
 #ifdef _WIN32
         if (owner != INVALID_HANDLE_VALUE) CloseHandle(owner);
         owner = INVALID_HANDLE_VALUE;
@@ -366,6 +442,7 @@ Result<void> Publisher::start(const fs::path& root, std::string expectedId, Opti
     const auto previous = read(root, *id);
     if (previous) d->current.revision = previous->revision;
     d->current.daemonRunning = true; d->options = options; d->initial = true; d->running = true;
+    d->index = std::make_unique<IndexWorker>();
     return {};
 }
 Result<bool> Publisher::poll() {
@@ -373,7 +450,7 @@ Result<bool> Publisher::poll() {
     if (!d->intact()) { d->current.available = false; d->current.daemonRunning = false; d->release(); return std::unexpected("Container was removed, redirected or replaced"); }
     State next = d->current;
     next.sections.clear(); next.changedSections.clear(); next.error.clear();
-    next.available = true; next.complete = true; next.observedAtMs = now();
+    next.available = true; next.complete = true;
     // Replicas can change their namespace before a payload becomes resident.
     // Observe catalog metadata only; never decode or copy its object inventory.
     Section catalog; catalog.fingerprint = 14695981039346656037ULL;
@@ -381,30 +458,55 @@ Result<bool> Publisher::poll() {
     if (metadata) (void)summarize(*metadata.value, catalog);
     else hash(catalog, std::to_string(metadata.error.value()));
     std::size_t remaining = d->options.maxEntries;
+    std::vector<iiSocietyContainer::InventorySection> inventory;
+    inventory.reserve(areas.size());
     for (const auto& [key, name] : areas) {
         Section section; section.key = key; section.fingerprint = 14695981039346656037ULL;
+        iiSocietyContainer::InventorySection indexed; indexed.key = key; indexed.directory = name;
         hash(section, std::to_string(catalog.fingerprint));
         const auto directory = next.root/name;
         section.available = direct(directory, true);
         if (section.available && remaining) {
-            const auto tree = iiSocietyContainer::FileTree(directory).snapshot({}, {true, d->options.maxDepth, remaining});
+            const auto tree = iiSocietyContainer::FileTree(directory).snapshotForIndex({}, {true, d->options.maxDepth, remaining});
             if (tree) {
                 const auto used = summarize(*tree.value, section);
                 remaining -= std::min(remaining, used);
+                indexed.tree = std::move(*tree.value);
             } else { section.complete = false; next.error = "An area could not be scanned: " + section.key; }
         } else section.complete = false;
         next.complete &= section.complete;
         const auto previous = std::ranges::find(d->current.sections, section.key, &Section::key);
         if (previous == d->current.sections.end() || *previous != section) next.changedSections.push_back(section.key);
+        indexed.fingerprint = section.fingerprint;
+        indexed.complete = section.available && section.complete;
+        inventory.push_back(std::move(indexed));
         next.sections.push_back(std::move(section));
     }
     if (!d->intact()) { d->release(); return std::unexpected("Container changed during scan"); }
+    // Publish the completion time: a slow traversal must not write an already
+    // expired heartbeat using the time at which the traversal started.
+    next.observedAtMs = now();
     const bool changed = d->initial || !next.changedSections.empty() || next.available != d->current.available || next.error != d->current.error;
     if (changed) ++next.revision;
     const auto saved = write(next);
     if (!saved) return std::unexpected(saved.error());
+    if (d->index && (changed || d->index->failed()))
+        d->index->submit(next.root, next.containerId, d->pinned, std::move(inventory));
     d->current = std::move(next); d->initial = false;
     return changed;
+}
+Result<void> Publisher::heartbeat() {
+    if (!d->running || d->initial) return std::unexpected("Publisher has no scanned state");
+    if (!d->intact()) {
+        d->current.available = false; d->current.daemonRunning = false; d->release();
+        return std::unexpected("Container was removed, redirected or replaced");
+    }
+    auto next = d->current;
+    next.observedAtMs = now();
+    const auto saved = write(next);
+    if (!saved) return std::unexpected(saved.error());
+    d->current = std::move(next);
+    return {};
 }
 void Publisher::stop() {
     if (!d->running) return;
@@ -413,6 +515,12 @@ void Publisher::stop() {
     d->release();
 }
 const State& Publisher::state() const { return d->current; }
+Result<void> Publisher::waitForIndex(std::chrono::milliseconds timeout) {
+    if (!d->running || !d->index || timeout < std::chrono::milliseconds::zero())
+        return std::unexpected("Index publisher is unavailable");
+    if (!d->index->waitFor(timeout)) return std::unexpected("Index publication failed or timed out");
+    return {};
+}
 fs::path statePath(const fs::path& root) { return root/".society-runtime/monitor/v1/state.cbor"; }
 Result<State> read(const fs::path& root, std::string expectedId, std::chrono::milliseconds staleAfter) {
     const auto id = identity(root, expectedId);

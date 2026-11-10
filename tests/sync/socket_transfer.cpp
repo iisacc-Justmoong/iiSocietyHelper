@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include "iiSocietyHelper/Sync/Sync.h"
 #include <LanPeer.h>
 #include <SocietyDrive.h>
@@ -20,7 +21,7 @@ class SocketTransferTests : public QObject {
     }
 private slots:
     void tlsBinaryMirrorResumeUploadAndRevocation() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/socket-client-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/socket-host-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/socket-client-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/socket-host-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         QByteArray bytes(8 * 1024 * 1024 + 17, Qt::Uninitialized);
         for (qsizetype i = 0; i < bytes.size(); ++i) bytes[i] = char((i * 37 + i / 251) % 253);

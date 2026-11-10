@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:5518277a2c545b739041c469c5dd9e369cafe68c31a1375a983b5b431a20bcb6",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/BuildLayout.md",
+    "sha256": "4725d512a1aa7a5913d405a2ed3270f1a03e6cd856f5b57507b295a752693065",
+    "bytes": 1424,
+    "line_count": 23,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "Build and test resources",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Build and test resources\n",
+      "level": 1,
+      "title": "Build and test resources"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 6,
+      "raw": "Windows SDK의 `min`·`max` 매크로가 켜진 소비자에서도 모니터링 옵션의 기본\n항목 한도를 선언할 수 있도록 표준 극한값 호출을 보호한다. 모니터링 테스트\n빌드에는 해당 포함 순서의 컴파일 전용 검사가 포함된다. 이 변경의 Windows\n빌드와 설치는 아직 수행하지 않았다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 7,
+      "end_line": 7,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 8,
+      "end_line": 11,
+      "raw": "The module, daemon and test executables are built under `build/`. Existing\nSociety and Dreamscapes package references use a guarded `build/quit-fix-stage`\nlink to the retained package in `resources/dependencies/quit-fix-stage`.\nConfiguration refuses to replace unrelated data or a conflicting link.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 12,
+      "end_line": 12,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 13,
+      "end_line": 19,
+      "raw": "Native tests obtain a unique `resources/.t` workspace, and fixture creation,\nQt test output and temporary process data use that workspace. Normal return and\ntest failure remove the owned workspace. Cross-target tests retain the\n`IISOCIETYHELPER_SYNC_TEST_DIRECTORY` device-path override and CTest's target\nemulator handling. A forced termination may leave its workspace for review.\nEarlier test containers, user-authored probes and potentially private data\nare preserved under `resources/.recovery/helper-history-20261031`.\n"
+    },
+    {
+      "id": "b000008",
+      "kind": "blank",
+      "start_line": 20,
+      "end_line": 20,
+      "raw": "\n"
+    },
+    {
+      "id": "b000009",
+      "kind": "paragraph",
+      "start_line": 21,
+      "end_line": 23,
+      "raw": "Tests that start daemons, networking, GUI or device access remain available\nbut must be explicitly requested before execution. No test timeout or storage\nserialization requirement is reduced by the workspace changes.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Build and test resources",
+      "anchor": "build-and-test-resources",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000009",
+        "line": 22,
+        "text": "but must be explicitly requested before execution. No test timeout or storage",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

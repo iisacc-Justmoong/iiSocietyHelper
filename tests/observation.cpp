@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include "iiSocietyHelper.h"
 #include "DeliveryStore.h"
 #include <iiFileProviderNative.h>
@@ -8,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSignalSpy>
+#include <semaphore>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QThread>
@@ -23,9 +25,81 @@ class ObservationTests : public QObject
 {
     Q_OBJECT
 private slots:
+    void asynchronousLifecycleKeepsOwnerResponsive() {
+        QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/async-presence-XXXXXX");
+        QVERIFY(directory.isValid());
+        auto startEntered=std::make_shared<std::atomic_bool>(false), stopEntered=std::make_shared<std::atomic_bool>(false);
+        auto startGate=std::make_shared<std::binary_semaphore>(0), stopGate=std::make_shared<std::binary_semaphore>(0);
+        bool startReleased=false, stopReleased=false;
+        const auto release=qScopeGuard([&]{if(!startReleased)startGate->release();if(!stopReleased)stopGate->release();});
+        Helper helper(FileSystem::Initialization::Deferred);
+        QSignalSpy started(&helper, &Helper::startFinished), stopped(&helper, &Helper::stopFinished);
+        HelperLifecycleHooks hooks;
+        hooks.beforeStartIo=[startEntered,startGate]{*startEntered=true;startGate->acquire();};
+        hooks.beforeStopIo=[stopEntered,stopGate]{*stopEntered=true;stopGate->acquire();};
+        QElapsedTimer elapsed; elapsed.start();
+        QVERIFY(helper.startAsync({"com.iisacc.async", "Async", "1"}, {directory.path(),100,5000}, hooks));
+        QVERIFY(elapsed.elapsed()<250); QTRY_VERIFY(startEntered->load());
+        bool heartbeat=false; QTimer::singleShot(0,&helper,[&]{heartbeat=true;}); QTRY_VERIFY(heartbeat);
+        QVERIFY(helper.isStarting()); QVERIFY(!helper.isRunning());
+        startReleased=true;startGate->release();QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,10000);
+        QVERIFY(started.first().first().toBool());QVERIFY(helper.isRunning());
+        const auto record=directory.filePath(helper.self().instanceId+".json");QVERIFY(QFileInfo::exists(record));
+        elapsed.restart();helper.stopAsync();QVERIFY(elapsed.elapsed()<250);QTRY_VERIFY(stopEntered->load());
+        heartbeat=false;QTimer::singleShot(0,&helper,[&]{heartbeat=true;});QTRY_VERIFY(heartbeat);
+        QVERIFY(helper.isStopping());QVERIFY(QFileInfo::exists(record));
+        stopReleased=true;stopGate->release();QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),1,10000);
+        QVERIFY(!helper.isRunning());QVERIFY(!helper.isStopping());QVERIFY(!QFileInfo::exists(record));
+    }
+    void asynchronousStartCanBeStoppedBeforeIoCompletes() {
+        QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/async-cancel-XXXXXX");
+        QVERIFY(directory.isValid());auto entered=std::make_shared<std::atomic_bool>(false);
+        auto gate=std::make_shared<std::binary_semaphore>(0);bool released=false;
+        const auto release=qScopeGuard([&]{if(!released)gate->release();});
+        Helper helper(FileSystem::Initialization::Deferred);QSignalSpy stopped(&helper,&Helper::stopFinished);
+        HelperLifecycleHooks hooks;hooks.beforeStartIo=[entered,gate]{*entered=true;gate->acquire();};
+        QVERIFY(helper.startAsync({"com.iisacc.async", "Async", "1"},{directory.path(),100,5000},hooks));
+        QTRY_VERIFY(entered->load());helper.stopAsync();QVERIFY(helper.isStopping());
+        released=true;gate->release();QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),1,10000);
+        QVERIFY(!helper.isRunning());QVERIFY(!helper.isStarting());QVERIFY(!helper.isStopping());
+        QVERIFY(QDir(directory.path()).entryList({"*.json"},QDir::Files).isEmpty());
+    }
+    void asynchronousStopPreservesSynchronousDeliveryAndAllowsRestart() {
+        QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/async-restart-XXXXXX");
+        QVERIFY(directory.isValid());Helper helper(FileSystem::Initialization::Deferred);
+        const ObservationOptions options{directory.path(),100,5000};
+        QVERIFY(helper.start({"com.iisacc.async", "Async", "1"},options));
+        QVERIFY(!helper.sendData("test.saved",{{"value",42}}).isEmpty());
+        QSignalSpy stopped(&helper,&Helper::stopFinished), started(&helper,&Helper::startFinished);
+        QVERIFY(helper.stopAsync());QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),1,10000);
+        DeliveryStore delivery;QString error;QVERIFY2(delivery.open(directory.path(),&error),qPrintable(error));
+        QVERIFY(delivery.pendingCount()>=3);delivery.close();
+        QVERIFY(helper.startAsync({"com.iisacc.async", "Async", "2"},options));
+        QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,10000);QVERIFY(started.first().first().toBool());QVERIFY(helper.isRunning());
+        QVERIFY(helper.stopAsync());QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),2,10000);QVERIFY(!helper.isRunning());
+    }
+    void helperCanDeferStorageDiscovery() {
+        QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY))
+            + QStringLiteral("/helper-deferred-XXXXXX.societycontainer"));
+        QVERIFY(directory.isValid());
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(directory.path()));
+        const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
+        const auto restore = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH")
+                                                               : qputenv("SOCIETY_CONTAINER_PATH", previous); });
+        qputenv("SOCIETY_CONTAINER_PATH", directory.path().toUtf8());
+        Helper helper(FileSystem::Initialization::Deferred);
+        QVERIFY(!helper.fileSystem()->isAvailable());
+        QVERIFY(helper.fileSystem()->containerId().isEmpty());
+        const auto presence = directory.filePath(".society-runtime/deferred-test-presence");
+        QVERIFY(helper.start({"com.iisacc.deferred", "Deferred", "1"}, {presence, 100, 5000}));
+        QVERIFY(!helper.fileSystem()->isAvailable());
+        QVERIFY(helper.fileSystem()->open(directory.path()));
+        QVERIFY(helper.fileSystem()->isAvailable());
+        helper.stop();
+    }
     void transientUnreadableRecordDoesNotWithdrawAnObservedPeer()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-record-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/presence-record-XXXXXX")));
         Helper observer;
         QVERIFY(observer.start({"com.iisacc.record.observer", "Observer", "1"}, {directory.path(), 50, 5000}));
         QSignalSpy appeared(&observer, &Helper::peerAppeared);
@@ -58,7 +132,7 @@ private slots:
 
     void presenceSurvivesAnOpenProviderReadSnapshot()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-snapshot-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/presence-snapshot-XXXXXX")));
         QVERIFY(directory.isValid());
         Helper helper;
         QSignalSpy errors(&helper, &Helper::errorOccurred);
@@ -80,7 +154,7 @@ private slots:
 
     void presenceResponsiveness()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/responsiveness-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/responsiveness-XXXXXX")));
         QVERIFY(directory.isValid());
         Helper a, b;
         const ObservationOptions options{directory.path(), 100, 5000};
@@ -120,7 +194,7 @@ private slots:
 
     void stoppedWorkCannotRepublishIntoTheNextSession()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/epochs-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/epochs-XXXXXX")));
         Helper helper;
         const ObservationOptions options{directory.path(), 20, 5000};
         QVERIFY(helper.start({"com.iisacc.epochs", "Epochs", "1"}, options));
@@ -143,7 +217,7 @@ private slots:
 
     void mutualDiscoveryAndDistinctInstances()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/presence-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/presence-XXXXXX")));
         QVERIFY(directory.isValid());
         // Keep the production expiry window: shared-volume flushes can exceed 400 ms.
         const ObservationOptions options{directory.path(), 100, 5000};
@@ -180,7 +254,7 @@ private slots:
 
     void staleAndMalformedRecordsNeverBecomePeers()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/stale-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/stale-XXXXXX")));
         const ObservationOptions options{directory.path(), 50, 400};
         Helper old;
         QVERIFY(old.start({"com.iisacc.old", "Old", "1"}, options));
@@ -214,7 +288,7 @@ private slots:
         QVERIFY(!error.isEmpty());
         QVERIFY(!helper.isRunning());
         QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {"relative/path", 50, 400}, &error));
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/invalid-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/invalid-XXXXXX")));
         QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 0, 400}, &error));
         QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 100, 150}, &error));
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 50, 400}, &error));
@@ -229,10 +303,11 @@ private slots:
 
     void redirectedDirectoryStopsObservation()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/redirect-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/redirect-XXXXXX")));
         const QString root = directory.path() + "/registry";
         Helper helper;
         QSignalSpy errors(&helper, &Helper::errorOccurred);
+        QSignalSpy stopped(&helper, &Helper::stopFinished);
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root, 50, 400}));
 #ifdef Q_OS_WIN
         // The native storage backend pins this directory without delete sharing.
@@ -252,12 +327,13 @@ private slots:
         QVERIFY(!errors.isEmpty());
         QVERIFY(!helper.errorString().isEmpty());
         QVERIFY(QDir(root + "-target").entryList(QDir::Files).isEmpty());
+        QTRY_COMPARE_WITH_TIMEOUT(stopped.size(), 1, 10000);
 #endif
     }
 
     void independentDirectoriesDoNotMix()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/isolation-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/isolation-XXXXXX")));
         Helper a, b;
         QVERIFY(a.start({"com.iisacc.society", "Society", "1"}, {directory.path() + "/a", 50, 400}));
         QVERIFY(b.start({"com.iisacc.dreamscapes", "Dreamscapes", "1"}, {directory.path() + "/b", 50, 400}));
@@ -282,7 +358,7 @@ private slots:
 
     void resumedObserverRequiresFreshEvidence()
     {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/resume-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/resume-XXXXXX")));
         Helper a, b;
         const ObservationOptions options{directory.path(), 100, 5000};
         QVERIFY(a.start({"com.iisacc.a", "A", "1"}, options));

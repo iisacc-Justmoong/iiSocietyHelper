@@ -1,7 +1,20 @@
 # Account and host sessions
 
-기기간 동기화 상태는 `Client::synchronizationStatus()`의 iiSDKCore 쿼리에서
-정수로 조회·구독한다. [스냅샷과 상태 계약](Sync/Snapshots.md)을 따른다.
+## Asynchronous Helper lifecycle
+
+`Helper::startAsync()` accepts a start request on the owning event-loop thread;
+`startFinished(bool)` reports whether observation was established. Presence and
+delivery storage setup run off that thread. `stopAsync()` invalidates pending
+work and returns before storage cleanup; `stopFinished()` is the completion
+barrier before reusing the Helper or handing a dependent lease to another
+owner. A pending start can be cancelled by stopping. The synchronous `start()`
+and `stop()` APIs remain available for callers requiring immediate completion.
+Applications using asynchronous final shutdown must disconnect the Helper's
+default synchronous `aboutToQuit` handler and arrange their own stop ordering.
+
+기기간 동기화 상태는 `Client::synchronizationStatus()`의 독립 스냅샷과 수신
+실행기 구독으로 조회한다. 누락 복구·수명 및 기존 API의 이전 방법은
+[스냅샷과 상태 계약](Sync/Snapshots.md)을 따른다.
 
 ## Container objects and direct host access
 
@@ -19,6 +32,31 @@ See [HostDrive.md](HostDrive.md) for API, lifecycle, paging and size limits.
 account-relay access against installed packages, independently of source targets.
 
 ## Saved host reconnection
+
+`FileDownload`는 `FileHost` 전송 인터페이스를 받을 수 있다. 기존 `Client*`
+생성자는 호환 어댑터를 사용하며, 주입된 구현은 연결 상태·계정/호스트/컨테이너
+바인딩과 비동기 stat/read 응답을 제공한다. 다운로드는 기존의 바인딩·버전·해시
+검증과 취소 처리를 유지한다. 이 인터페이스만으로 Society 프로세스 경유가
+구현된 것은 아니다.
+
+`LocalService`는 Society가 소유한 계정과 `Client`를 사용하며 `LocalClient`에
+파일 stat/read, 동기화와 원격 생성 요청을 제공한다. 소켓과 디렉터리의 소유자·권한과
+동일 사용자 피어를 확인하고 연결한 계정 바인딩 및 호출자가 주입한 제품 권한 검사를
+요청마다 다시 확인한다. 4바이트 길이와 최대 512 KiB JSON 객체 프레임을 사용하며
+잘못된 입력, 권한 변경, 연결 종료 시 세션을 닫는다. 이 SDK 경계만으로 제품 앱과
+Society의 실제 실행 경로가 자동 연결되거나 라이선스가 검증되는 것은 아니다.
+제품은 별도로 서명을 검증한 라이선스의 계정 주체를 `LocalClient`에 설정해야 한다.
+서버 주체와 다르거나 주체가 비워지면 연결을 닫아 계정 전환 간 세션 혼합을 막는다.
+`observe()`는 저장소를 열지 않고 계정 연결만 유지하며 연결 종료를 알린다.
+발견 서비스와 바인딩 주소는 주입할 수 있다. 기본 주소는 일반 네트워크용이며,
+격리된 루프백 테스트는 `QHostAddress::LocalHost`를 명시한다.
+
+페어링 증명의 서버 요청은 `AccountManager::postAuthenticated()`를 통해 처리한다.
+이 경로는 현재 로그인 바인딩과 서버 origin을 확인하고 쿠키·리디렉션 정책을
+계정 모듈에서 관리한다. 기존 `AccountSession`의 직접 로그인 복원과 릴레이 연결은
+그대로이며, 이 변경만으로 제품 프로세스의 서버 접속이 제거되지는 않는다.
+계정 작업 또는 저장된 페어링 상태의 비동기 복원 중 들어온 페어링 요청은 기억했다가
+작업이 끝나면 현재 로그인과 바인딩을 다시 확인하고 처리한다. 로그아웃하면 대기 요청은 폐기한다.
 
 The encrypted group-session record retains the current registered host/container
 binding and up to eight private LAN address/UDP-port hints. `savedHostConnection()`
@@ -55,6 +93,10 @@ The app completes the generation result with an atomic rename/commit inside Soci
 
 Implementation of AccountSession, NearbyDevices, AutomaticPairing, and GroupSessionStore was migrated from the Society app to this SDK. Society's QML AccountController is a thin registration wrapper. The consumer app is responsible for app lifecycle, background execution permission, and status display policy.
 
+자동 페어링은 발견·연결 상태 변경에 반응하며, 실제 연결 만료 또는 재시도
+기한이 있는 경우에만 단발 타이머를 사용한다. 인증되지 않았거나 대기 중인 기한이
+없는 유휴 상태에서는 페어링 검사 타이머를 실행하지 않는다.
+
 
 Synchronization is included in Helper Core. Dependencies include iiSocietyContainer
 0.16.1, iiWebServer 0.6.0, iiAccountManager 0.2.8, iiSharedCanvas Core 0.31.4,
@@ -89,6 +131,14 @@ iiAccountManager 0.2.8 or higher is required. Login and container location synch
 `GroupSessionStore::defaultDirectory()` resolves the selected valid `.societycontainer` without creating a directory. GUI, daemon and SDK consumers use `.society-runtime/state` inside that same package, regardless of the executable name or signing team. No selected package means no fallback directory and no filesystem writes. A created store follows subsequent package selections before writing.
 
 AES-256-GCM ciphertext, 0700/0600 permissions, revocation generations and ciphertext verification remain in use. The wrapping key remains in the platform credential store. Apple production and development signatures retain their distinct Keychain services; changing file placement does not bypass access controls or copy keys between signatures. iOS file protection remains applied to container-owned ciphertext.
+
+Removal first commits the revocation generation and a tombstone. Failure to
+commit either is reported as unavailable; an asynchronous legacy Keychain
+removal failure is also returned to the caller. A successful revocation marker
+prevents restoration of an older ciphertext, but does not establish that the
+legacy Keychain entry was removed if the process exits before its callback.
+`iiSocietyHelper.session` covers failure of both the tombstone and legacy
+removal using isolated fixture stores.
 
 On the first read of a missing record, an existing previous OS Society state location is read only. Only the requested encrypted `.state` record and its revocation marker are copied byte for byte into the current package. Existing destination records or revocations take precedence, so logging out cannot resurrect an old session. Source records, locks and unrelated files are preserved. This transition does not restore or mount legacy disk images.
 

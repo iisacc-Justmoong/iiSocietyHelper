@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include <iiSocietyHelper.h>
 #include <iiSocietyHelper/AccountSession.h>
 #include <iiSocietyHelper/Client.h>
@@ -12,15 +13,15 @@ int main(int argc, char **argv)
     iiSocietyHelper::Sync::Replica replica;
     iiSocietyHelper::Generation::Remote remote([](const QJsonObject &) { return QString(); });
     if (remote.active() || iiSocietyHelper::Sync::Replica::ChunkBytes < 1) return 10;
-    QTemporaryDir fixture(QStringLiteral(HELPER_TEST_DIRECTORY "/merged-api-XXXXXX"));
+    QTemporaryDir fixture((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/merged-api-XXXXXX")));
     if (!fixture.isValid()) return 1;
     // Neither account restoration nor default storage selection touches live data.
     qputenv("SOCIETY_CONTAINER_PATH", fixture.filePath("missing.societycontainer").toUtf8());
     AccountSession account(QUrl(QStringLiteral("http://127.0.0.1:1")));
     iiSocietyHelper::Helper helper;
     iiSocietyHelper::Client client(&account, nullptr);
-    const auto syncStatus = client.synchronizationStatus().query().send({});
-    if (!syncStatus || *syncStatus != 0) return 11;
+    const auto syncStatus = client.synchronizationStatus().snapshot();
+    if (syncStatus.value != 0) return 11;
     if (!helper.setAccountManager(account.manager()) || helper.accountManager() != account.manager()
         || helper.account() != account.manager()->account()) return 2;
     auto *mirror = client.container();

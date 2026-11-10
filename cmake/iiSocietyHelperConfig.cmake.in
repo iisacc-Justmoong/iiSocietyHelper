@@ -1,4 +1,9 @@
 @PACKAGE_INIT@
+if(EMSCRIPTEN)
+    # Emscripten supports side modules although its CMake toolchain defaults
+    # the shared-library capability to false.
+    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
+endif()
 set(iiSocietyHelper_HAS_MANAGED_FILES TRUE)
 set(iiSocietyHelper_HAS_APPLICATION_STORAGE @IISOCIETYHELPER_BUILD_CORE@)
 set(iiSocietyHelper_CANVAS_VERSION "@IISOCIETYHELPER_CANVAS_VERSION@")
@@ -15,11 +20,8 @@ foreach(_component IN LISTS _helper_components)
 endforeach()
 # Core consumes Monitoring; the native component never imports Core in return.
 find_dependency(Threads)
-if("Core" IN_LIST _helper_components OR "GenerationHost" IN_LIST _helper_components)
-    find_dependency(iiSDKCore 0.18 CONFIG COMPONENTS Runtime)
-else()
-    find_dependency(iiSDKCore 0.11 CONFIG)
-endif()
+# The separately built Monitoring component still consumes Core internally.
+find_dependency(iiSDKCore 0.11 CONFIG)
 # Resolve the compiled Native contract before CoreIO's lower minimum can retain
 # an older imported target. Native does not introduce Qt into Monitoring.
 if(EXISTS "${_helper_prefix}/../iiFileProvider/lib/cmake/iiFileProviderNative")

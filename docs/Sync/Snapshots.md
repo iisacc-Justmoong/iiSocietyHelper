@@ -53,7 +53,7 @@
 반환하고, 호스트가 재시작했다면 전송 계획부터 다시 제출한다. 검증된 부분 파일과
 저널은 기존 재시도 계약을 유지한다.
 
-## 정수 상태와 iiSDKCore 쿼리
+## 정수 상태와 독립 실행기
 
 `Controller::status()`, `Synchronizer::status()`와
 `Client::synchronizationStatus()`는 동일한 `Sync::Status` 계약을 제공한다.
@@ -74,33 +74,56 @@
 컨테이너 간 동기화 완료로 간주하지 않는다. 상세 실패는 송신측의 기존
 `errorString()`·`finished` 결과와 호스트 요청의 오류 응답을 사용한다.
 
+호스트는 수신 중인 스냅샷이 있을 때만 가장 이른 120초 만료 시각에 단발 알림을
+예약한다. 새 요청은 해당 기기의 만료 시각을 갱신하며, 조기 깨움은 현재 기한을
+다시 예약한다. 완료·실패·권한 철회·컨테이너 종료 시 해당 예약을 갱신하거나
+해제한다. 이 기한은 이벤트 누락을 검출하는 기존 복구 경계이며, 유휴 상태의
+반복적인 스냅샷 전체 검사는 수행하지 않는다.
+
+송신 요청도 미완료 요청 중 가장 이른 120초 기한에만 단발 타이머를 예약한다.
+기한은 단조 시계로 측정하며, `pending` 응답은 원래의 기한을 연장하지 않는다.
+요청 완료·취소·컨테이너 종료 시 예약을 갱신하거나 해제하고, 일찍 깨워진 경우
+남은 기한을 다시 예약한다.
+
 ```cpp
 #include <iiSocietyHelper/Sync/Controller.h>
-#include <iiSDKCore/Runtime/EventLoop.h>
 
-ii::runtime::EventLoop receiver;
+// executor는 애플리케이션이 제공하는 StatusExecutor이다.
 auto &status = controller.status(); // Client는 client.synchronizationStatus()
-auto subscription = status.changes().subscribe(receiver, {}, [](auto event) {
-    const int state = event.value;
-    // 감시 객체의 실행 영역에서 state만 처리한다.
+auto subscription = status.subscribe(executor, [&](auto event) {
+    if (event.gap) consume(status.snapshot()); // 누락 후 최신 상태로 복구
+    else consume(event.value, event.revision);
 });
-auto current = status.query().send(iiSocietyHelper::Sync::ReadStatus{});
-if (current) consume(*current);
-receiver.poll(); // 실제 앱에서는 수신 객체의 Core 실행기를 구동한다.
+if (!subscription) return; // 수신 실행기의 예약 거부
+const auto current = status.snapshot();
+consume(current);
 ```
 
-`query().send()`는 atomic 현재값을 읽으므로 다른 스레드에서도 호출할 수 있다.
-비동기 조회는 `query().post(receiver, ReadStatus{}, completion)`을 사용한다.
-구독은 수신 객체가 선택한 EventLoop/SerialQueue/Runtime에서 실행되며 새 스레드를
-생성하지 않는다. 구독 자체는 이전 상태를 재생하지 않으므로 먼저 구독한 뒤
-현재값을 조회한다. 현재값 조회와 이벤트의 원자적인 결합은 제공하지 않는다.
-코어 큐의 용량·역압력·수명·취소 계약을 따르며, 장시간 수신하지 않은 구독은
-`stats()`와 `resume()`으로 전달 상태를 확인하고 현재값을 다시 조회할 수 있다.
-구독과 캡처한 수신 상태를 안전한 순서로 닫는다.
+`snapshot()`은 값과 단조 증가 revision을 함께 읽으며 다른 스레드에서도 호출할 수
+있다. 먼저 구독하고 현재 스냅샷을 읽은 소비자는 이미 읽은 revision 이하의 늦은
+이벤트를 무시해야 한다. 구독 자체는 이전 상태를 재생하지 않는다. 한 구독의
+대기열은 기본 64개이며 1~4096개로 지정할 수 있다. 넘친 경우 마지막 상태를
+`gap=true`로 전달하므로 소비자는 스냅샷으로 재조정한다.
 
-공개 쿼리 헤더 때문에 Helper Core 소비자는 `iiSDKCore >= 0.18`의 Runtime에
-공개 의존한다. Monitoring 전용 구성은 기존 최소 버전을 유지한다. Qt의 `slots`
-매크로 충돌은 Helper 헤더 경계에서만 처리하며 Core에 Qt 의존성을 추가하지 않는다.
+실행기의 `reserve()`는 재사용 가능한 전달 슬롯을 제공한다. `signal()`은 어떤
+스레드에서도 호출할 수 있고 콜백 완료를 기다리거나 즉시 실행하지 않고 수신 실행기에 알려야 한다.
+호스트가 살아 있고 신호를 수락한 동안 최종 전달을 보장해야 하며 취소하면 대기 중인
+호스트 큐 항목과 예약 자원도 해제해야 한다. 신호 함수가 다른 스레드에서 이미
+실행 중이면 종료는 그 호출도 기다린다. 일시적인 신호
+거부 시 이벤트는 보존되며, 호스트의 용량 복구 통지에서 `subscription.resume()`을
+호출한다. 타이머로 재시도하지 않는다. `close()`는 대기 콜백을 폐기하고 실행 중인
+다른 스레드의 전달을 기다린다. 여러 스레드가 동시에 닫아도 각각 이 장벽을 넘는다.
+콜백 자신이 닫을 때는 스스로 기다리지 않으며, 이후 외부 종료 호출은 그 콜백의
+완료를 기다리는 멱등 `cancel()` 계약이 필요하다. 생산자 파괴 시 구독이 닫히며 콜백 예외는
+`failure()`로 조회할 수 있다. 수신자가 캡처한 객체의 수명은 소비자가 관리한다.
+
+`example/ManualStatusExecutor`와 `example/sync_status.cpp`는 Qt 이벤트 호스트에
+깨움 함수를 연결한 조합 예제이다. 이 상태 API와 공개 헤더는 iiSDKCore 타입을
+사용하지 않으며 다른 실행기 어댑터도 가능하다. 기존 `query().send()`와
+`changes().subscribe()` 소비자는 새 API로 이전하고 바이너리를 다시 빌드해야 한다.
+공개 ABI 변경으로 Helper 버전과 라이브러리 ABI를 0.12로 분리한다.
+이는 Helper 전체의 독립성을 의미하지 않는다. 별도 Monitoring 구현 및 기존 기능의
+다른 모듈 의존성은 아직 남아 있다.
 
 ## 검증
 

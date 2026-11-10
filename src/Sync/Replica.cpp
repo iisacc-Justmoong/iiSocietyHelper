@@ -145,11 +145,20 @@ public:
         auto result=read();if(!sql("RELEASE protocol_read"))return failed();released=true;return result;
     }
     QJsonObject driveRequest(const QJsonObject &request) {
-        auto operation = lock(); if (!operation) return failed();
+        const auto action = request.value("action").toString();
+        // Version-pinned payload reads check the native identity on the open
+        // handle. Unpinned reads and mutations retain the cross-process lock.
+        std::unique_ptr<iiFileProvider::LockFile> operation;
+        const bool pinnedRead = action == "drive.read" && request.value("version").isString()
+            && !request.value("version").toString().isEmpty();
+        if (pinnedRead) {
+            if (!ready()) return failed();
+        } else {
+            operation = lock(); if (!operation) return failed();
+        }
         if (!meta("host").isEmpty()) return failed("mirror_cannot_be_primary_host");
         if (request.value("container").toString() != drive->identifier() || !drive->isReady())
             return failed("remote_container_changed");
-        const auto action = request.value("action").toString();
         const auto success = [this](QJsonObject result) {
             result.insert("ok", true); result.insert("container", drive->identifier()); return result;
         };
@@ -280,6 +289,15 @@ public:
             if (!number(request.value("offset"), &offset) || offset > state.size) return failed("invalid_offset");
             const auto data = files.read(native, offset, Replica::ChunkBytes, state.stamp);
             if (!files.error.isEmpty()) return failed(files.error);
+            // A rename or drive/binding replacement can race a descriptor read.
+            // Revalidate both the path and authority before exposing bytes.
+            if (!ready()) return failed();
+            if (!meta("host").isEmpty()) return failed("mirror_cannot_be_primary_host");
+            if (request.value("container").toString() != drive->identifier() || !drive->isReady())
+                return failed("remote_container_changed");
+            detail::FileState after;
+            if (!files.state(native, &after) || after.kind != "file" || after.stamp != state.stamp)
+                return failed("drive_file_changed");
             result.insert("data", QString::fromLatin1(data.toBase64())); result.insert("offset", QString::number(offset));
             result.insert("eof", offset + data.size() == state.size); return success(result);
         }
@@ -583,7 +601,7 @@ bool Replica::open(const QString &container, const QString &accountScope) {
     d->db.setConnectOptions("QSQLITE_BUSY_TIMEOUT=1000");
     if (!iiFileProvider::File::prepareDatabase(d->db.databaseName())) return d->fail("state_creation_failed");
     if (!d->db.open()) return d->fail(d->db.lastError().text());
-    if (!iiFileProvider::FileDevice::setPermissions(d->db.databaseName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner)) return d->fail("state_permissions_failed");
+    if (!iiFileProvider::FileDevice::setPermissions(d->db.databaseName(), iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner)) return d->fail("state_permissions_failed");
     int schema = -1;
     { QSqlQuery q(d->db); if (q.exec("PRAGMA user_version") && q.next()) schema = q.value(0).toInt(); }
     if (schema < 0 || schema > 3) return d->fail("unsupported_journal_schema");

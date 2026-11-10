@@ -1,12 +1,15 @@
 #include <iiSocietyHelper/AutomaticPairing.h>
-#include <QScopedValueRollback>
+#include <QPointer>
+#include <QScopeGuard>
 #include <algorithm>
+#include <limits>
 
 AutomaticPairing::AutomaticPairing(NearbyDevices *nearby, iiWebServer::LanPeer *peer,
     std::function<bool()> host, std::function<bool(const QString &)> join, std::function<void()> stop, QObject *parent)
-    : QObject(parent), m_nearby(nearby), m_peer(peer), m_host(std::move(host)), m_join(std::move(join)), m_stop(std::move(stop)) {
-    m_timer.setInterval(500);
-    connect(&m_timer, &QTimer::timeout, this, &AutomaticPairing::pump); m_timer.start();
+    : QObject(parent), m_nearby(nearby), m_peer(peer), m_host(std::move(host)), m_join(std::move(join)), m_stop(std::move(stop)), m_timer(this) {
+    m_timer.setSingleShot(true);
+    m_timer.setTimerType(Qt::PreciseTimer);
+    connect(&m_timer, &QTimer::timeout, this, &AutomaticPairing::schedule);
     connect(nearby, &NearbyDevices::changed, this, &AutomaticPairing::schedule);
     connect(peer, &iiWebServer::LanPeer::changed, this, &AutomaticPairing::schedule);
     connect(nearby, &NearbyDevices::identityEnding, this, &AutomaticPairing::reset);
@@ -15,16 +18,31 @@ AutomaticPairing::AutomaticPairing(NearbyDevices *nearby, iiWebServer::LanPeer *
     connect(peer, &iiWebServer::LanPeer::paired, this, [this](const QString &id) {
         if (id == m_current) finish(true);
     });
+    schedule();
 }
 void AutomaticPairing::schedule() {
     if (m_scheduled) return;
     m_scheduled = true;
     QTimer::singleShot(0, this, [this] { m_scheduled = false; pump(); });
 }
+void AutomaticPairing::armDeadline() {
+    if (!m_enabled || !m_nearby->authenticated()) { m_timer.stop(); return; }
+    const auto now = QDateTime::currentMSecsSinceEpoch();
+    qint64 next = (std::numeric_limits<qint64>::max)();
+    if (active() && m_deadline > 0) next = m_deadline;
+    else for (const auto &id : m_queue) {
+        const auto retry = m_retryAt.value(id);
+        if (retry > now) next = qMin(next, retry);
+    }
+    if (next == (std::numeric_limits<qint64>::max)()) { m_timer.stop(); return; }
+    const auto delay = std::clamp<qint64>(next - now, 1, (std::numeric_limits<int>::max)());
+    m_timer.start(int(delay));
+}
 void AutomaticPairing::reset() {
     const bool owned = m_ownsTransport; m_ownsTransport = false;
-    m_current.clear(); m_queue.clear(); m_leader.clear(); m_retryAt.clear(); m_attempts.clear();
-    if (owned) { m_nearby->cancel(); m_stop(); }
+    m_current.clear(); m_queue.clear(); m_leader.clear(); m_retryAt.clear(); m_attempts.clear(); m_deadline = 0; m_timer.stop();
+    const QPointer<AutomaticPairing> self(this);
+    if (owned) { m_nearby->cancel(); if (!self) return; m_stop(); if (!self) return; }
     emit changed();
 }
 void AutomaticPairing::setEnabled(bool enabled) {
@@ -32,11 +50,13 @@ void AutomaticPairing::setEnabled(bool enabled) {
     m_enabled = enabled;
     if (!enabled) {
         // Manual pairing may keep existing connections, but takes over new work.
-        if (active()) { m_nearby->cancel(); m_peer->cancelPairing(); }
-        m_current.clear(); m_queue.clear();
+        const QPointer<AutomaticPairing> self(this);
+        if (active()) { m_nearby->cancel(); if (!self) return; m_peer->cancelPairing(); if (!self) return; }
+        m_current.clear(); m_queue.clear(); m_deadline = 0; m_timer.stop();
     }
+    const QPointer<AutomaticPairing> self(this);
     emit changed();
-    if (enabled) schedule();
+    if (self && enabled) schedule();
 }
 QVariantList AutomaticPairing::queue() const {
     QVariantList result;
@@ -54,23 +74,27 @@ QString AutomaticPairing::status() const {
 }
 void AutomaticPairing::finish(bool success) {
     if (m_current.isEmpty()) return;
-    const auto id = m_current; m_current.clear();
-    if (success) { m_retryAt.remove(id); m_attempts.remove(id); m_nearby->complete(); }
+    const QPointer<AutomaticPairing> self(this);
+    const auto id = m_current; m_current.clear(); m_deadline = 0;
+    if (success) { m_retryAt.remove(id); m_attempts.remove(id); m_nearby->complete(); if (!self) return; }
     else {
         const int attempts = qMin(m_attempts.value(id) + 1, 5); m_attempts[id] = attempts;
         m_retryAt[id] = QDateTime::currentMSecsSinceEpoch() + qMin(8000, 250 * (1 << (attempts - 1)));
-        m_nearby->cancel(); m_peer->cancelPairing();
+        m_nearby->cancel(); if (!self) return; m_peer->cancelPairing(); if (!self) return;
     }
     emit changed();
-    schedule();
+    if (self) schedule();
 }
 void AutomaticPairing::pump() {
-    if (m_pumping || !m_nearby->authenticated()) return;
+    if (m_pumping) return;
+    m_pumping = true;
+    const QPointer<AutomaticPairing> self(this);
+    const auto leave = qScopeGuard([self] { if (self) { self->m_pumping = false; self->armDeadline(); } });
+    if (!m_nearby->authenticated()) return;
     if (!m_enabled) {
         if (m_nearby->incomingAutomatic()) m_nearby->decline();
         return;
     }
-    QScopedValueRollback guard(m_pumping, true);
     const auto rows = m_nearby->devices();
     QStringList devices, hosts, established;
     for (const auto &value : rows) {
@@ -92,15 +116,16 @@ void AutomaticPairing::pump() {
     // An authenticated, still-open TLS connection does not depend on that event.
     if (m_nearby->primaryHost().isEmpty() && m_ownsTransport && m_peer->connected() && !devices.contains(m_leader)) leader = m_leader;
     if (leader != m_leader) {
-        if (active()) finish(false);
-        if (m_ownsTransport) { m_ownsTransport = false; m_stop(); }
+        if (active()) { finish(false); if (!self) return; }
+        if (m_ownsTransport) { m_ownsTransport = false; m_stop(); if (!self) return; }
         m_leader = leader; emit changed();
+        if (!self) return;
     }
     const bool host = !leader.isEmpty() && leader == m_nearby->deviceId();
     const auto connected = m_peer->pairedDeviceIds();
     QStringList queue;
     for (const auto &id : devices) if (!connected.contains(id) && (host || id == leader)) queue.append(id);
-    if (queue != m_queue) { m_queue = queue; emit changed(); }
+    if (queue != m_queue) { m_queue = queue; emit changed(); if (!self) return; }
     for (const auto &id : m_retryAt.keys()) if (!devices.contains(id)) { m_retryAt.remove(id); m_attempts.remove(id); }
     if (active()) {
         if (!devices.contains(m_current) || QDateTime::currentMSecsSinceEpoch() >= m_deadline || m_peer->phase() == "error") { finish(false); return; }
@@ -117,8 +142,9 @@ void AutomaticPairing::pump() {
     if (m_nearby->hasIncoming() && m_nearby->incomingAutomatic()) {
         if (host || m_nearby->incomingId() != leader || connected.contains(leader)) { m_nearby->decline(); return; }
         m_current = leader; m_deadline = QDateTime::currentMSecsSinceEpoch() + 20000;
-        const auto link = m_nearby->accept(); m_ownsTransport = true;
-        if (link.isEmpty() || !m_join(link)) finish(false);
+        const auto link = m_nearby->accept(); if (!self) return; m_ownsTransport = true;
+        const bool joined = !link.isEmpty() && m_join(link); if (!self) return;
+        if (!joined) { finish(false); if (!self) return; }
         emit changed(); return;
     }
     if (!host || m_queue.isEmpty() || m_nearby->hasIncoming()) return;
@@ -127,7 +153,9 @@ void AutomaticPairing::pump() {
     for (const auto &id : m_queue) {
         if (m_retryAt.value(id) > QDateTime::currentMSecsSinceEpoch()) continue;
         m_current = id; m_deadline = QDateTime::currentMSecsSinceEpoch() + 20000; m_ownsTransport = true;
-        if (!m_host() || !m_nearby->invite(id, m_peer->createDeviceOffer(id), true)) finish(false);
+        const bool hosting = m_host(); if (!self) return;
+        const bool invited = hosting && m_nearby->invite(id, m_peer->createDeviceOffer(id), true); if (!self) return;
+        if (!invited) { finish(false); if (!self) return; }
         emit changed(); return;
     }
 }

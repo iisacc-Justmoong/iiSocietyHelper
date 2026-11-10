@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Sync/Replica.h>
 #include <iiSocietyHelper/Sync/ObjectProvider.h>
 #include "TestLink.h"
@@ -49,7 +50,7 @@ class ReplicaTests : public QObject {
     Q_OBJECT
 private slots:
     void unchangedHostBindingPreservesItsDurableFile() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/binding-source-XXXXXX.societycontainer"),b(SYNC_TEST_DIRECTORY "/binding-mirror-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/binding-source-XXXXXX.societycontainer"))),b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/binding-mirror-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host,client;QVERIFY(host.open(a.path(),scope));QVERIFY(client.open(b.path(),scope));
         QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));
@@ -61,7 +62,7 @@ private slots:
         QVERIFY(QFile::remove(path));QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));QCOMPARE(readFile(path),durable);
     }
     void inlineCommitRejectsCorruptionAndPreservesThePreviousFile() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/inline-source-XXXXXX.societycontainer"),b(SYNC_TEST_DIRECTORY "/inline-target-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/inline-source-XXXXXX.societycontainer"))),b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/inline-target-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         writeFile(a.filePath("Files/item"),"verified payload");Replica source,target;QVERIFY(source.open(a.path(),scope));QVERIFY(target.open(b.path(),scope));QVERIFY(source.scan());
         const auto entry=source.record("files/item");
@@ -74,7 +75,7 @@ private slots:
         QVERIFY(file.open(QIODevice::ReadOnly));QCOMPARE(file.readAll(),QByteArray("verified payload"));
     }
     void metadataPagesReadACommittedWalSnapshotWhileTheOperationLockIsHeld() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/wal-read-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/wal-read-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));writeFile(root.filePath("Files/value"),"committed");
         Replica replica;QVERIFY(replica.open(root.path(),scope));QVERIFY(replica.scan());
         const auto changes=replica.changes(),journal=replica.journal();QVERIFY(changes.value("ok").toBool());QVERIFY(journal.value("ok").toBool());
@@ -95,7 +96,7 @@ private slots:
         QSqlDatabase::removeDatabase(connection);operation.unlock();QCOMPARE(replica.changes(),changes);
     }
     void unchangedPeerCursorsDoNotCreateAnotherDurableRevision() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/peer-noop-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/peer-noop-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));Replica replica;QVERIFY(replica.open(root.path(),scope));
         const auto peer=QUuid::createUuid().toString(),container=QUuid::createUuid().toString();
         QVERIFY(replica.savePeerState("peer",peer,container,5,8));
@@ -111,7 +112,7 @@ private slots:
         QSqlDatabase::removeDatabase(connection);
     }
     void failedNamespaceMigrationRollsBackTheWholeNewJournal() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/schema-rollback-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/schema-rollback-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         QVERIFY(QDir().mkpath(root.filePath(".society-sync")));
         const auto path=root.filePath(".society-sync/journal.sqlite");
@@ -133,7 +134,7 @@ private slots:
         QSqlDatabase::removeDatabase(name);
     }
     void maintenancePreservesLeasedCapabilityProbeAndRetainedHardLink() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/lease-capability-probe-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-capability-probe-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         QVERIFY(QDir().mkpath(root.filePath(".society-sync")));
         const auto probe = root.filePath(".society-sync/capability-" + QUuid::createUuid().toString(QUuid::WithoutBraces));
@@ -157,7 +158,7 @@ private slots:
         QCOMPARE(readFile(retained), QByteArray("probe bytes"));
     }
     void leaseSentinelNeverBecomesAReplicatedObject() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/lease-private-sentinel-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-private-sentinel-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         {
             iiFileProvider::TemporaryLease lease(std::filesystem::path(root.filePath("Files").toStdU16String()),
@@ -179,7 +180,7 @@ private slots:
         QCOMPARE(QFileInfo(root.filePath("Files/.iisacc-temporary.lock")).size(), qint64(0));
     }
     void presentationsAreRegeneratedWhileUserClassificationStillReplicates() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/presentation-private-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/presentation-private-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         writeFile(root.filePath("Files/public.txt"), "visible original");
         writeFile(root.filePath("Files/public.txt.iisacc.json"), "{\"rating\":5,\"keywords\":[\"Work\"]}");
@@ -200,7 +201,7 @@ private slots:
         }
     }
     void maintenancePreservesActiveTransferAndRemovesCompletedOrClosedOrphans() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/lease-source-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/lease-target-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-source-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-target-XXXXXX.societycontainer")));
         const auto sourceDrive = iiSocietyContainer::SocietyDrive::create(a.path()); QVERIFY(sourceDrive);
         const auto targetDrive = iiSocietyContainer::SocietyDrive::create(b.path()); QVERIFY(targetDrive);
         Replica source, target; QVERIFY(source.open(a.path(), scope)); QVERIFY(target.open(b.path(), scope));
@@ -243,7 +244,7 @@ private slots:
         QCOMPARE(target.handle("sender", {{"action", "begin"}, {"entry", abandoned}}).value("offset").toString(), "0");
     }
     void providerRestoreKeepsTemporaryLeaseWhileJournalLockIsReleased() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/lease-provider-host-XXXXXX.societycontainer"), backing(SYNC_TEST_DIRECTORY "/lease-provider-backup-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-provider-host-XXXXXX.societycontainer"))), backing((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-provider-backup-XXXXXX")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         const auto path = root.filePath("Files/stored"); const QByteArray bytes("provider restored bytes"); writeFile(path, bytes);
         Replica replica; QVERIFY(replica.open(root.path(), scope)); QVERIFY(replica.scan());
@@ -260,7 +261,7 @@ private slots:
         QVERIFY(replica.isOpen());
     }
     void formerDefaultNamesAcceptRemoteDeletionReplacementAndReplay() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/fixed-files-XXXXXX.societycontainer");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/fixed-files-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         for (const auto *name : {"Documents", "Audios", "3D objects"})
             QVERIFY(QDir().mkpath(dir.filePath("Files/" + QString(name))));
@@ -304,7 +305,7 @@ private slots:
     }
 
     void hostAdoptionArchivesUserDirectoriesAndLeavesFilesEmpty() {
-        QTemporaryDir local(SYNC_TEST_DIRECTORY "/fixed-adoption-XXXXXX.societycontainer"), host(SYNC_TEST_DIRECTORY "/fixed-host-XXXXXX.societycontainer");
+        QTemporaryDir local((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/fixed-adoption-XXXXXX.societycontainer"))), host((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/fixed-host-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(local.path()));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(host.path()));
         writeFile(local.filePath("Files/Documents/old.mp4"), "local video");
@@ -324,7 +325,7 @@ private slots:
         QVERIFY(iiSocietyContainer::SocietyDrive::open(local.path())->isReady());
     }
     void manifestHashAndOrderingAreCheckedWithoutWritingFileBytes() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/manifest-source-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/manifest-host-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/manifest-source-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/manifest-host-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica sender, host; QVERIFY(sender.open(a.path(), scope)); QVERIFY(host.open(b.path(), scope)); QVERIFY(sender.scan());
         const auto baseline = sender.changes().value("through").toString().toLongLong();
@@ -353,7 +354,7 @@ private slots:
         QCOMPARE(QDir(b.filePath("Files")).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).size(), 0);
     }
     void sectionInventoryAndLocalBoundary() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/replica-XXXXXX.societycontainer");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/replica-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         Replica replica; QVERIFY2(replica.open(dir.path(), scope), qPrintable(replica.errorString()));
         QVERIFY2(replica.scan(), qPrintable(replica.errorString()));
@@ -378,7 +379,7 @@ private slots:
         QVERIFY(!replica.open(dir.path(), QString(64, 'b')));
     }
     void chunksResumeAndBadDataCannotReplaceExistingFiles() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/send-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/receive-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/send-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/receive-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         const QByteArray bytes(700000, 'x'); writeFile(a.filePath("Files/large"), bytes);
         Replica source, target; QVERIFY(source.open(a.path(), scope)); QVERIFY(target.open(b.path(), scope)); QVERIFY(source.scan());
@@ -406,7 +407,7 @@ private slots:
         QVERIFY(!target.handle("sender", {{"action", "begin"}, {"entry", bad}}).value("ok").toBool());
     }
     void deletionIsPersistentAndTheSameClockHasOneValue() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/delete-XXXXXX.societycontainer"); QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/delete-XXXXXX.societycontainer"))); QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         writeFile(dir.filePath("Files/item"), "before"); Replica replica; QVERIFY(replica.open(dir.path(), scope)); QVERIFY(replica.scan());
         auto entry = replica.record("files/item");
         auto forged = entry; forged.insert("hash", QString(64, 'e'));
@@ -417,7 +418,7 @@ private slots:
         QCOMPARE(replica.record("files/item").value("kind").toString(), "deleted");
     }
     void corruptCompleteTransferPreservesDestinationAndCanRetry() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/hash-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/hash-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/hash-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/hash-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica source, target; QVERIFY(source.open(a.path(), scope)); QVERIFY(target.open(b.path(), scope));
         QVERIFY(target.scan());
@@ -445,7 +446,7 @@ private slots:
         QVERIFY(target.scan()); QCOMPARE(target.changes(baseline).value("entries").toArray().size(), 1);
     }
     void redirectedFilesAndReplacedContainerFailClosed() {
-        QTemporaryDir parent(SYNC_TEST_DIRECTORY "/boundary-XXXXXX");
+        QTemporaryDir parent((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/boundary-XXXXXX")));
         const auto root = parent.filePath("drive.societycontainer");
         QVERIFY(QDir().mkdir(root));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root));
@@ -473,7 +474,7 @@ private slots:
 #endif
     }
     void redirectedJournalCannotWriteLocksOutsideContainer() {
-        QTemporaryDir parent(SYNC_TEST_DIRECTORY "/journal-XXXXXX");
+        QTemporaryDir parent((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/journal-XXXXXX")));
         const auto root = parent.filePath("drive.societycontainer"); QVERIFY(QDir().mkdir(root)); QVERIFY(iiSocietyContainer::SocietyDrive::create(root));
         Replica replica; QVERIFY(replica.open(root, scope));
 #ifdef Q_OS_WIN
@@ -492,7 +493,7 @@ private slots:
 #endif
     }
     void filenameAliasesCannotOverwriteDistinctNames() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/case-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/case-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/case-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/case-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         writeFile(a.filePath("Files/item"), "incoming"); writeFile(b.filePath("Files/ITEM"), "original");
         if (!QFileInfo::exists(b.filePath("Files/item"))) QSKIP("This filesystem distinguishes filename case.");
@@ -506,7 +507,7 @@ private slots:
         QVERIFY(!QFileInfo::exists(b.filePath("Files/SUB/new")));
     }
     void manifestPagesKeepAStableCursorWhileNewChangesWaitForNextCycle() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/pages-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/pages-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         Replica replica; QVERIFY(replica.open(root.path(), scope)); QVERIFY(replica.scan());
         const auto baseline = replica.changes().value("through").toString().toLongLong();

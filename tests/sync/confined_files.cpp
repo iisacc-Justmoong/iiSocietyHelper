@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include "ConfinedFiles.h"
 #include <iiFileProviderPresentation.h>
 #include "TestLink.h"
@@ -16,7 +17,7 @@ class ConfinedFilesTests : public QObject {
     Q_OBJECT
 private slots:
     void previewPublicationPreservesPinnedStamp() {
-        QTemporaryDir directory(SYNC_TEST_DIRECTORY "/preview-stamp-XXXXXX");
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/preview-stamp-XXXXXX")));
         ConfinedFiles files; QVERIFY(files.open(directory.path()));
         QVERIFY(files.append("document.txt", 0, "original"));
         iiFileProvider::native::Presentation::cancelPending(std::filesystem::path(directory.path().toStdU16String()));
@@ -34,7 +35,7 @@ private slots:
         QVERIFY(after.stamp != before.stamp);
     }
     void ownPreviewAttributesPreservePinnedReadsWhileExternalChangesStillInvalidate() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/presentation-stamp-XXXXXX"); QVERIFY(dir.isValid());
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/presentation-stamp-XXXXXX"))); QVERIFY(dir.isValid());
         const auto path = dir.filePath("asset.txt");
         { QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); QCOMPARE(file.write("original"), 8); }
         ConfinedFiles files; QVERIFY(files.open(dir.path())); FileState before, after;
@@ -50,7 +51,7 @@ private slots:
         QVERIFY(files.read("asset.txt", 0, 8, before.stamp).isEmpty());
     }
     void directoryPublicFilesRemainConfinedAndSupportPrivateRecovery() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/native-files-XXXXXX.societycontainer"); QVERIFY(dir.isValid());
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/native-files-XXXXXX.societycontainer"))); QVERIFY(dir.isValid());
         const auto root = dir.path();
         const auto drive = iiSocietyContainer::SocietyDrive::create(root); QVERIFY(drive);
         const auto publicRoot = drive->sectionPath(iiSocietyContainer::StoreSection::Files);
@@ -84,7 +85,7 @@ private slots:
         QVERIFY(!files.intact());
     }
     void hashingReportsRealByteProgressAndCanStopAtAChunkBoundary() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/hash-progress-XXXXXX");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/hash-progress-XXXXXX")));
         ConfinedFiles files; QVERIFY(files.open(dir.path()));
         const QByteArray bytes(3 * 1024 * 1024 + 71, 'p');
         QFile output(dir.filePath("model")); QVERIFY(output.open(QIODevice::WriteOnly));
@@ -105,7 +106,7 @@ private slots:
         QVERIFY(observed.last() < bytes.size());
     }
     void sha256MatchesAcrossPaddingAndReadBoundaries() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/files-digest-XXXXXX");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/files-digest-XXXXXX")));
         ConfinedFiles files; QVERIFY(files.open(dir.path()));
         for (const int size : {0, 1, 55, 56, 63, 64, 65, 1024 * 1024, 1024 * 1024 + 333}) {
             QByteArray bytes(size, Qt::Uninitialized);
@@ -119,7 +120,7 @@ private slots:
         QCOMPARE(files.hash("0"), QStringLiteral("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
     }
     void chunksResumeAndReplacementKeepsOriginal() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/files-chunks-XXXXXX"); QVERIFY(dir.isValid());
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/files-chunks-XXXXXX"))); QVERIFY(dir.isValid());
         ConfinedFiles files; QVERIFY2(files.open(dir.path()), qPrintable(files.error));
         QVERIFY(files.mkdir("Files/nested")); QVERIFY(files.mkdir(".society-sync/transfers"));
         QVERIFY(files.append("Files/nested/item", 0, "old"));
@@ -142,7 +143,7 @@ private slots:
         QVERIFY(resumed.remove("Files/nested"));
     }
     void enumerationStampsAndCancellation() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/files-list-XXXXXX");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/files-list-XXXXXX")));
         ConfinedFiles files; QVERIFY(files.open(dir.path())); QVERIFY(files.mkdir("Files"));
         for (int i = 0; i < 300; ++i) QVERIFY(files.append("Files/항목-" + QString::number(i), 0, "entry"));
         bool ok = false; const auto names = files.list("Files", &ok); QVERIFY2(ok, qPrintable(files.error)); QCOMPARE(names.size(), 300);
@@ -161,7 +162,7 @@ private slots:
         QVERIFY(!files.remove("Files")); // Nonempty directories must survive.
     }
     void pathsCannotEscapeAndLegacyLinksCanBeDetached() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/files-boundary-XXXXXX");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/files-boundary-XXXXXX")));
         const auto root = dir.filePath("drive"); QVERIFY(QDir().mkdir(root));
         ConfinedFiles files; QVERIFY(files.open(root)); QVERIFY(files.mkdir("Files"));
         QFile outside(dir.filePath("outside")); QVERIFY(outside.open(QIODevice::WriteOnly)); outside.write("outside"); outside.close();
@@ -189,7 +190,7 @@ private slots:
     }
 #ifdef Q_OS_WIN
     void windowsAliasesAndOpenWritersFailClosed() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/files-win-XXXXXX"); ConfinedFiles files;
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/files-win-XXXXXX"))); ConfinedFiles files;
         QVERIFY(files.open(dir.path())); QVERIFY(files.mkdir("Files"));
         for (const auto *name : {"trailing.", "space ", "CON", "NUL.txt", "LPT1", "a?b", "a|b"})
             QVERIFY(!files.append("Files/" + QString::fromLatin1(name), 0, "data"));

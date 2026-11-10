@@ -18,6 +18,7 @@
 #include <memory>
 #include <type_traits>
 #include <atomic>
+#include <functional>
 
 class QDataStream;
 
@@ -54,6 +55,13 @@ struct ObservationOptions {
     QString directory;
     int heartbeatIntervalMs = 1000;
     int peerTimeoutMs = 5000;
+};
+
+// Optional I/O boundary hooks, primarily for hosts and deterministic tests.
+// Hooks run on the lifecycle worker, never on the observation owner thread.
+struct HelperLifecycleHooks {
+    std::function<void()> beforeStartIo;
+    std::function<void()> beforeStopIo;
 };
 
 // A value snapshot for transfer; no QObject ownership or address crosses IPC.
@@ -107,6 +115,13 @@ public:
     // timer or storage-monitor worker starts until an explicit storage command.
     FileSystem(Initialization initialization, QObject *parent = nullptr);
     ~FileSystem() override;
+    // On the owner thread: cancel new mirror/intake work and retire the native
+    // monitor without waiting. Call before the process-wide shutdown barrier.
+    void prepareForShutdown();
+    // Stop accepting detached mirror/intake operations and wait for those
+    // already accepted. This process-wide shutdown barrier must run off the UI
+    // thread and is not reversible during the current process lifetime.
+    static void quiesceBackgroundWork();
 
     // Empty discovers Society's configured drive. Pins its canonical path and
     // UUID until open()/refresh(); a failed selection clears the previous one.
@@ -120,6 +135,9 @@ public:
     [[nodiscard]] bool isAvailable() const;
     [[nodiscard]] QString rootPath() const;
     [[nodiscard]] QString containerId() const;
+    // Revalidate a previously pinned location and identity together. A drive
+    // replaced at the same path is not considered the selected storage.
+    [[nodiscard]] bool matchesStorage(const QString &root, const QString &identifier) const;
     [[nodiscard]] QVariantList sections() const; // {key, name, path}
     [[nodiscard]] QString errorString() const;
     [[nodiscard]] iiSocietyContainer::Container *container() const;
@@ -208,6 +226,8 @@ private:
 class IISOCIETYHELPER_EXPORT Helper final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool running READ isRunning NOTIFY runningChanged)
+    Q_PROPERTY(bool starting READ isStarting NOTIFY lifecycleChanged)
+    Q_PROPERTY(bool stopping READ isStopping NOTIFY lifecycleChanged)
     Q_PROPERTY(QVariantList observedApplications READ observedApplications NOTIFY peersChanged)
     Q_PROPERTY(QString errorString READ errorString NOTIFY errorChanged)
     Q_PROPERTY(iiSocietyHelper::FileSystem *fileSystem READ fileSystem CONSTANT)
@@ -215,10 +235,20 @@ class IISOCIETYHELPER_EXPORT Helper final : public QObject {
     Q_PROPERTY(iisacc::accounts::Account *account READ account NOTIFY accountChanged)
 public:
     explicit Helper(QObject *parent = nullptr);
+    // A presence-only owner may avoid discovering a second storage mirror.
+    // The default constructor retains its existing eager-discovery behavior.
+    explicit Helper(FileSystem::Initialization storageInitialization, QObject *parent = nullptr);
     ~Helper() override;
 
     [[nodiscard]] bool start(const ApplicationInfo &application,
                              const ObservationOptions &options = {}, QString *error = nullptr);
+    // Starts filesystem, presence and delivery preparation on a worker.
+    // Completion and state notifications are delivered on this object's thread.
+    bool startAsync(const ApplicationInfo &application, const ObservationOptions &options = {},
+                    HelperLifecycleHooks hooks = {});
+    // Stops accepting observation immediately, then drains accepted work and
+    // removes presence on a worker. stopFinished is the completion barrier.
+    bool stopAsync();
     Q_INVOKABLE void stop();
     void setActivity(Activity activity);
     // Returns a durable outbox message ID, or empty on failure. Receipt is separate.
@@ -233,6 +263,8 @@ public:
         requires (!std::is_pointer_v<T> && !std::is_base_of_v<QObject, T> && !std::is_same_v<T, QVariant>)
     QString sendObject(const QString &topic, const T &value) { return sendObject(topic, QVariant::fromValue(value)); }
     [[nodiscard]] bool isRunning() const;
+    [[nodiscard]] bool isStarting() const;
+    [[nodiscard]] bool isStopping() const;
     [[nodiscard]] Peer self() const;
     [[nodiscard]] QList<Peer> peers() const;
     [[nodiscard]] QVariantList observedApplications() const;
@@ -249,6 +281,9 @@ public:
 
 signals:
     void runningChanged();
+    void lifecycleChanged();
+    void startFinished(bool success);
+    void stopFinished();
     void peersChanged();
     void peerAppeared(const iiSocietyHelper::Peer &peer);
     void peerUpdated(const iiSocietyHelper::Peer &peer);

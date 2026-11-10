@@ -10,11 +10,11 @@
   },
   "source": {
     "path": "docs/FilePresentation.md",
-    "sha256": "4ec02f62e4dae64d7aa75511e1928b4474786f5cd8fec0dd629536e13f2fa81c",
-    "bytes": 3350,
-    "line_count": 54,
+    "sha256": "ce622c7f52f47960313b26e2977b04c95076f506a91c40a35de590a02905de6f",
+    "bytes": 3820,
+    "line_count": 60,
     "encoding": "utf-8",
-    "language": "en"
+    "language": "ko"
   },
   "document": {
     "title": "Canvas presentation through the file owner",
@@ -86,52 +86,52 @@
       "id": "b000009",
       "kind": "paragraph",
       "start_line": 25,
-      "end_line": 27,
-      "raw": "The container [file-information contract](../../iiSocietyContainer/docs/FilePresentation.md)\ndefines details and explicit failure states. The native implementation and\nprovider ownership remain below the Helper/Container application adapters.\n"
+      "end_line": 29,
+      "raw": "분할 전송 중 `drive_information_changed` 또는 `drive_file_changed`를 받으면 이미\n받은 조각과 판본을 모두 버리고 처음부터 최대 두 번 다시 조회한다. 각 시도는 자체\n판본과 전체 SHA-256을 검증하므로 서로 다른 판본의 조각을 합치지 않는다. 재시도도\n원래 요청의 30초 제한과 연결 종료·취소 경계를 공유하며, 계속 변경되면 마지막 오류를\n호출자에게 반환한다.\n"
     },
     {
       "id": "b000010",
-      "kind": "blank",
-      "start_line": 28,
-      "end_line": 28,
-      "raw": "\n"
-    },
-    {
-      "id": "b000011",
-      "kind": "heading",
-      "start_line": 29,
-      "end_line": 29,
-      "raw": "## Canvas integration\n",
-      "level": 2,
-      "title": "Canvas integration"
-    },
-    {
-      "id": "b000012",
       "kind": "blank",
       "start_line": 30,
       "end_line": 30,
       "raw": "\n"
     },
     {
-      "id": "b000013",
+      "id": "b000011",
       "kind": "paragraph",
       "start_line": 31,
-      "end_line": 36,
-      "raw": "FileSystem installs a read-only `.iisc` renderer in iiFileProvider 0.7 through\n`Presentation::setRenderer`. The adapter uses the existing iiSharedCanvas\n`readIiscPreview` compositor and PNG encoder, fits frame 0 within 512 pixels and\nuses the provider's 32 MiB source admission budget and a 16-Mpixel total decoded\nraster budget. Native-size projections retain exact mask coverage. Snapshot and working-file\ndecoding remain owned by iiSharedCanvas; the provider has no upward SDK link.\n"
+      "end_line": 33,
+      "raw": "The container [file-information contract](../../iiSocietyContainer/docs/FilePresentation.md)\ndefines details and explicit failure states. The native implementation and\nprovider ownership remain below the Helper/Container application adapters.\n"
+    },
+    {
+      "id": "b000012",
+      "kind": "blank",
+      "start_line": 34,
+      "end_line": 34,
+      "raw": "\n"
+    },
+    {
+      "id": "b000013",
+      "kind": "heading",
+      "start_line": 35,
+      "end_line": 35,
+      "raw": "## Canvas integration\n",
+      "level": 2,
+      "title": "Canvas integration"
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 37,
-      "end_line": 37,
+      "start_line": 36,
+      "end_line": 36,
       "raw": "\n"
     },
     {
       "id": "b000015",
       "kind": "paragraph",
-      "start_line": 38,
+      "start_line": 37,
       "end_line": 42,
-      "raw": "The common owner stores PNG bytes and source-bound file details in native\nattributes plus a portable hidden companion. Existing information cards can be\nupgraded once the domain renderer is available. Canvas saves notify the owner\nafter the working file closes; IISC WAL changes are part of the native source\nversion. Renderer retirement waits for in-flight work before Qt codec teardown.\n"
+      "raw": "FileSystem installs a read-only `.iisc` renderer in iiFileProvider 0.7 through\n`Presentation::setRenderer`. The adapter uses the existing iiSharedCanvas\n`readIiscPreview` compositor and PNG encoder, fits frame 0 within 512 pixels and\nuses the provider's 32 MiB source admission budget and a 16-Mpixel total decoded\nraster budget. Native-size projections retain exact mask coverage. Snapshot and working-file\ndecoding remain owned by iiSharedCanvas; the provider has no upward SDK link.\n"
     },
     {
       "id": "b000016",
@@ -144,21 +144,35 @@
       "id": "b000017",
       "kind": "paragraph",
       "start_line": 44,
-      "end_line": 50,
-      "raw": "FileSystem's existing canvas preview API keeps returning a private runtime PNG\nURL. It now materializes the provider's bounded embedded PNG instead of rendering\nan unbounded full-resolution canvas for that cache. Annotation documents and\noriginal source bytes are retained. Generated image history remains PNG and\neditor persistence remains IISC.\nUser file listings exclude provider presentation, catalog, staging and lock\ndocuments while preserving ordinary public hidden files.\n"
+      "end_line": 48,
+      "raw": "The common owner stores PNG bytes and source-bound file details in native\nattributes plus a portable hidden companion. Existing information cards can be\nupgraded once the domain renderer is available. Canvas saves notify the owner\nafter the working file closes; IISC WAL changes are part of the native source\nversion. Renderer retirement waits for in-flight work before Qt codec teardown.\n"
     },
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 51,
-      "end_line": 51,
+      "start_line": 49,
+      "end_line": 49,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "paragraph",
-      "start_line": 52,
-      "end_line": 54,
+      "start_line": 50,
+      "end_line": 56,
+      "raw": "FileSystem's existing canvas preview API keeps returning a private runtime PNG\nURL. It now materializes the provider's bounded embedded PNG instead of rendering\nan unbounded full-resolution canvas for that cache. Annotation documents and\noriginal source bytes are retained. Generated image history remains PNG and\neditor persistence remains IISC.\nUser file listings exclude provider presentation, catalog, staging and lock\ndocuments while preserving ordinary public hidden files.\n"
+    },
+    {
+      "id": "b000020",
+      "kind": "blank",
+      "start_line": 57,
+      "end_line": 57,
+      "raw": "\n"
+    },
+    {
+      "id": "b000021",
+      "kind": "paragraph",
+      "start_line": 58,
+      "end_line": 60,
       "raw": "See the shared [presentation contract](../../iiFileProvider/docs/FILE_PRESENTATION.md).\nRegression covers actual composed canvas pixels, a changed embedded preview after\nediting, strict save-version conflicts and existing Helper filesystem behavior.\n"
     }
   ],
@@ -180,12 +194,12 @@
       "start_line": 3
     },
     {
-      "block_id": "b000011",
+      "block_id": "b000013",
       "parent_id": "b000001",
       "level": 2,
       "title": "Canvas integration",
       "anchor": "canvas-integration",
-      "start_line": 29
+      "start_line": 35
     }
   ],
   "indexes": {
@@ -201,18 +215,18 @@
     "commands": [],
     "links": [
       {
-        "block_id": "b000009",
+        "block_id": "b000011",
         "label": "file-information contract",
         "target": "../../iiSocietyContainer/docs/FilePresentation.md",
         "kind": "relative",
-        "line": 25
+        "line": 31
       },
       {
-        "block_id": "b000019",
+        "block_id": "b000021",
         "label": "presentation contract",
         "target": "../../iiFileProvider/docs/FILE_PRESENTATION.md",
         "kind": "relative",
-        "line": 52
+        "line": 58
       }
     ],
     "tables": []

@@ -6,6 +6,7 @@
 #include <thread>
 #include <iiFileProviderNative.h>
 #include <iiFileProviderPresentation.h>
+#include <InventoryIndex.h>
 namespace fs=std::filesystem;
 void require(bool value,const char* message){if(!value)throw std::runtime_error(message);}
 int main(int argc,char**argv){
@@ -15,15 +16,55 @@ int main(int argc,char**argv){
   for(const auto name:std::array{"Files","Photos","Asset Library","Generation History","Models","Thinking Space","Forked","Published","Deleted"})fs::create_directories(root/name);
   const std::string id="11111111-2222-4333-8444-555555555555";
   std::ofstream(root/".society-drive.json")<<"{\"type\":\"SocietyDrive\",\"schemaVersion\":1,\"identifier\":\""<<id<<"\"}";
+  std::ofstream(root/"Models/weights.safetensors")<<"model bytes";
   try{
     iiSocietyHelper::Monitoring::Publisher publisher;
     const auto started=publisher.start(root,id);require(bool(started),started?"":started.error().c_str());
+    require(!publisher.heartbeat(),"A heartbeat cannot precede the first inventory scan");
     auto first=publisher.poll();require(first&&*first,"Initial state must be published");
     auto current=iiSocietyHelper::Monitoring::read(root,id);require(bool(current),"Late reader must receive current state");
     require(current->available&&current->daemonRunning&&current->sections.size()==9,"All nine sections must be present");
     const auto revision=current->revision;
     require(publisher.poll().value()==false,"Heartbeat must not increment revision");
+#ifndef _WIN32
+    const auto switching=root/"Files/type-switch";
+    std::ofstream(switching).close();
+    fs::permissions(switching,fs::perms::owner_all|fs::perms::group_read|fs::perms::group_exec|
+                              fs::perms::others_read|fs::perms::others_exec);
+    const auto itemTime=fs::last_write_time(switching), parentTime=fs::last_write_time(root/"Files");
+    require(publisher.poll().value(),"A new file must change the inventory");
+    auto hasType = [&](bool directory) {
+      const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(15);
+      while(std::chrono::steady_clock::now()<deadline) {
+        const auto rows=iiSocietyContainer::InventoryIndex::children(root,id,"Files");
+        if(rows) for(const auto &row:*rows) if(row.name=="type-switch" && row.directory==directory) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      }
+      return false;
+    };
+    require(hasType(false),"The new file must reach the cache");
+    fs::remove(switching);fs::create_directory(switching);
+    fs::permissions(switching,fs::perms::owner_all|fs::perms::group_read|fs::perms::group_exec|
+                              fs::perms::others_read|fs::perms::others_exec);
+    fs::last_write_time(switching,itemTime);fs::last_write_time(root/"Files",parentTime);
+    require(publisher.poll().value(),"File-to-directory replacement must change the inventory");
+    require(hasType(true),"The cache must detect a type change even when other metadata is unchanged");
+    fs::remove(switching);require(bool(publisher.poll()),"Removing the temporary item must be observed");
+    std::ofstream(root/"Files/unsupported:name")<<"value";
+    require(publisher.poll().value(),"An unsupported filename must change the state");
+    require(!publisher.state().complete,"An unaddressable filename must not produce a complete index");
+    require(bool(publisher.waitForIndex(std::chrono::seconds(60))),"The partial state must reach the index");
+    require(!iiSocietyContainer::InventoryIndex::children(root,id,"Files"),
+            "A section with unsupported paths must fall back to live listing");
+    fs::remove(root/"Files/unsupported:name");
+    require(publisher.poll().value(),"Removing an unsupported filename must restore indexing");
+#endif
+    const auto beforeHeartbeat=publisher.state().revision;
     fs::create_directories(root/"Files/nested");std::ofstream(root/"Files/nested/hello.txt")<<"hello";
+    require(bool(publisher.heartbeat()),"The lightweight heartbeat must publish without a scan");
+    current=iiSocietyHelper::Monitoring::read(root,id);
+    require(current && current->revision==beforeHeartbeat && current->sections.front().files==0,
+            "A heartbeat must keep the previous inventory and revision");
     require(publisher.poll().value(),"Nested additions must emit a new state");
     current=iiSocietyHelper::Monitoring::read(root,id);require(current&&current->revision>revision,"Reader must see new revision");
     bool files=false;for(const auto&s:current->sections)if(s.key=="files") {
@@ -32,6 +73,20 @@ int main(int argc,char**argv){
       require(s.lastModified>now-60000&&s.lastModified<=now+1000,"File timestamps must use the system clock epoch on every platform");
     }
     require(files,"Section inventory must report file count and logical bytes");
+    auto waitForIndex = [&](const std::string &name) {
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+      while (std::chrono::steady_clock::now() < deadline) {
+        const auto rows=iiSocietyContainer::InventoryIndex::children(root,id,"Files/nested");
+        if (rows && rows->size()==1 && rows->front().name==name && rows->front().key.size()==64 && rows->front().revision.size()==64) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      }
+      return false;
+    };
+    require(waitForIndex("hello.txt"),"Monitor must asynchronously publish file keys and revisions");
+    const auto models=iiSocietyContainer::InventoryIndex::children(root,id,"Models");
+    require(models && models->size()==1 && models->front().key.size()==64,
+            "The same daemon index must include models");
+    require(!fs::exists(root/".society-file-provider"), "Metadata indexing must not copy originals into the object store");
     fs::create_directories(root/".society-sync");std::ofstream(root/".society-sync/catalog.json")<<"{}";
     require(publisher.poll().value(),"Replica catalog metadata changes must emit namespace invalidation");
     current=iiSocietyHelper::Monitoring::read(root,id);
@@ -40,6 +95,7 @@ int main(int argc,char**argv){
     fs::rename(root/"Files/nested/hello.txt",root/"Files/nested/renamed.txt");
     require(publisher.poll().value(),"Same-size renames must change the fingerprint");
     current=iiSocietyHelper::Monitoring::read(root,id);require(current->revision>prior,"Rename revision must advance");
+    require(waitForIndex("renamed.txt"),"Index must follow a rename without reopening the app");
     fs::create_symlink(root/".society-drive.json",root/"Files/redirect.json");
     require(publisher.poll().has_value(),"Redirected payloads must be skipped safely");
     current=iiSocietyHelper::Monitoring::read(root,id);

@@ -77,6 +77,7 @@ public:
         QString id, path, version, token;
         QByteArray bytes;
         qint64 size = -1;
+        int restarts = 0;
     };
     QHash<QString, std::shared_ptr<Inspection>> inspections;
     QHash<QString, QString> driveTransports;
@@ -138,7 +139,17 @@ public:
         if (!state->version.isEmpty()) { message.insert("version", state->version); message.insert("informationVersion", state->token); }
         const auto request = requestDrive(message, [this, state](const QJsonObject &result) {
             if (inspections.value(state->id) != state) return;
-            if (!result.value("ok").toBool()) { finishInspection(state, result); return; }
+            if (!result.value("ok").toBool()) {
+                const auto error = result.value("error").toString();
+                if (!state->bytes.isEmpty() && state->restarts < 2
+                    && (error == "drive_information_changed" || error == "drive_file_changed")) {
+                    // A new snapshot must never contain bytes from both versions.
+                    ++state->restarts; state->bytes.clear(); state->version.clear(); state->token.clear(); state->size = -1;
+                    QTimer::singleShot(0, q, [this, state] { inspectPage(state); });
+                    return;
+                }
+                finishInspection(state, result); return;
+            }
             bool validOffset = false, validSize = false;
             const auto offset = result.value("offset").toString().toLongLong(&validOffset);
             const auto size = result.value("size").toString().toLongLong(&validSize);

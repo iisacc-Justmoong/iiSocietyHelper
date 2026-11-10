@@ -75,6 +75,15 @@ writes are limited to 256 KiB per call. Directory creation requires an existing
 parent. Section roots, existing targets, private state and redirect boundaries
 remain protected. `iiSocietyHelper.Sync.HostDrive` covers these contracts.
 
+Version-pinned payload reads do not acquire the cross-process mutation lock for
+each chunk. They validate the authority and selected drive before and after reading, verify
+the file identity and change token on the opened native handle, and recheck the
+path before returning bytes. A changed file, replaced path or changed drive is
+reported as an error instead of returning the collected bytes. Unpinned reads,
+create, update, index and other mutation-sensitive operations retain their existing lock; a busy
+writer cannot be mistaken for permission to mutate. This avoids a durable lock
+file write per read chunk without disabling version or confinement checks.
+
 Regression fixtures create valid `.societycontainer` directory packages. The
 ConfinedFiles public/private recovery test exercises the current directory drive
 layout and root replacement; it no longer creates a rejected legacy disk image.

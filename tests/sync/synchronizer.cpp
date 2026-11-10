@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Sync/Synchronizer.h>
 #include <SocietyDrive.h>
 #include <QDir>
@@ -29,7 +30,7 @@ class SyncTests : public QObject {
     }
 private slots:
     void accountHostReplacementPreservesOldEditsAndRejectsWrongContainer() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/account-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/account-b-XXXXXX.societycontainer"), c(SYNC_TEST_DIRECTORY "/account-c-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/account-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/account-b-XXXXXX.societycontainer"))), c((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/account-c-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(c.path()));
         Replica client, oldHost, newHost;
         QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(oldHost.open(b.path(), QString(64, 'a'))); QVERIFY(newHost.open(c.path(), QString(64, 'a')));
@@ -56,7 +57,7 @@ private slots:
     }
     void boundedWindowHandlesReorderedReplies() {
         QFETCH(int, window); QFETCH(bool, upload); QFETCH(bool, legacy);
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/window-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/window-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/window-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/window-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         cycle(client, host);
@@ -95,7 +96,7 @@ private slots:
     }
     void smallChangesAndDeletionDoNotWaitForBulkTransfer() {
         QFETCH(bool, upload);
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/fair-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/fair-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/fair-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/fair-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Files/z-note"), "old"); put(b.filePath("Files/z-delete"), "remove");
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -131,7 +132,7 @@ private slots:
         for (int i = 0; i < offsets.size(); ++i) QCOMPARE(offsets[i], qint64(i) * Replica::ChunkBytes);
     }
     void exchangesEveryManifestPageBeforeAnyFileBytes() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/metadata-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/metadata-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/metadata-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/metadata-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         cycle(client, host);
@@ -170,7 +171,7 @@ private slots:
         QCOMPARE(get(b.filePath("Files/local-139")), QByteArray("upload"));
     }
     void rejectedManifestAcknowledgementPreventsByteTransfer() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/rejected-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/rejected-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/rejected-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/rejected-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         cycle(client, host); put(a.filePath("Files/local"), "upload"); put(b.filePath("Models/remote"), "download");
@@ -186,7 +187,7 @@ private slots:
         QVERIFY(!done[0][1].toBool()); QCOMPARE(bytes, 0);
     }
     void firstJoinAdoptsOneLogicalDriveAndPreservesFormerContentsPrivately() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/mirror-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/mirror-b-XXXXXX.societycontainer"), c(SYNC_TEST_DIRECTORY "/mirror-c-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/mirror-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/mirror-b-XXXXXX.societycontainer"))), c((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/mirror-c-XXXXXX.societycontainer")));
         const auto old = iiSocietyContainer::SocietyDrive::create(a.path()); QVERIFY(old);
         QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(c.path()));
         for (const auto section : iiSocietyContainer::allStoreSections()) {
@@ -219,7 +220,7 @@ private slots:
         QVERIFY(!QFileInfo::exists(a.filePath("Files/offline/new"))); QVERIFY(!QFileInfo::exists(b.filePath("Files/offline/new")));
     }
     void interruptedInitialDownloadResumesWithoutUploadingLegacyFiles() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/bootstrap-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/bootstrap-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/bootstrap-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/bootstrap-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(a.filePath("Files/old"), "preserve me"); put(b.filePath("Models/large"), QByteArray(900000, 'h'));
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -244,7 +245,7 @@ private slots:
         QVERIFY(!client.bootstrapping());
     }
     void recoveryResumesAfterIdentityCommitAndOnlySomeEntriesMoved() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/adoption-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/adoption-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/adoption-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/adoption-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(a.filePath("Files/one"), "one"); put(a.filePath("Models/two"), "two");
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -267,7 +268,7 @@ private slots:
         QVERIFY(!QFileInfo::exists(a.filePath("Models/two")));
     }
     void bootstrapCatchesHostChangesBeforePublishingTheMirror() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/catchup-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/catchup-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/catchup-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/catchup-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Files/changing"), "before");
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -283,7 +284,7 @@ private slots:
         QVERIFY(!client.bootstrapping());
     }
     void aPrimaryClaimIsPersistentAndCannotPromoteAMirror() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/primary-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/primary-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/primary-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/primary-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         const QString scope(64, 'a');
         QVERIFY(Replica::claimPrimaryHost(b.path(), scope, "host")); QCOMPARE(Replica::primaryHost(b.path(), scope), QString("host"));
@@ -292,7 +293,7 @@ private slots:
         QVERIFY(!Replica::claimPrimaryHost(a.path(), scope, "client"));
     }
     void emptyHostAndHostDriveReplacementNeverMergeIndependentContents() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/replace-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/replace-b-XXXXXX.societycontainer"), c(SYNC_TEST_DIRECTORY "/replace-c-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/replace-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/replace-b-XXXXXX.societycontainer"))), c((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/replace-c-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(c.path()));
         put(a.filePath("Files/independent"), "legacy");
         Replica client, host, replacement; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -308,7 +309,7 @@ private slots:
     }
     void smallUploadsNegotiateInlineCommitAndRetainTheLegacyFallback() {
         for(const bool capable:{false,true}) {
-            QTemporaryDir a(SYNC_TEST_DIRECTORY "/inline-a-XXXXXX.societycontainer"),b(SYNC_TEST_DIRECTORY "/inline-b-XXXXXX.societycontainer");
+            QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/inline-a-XXXXXX.societycontainer"))),b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/inline-b-XXXXXX.societycontainer")));
             QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
             Replica client,host;QVERIFY(client.open(a.path(),QString(64,'a')));QVERIFY(host.open(b.path(),QString(64,'a')));cycle(client,host);
             put(a.filePath("Files/small"),"small verified payload");
@@ -325,7 +326,7 @@ private slots:
         }
     }
     void anIdleProviderLeaseSentinelDoesNotPreventDirectoryDeletion() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/lease-delete-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/lease-delete-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-delete-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/lease-delete-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Files/sub/item"), "original");
         Replica client, host;QVERIFY(client.open(a.path(),QString(64,'a')));QVERIFY(host.open(b.path(),QString(64,'a')));
@@ -336,7 +337,7 @@ private slots:
         QVERIFY(!QFileInfo::exists(a.filePath("Files/sub")));QVERIFY(!QFileInfo::exists(b.filePath("Files/sub")));
     }
     void bothDirectionsDirectoriesDeletionAndIncrementalRequests() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/sync-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/sync-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/sync-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/sync-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Files/sub/client"), QByteArray(700000, 'c')); put(b.filePath("Thinking Space/host"), "host");
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -349,14 +350,14 @@ private slots:
         QVERIFY(!QFileInfo::exists(b.filePath("Files/sub"))); QVERIFY(!QFileInfo::exists(a.filePath("Files/sub")));
         // A newly joined device has never created the deleted parent. Old
         // tombstones must still be acknowledged so its first cycle can finish.
-        QTemporaryDir c(SYNC_TEST_DIRECTORY "/late-join-XXXXXX.societycontainer");
+        QTemporaryDir c((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/late-join-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(c.path()));
         Replica late; QVERIFY(late.open(c.path(), QString(64, 'a'))); cycle(late, host);
         QVERIFY(!QFileInfo::exists(c.filePath("Files/sub")));
         QCOMPARE(get(c.filePath("Thinking Space/host")), QByteArray("host"));
     }
     void concurrentEditsAndDeleteAgainstEditKeepBothResults() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/conflict-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/conflict-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/conflict-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/conflict-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Files/note"), "initial");
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -373,7 +374,7 @@ private slots:
         QCOMPARE(get(a.filePath("Files/note")), QByteArray("concurrent rescue")); QCOMPARE(get(b.filePath("Files/note")), QByteArray("concurrent rescue"));
     }
     void lostAcknowledgementAndRestartDoNotResendCompletedBytes() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/restart-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/restart-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/restart-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/restart-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         cycle(client, host);
@@ -393,7 +394,7 @@ private slots:
         QCOMPARE(get(b.filePath("Models/large.bin")), QByteArray(900000, 'm'));
     }
     void directoryAndLongFilenameConflictsPreserveData() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/types-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/types-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/types-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/types-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         const QString name(200, 'x');
         Replica client, host; QVERIFY(client.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));

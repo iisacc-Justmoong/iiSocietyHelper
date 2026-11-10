@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include "iiSocietyHelper.h"
 
 #include <QDir>
@@ -76,7 +77,7 @@ class ProcessObservationTests : public QObject {
     Q_OBJECT
 private slots:
     void threeProcessesDiscoverCrashAndRestart() {
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/processes-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/processes-XXXXXX")));
         Participant a, b, c;
         QVERIFY(a.start(directory.path(), "com.iisacc.society"));
         QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes"));
@@ -109,7 +110,7 @@ private slots:
 
     void suspendedPeerExpiresAndReturns() {
 #ifdef Q_OS_UNIX
-        QTemporaryDir directory(QStringLiteral(HELPER_TEST_DIRECTORY "/suspend-XXXXXX"));
+        QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/suspend-XXXXXX")));
         Helper observer;
         QVERIFY(observer.start({"com.iisacc.observer", "Observer", "1"}, {directory.path(), 100, 5000}));
         QSignalSpy appeared(&observer, &Helper::peerAppeared);

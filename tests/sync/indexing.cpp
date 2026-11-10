@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include "iiSocietyHelper/Sync/Sync.h"
 #include <SocietyDrive.h>
 #include <StorageMap.h>
@@ -33,7 +34,7 @@ class IndexingTests : public QObject {
     Q_OBJECT
 private slots:
     void derivedCompanionsDoNotBecomePublicDirectoryChanges() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/preview-index-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/preview-index-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         QDir().mkpath(root.filePath("Files/Nested"));
         put(root.filePath("Files/Nested/asset"), "same public bytes");
@@ -55,7 +56,7 @@ private slots:
 #ifndef Q_OS_UNIX
         QSKIP("POSIX descriptor limit regression");
 #else
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/watch-budget-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/watch-budget-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         for (int i = 0; i < 300; ++i) put(root.filePath(QString("Files/item-%1").arg(i)), "small");
         struct rlimit original{}; QVERIFY(getrlimit(RLIMIT_NOFILE, &original) == 0);
@@ -76,7 +77,7 @@ private slots:
 #endif
     }
     void openingWaitsForABriefConcurrentIndexCommit() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/index-open-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/index-open-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         Replica replica; QVERIFY(replica.open(root.path(), scope)); replica.close();
         QSemaphore entered; bool locked = false;
@@ -89,7 +90,7 @@ private slots:
         writer.join(); QVERIFY(locked); QVERIFY2(opened, qPrintable(replica.errorString()));
     }
     void smallObjectsAreDurableAndReadableWhileLargeHashIsCancelled() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/index-cancel-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/index-cancel-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         put(root.filePath("Files/previous"), "previous");
         Replica indexer, reader; QVERIFY(indexer.open(root.path(), scope)); QVERIFY(indexer.scan());
@@ -123,7 +124,7 @@ private slots:
         QCOMPARE(reader.record("files/previous").value("kind"), "deleted");
     }
     void recreationDuringAHashDoesNotBecomeAFalseDeletion() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/index-recreate-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/index-recreate-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         put(root.filePath("Files/recreated"), "old");
         Replica indexer; QVERIFY(indexer.open(root.path(), scope)); QVERIFY(indexer.scan());
@@ -142,7 +143,7 @@ private slots:
                  QString::fromLatin1(QCryptographicHash::hash("revived", QCryptographicHash::Sha256).toHex()));
     }
     void controllerServesCommittedMetadataBeforeLargeHashCompletes() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/index-responsive-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/index-responsive-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         put(root.filePath("Files/small"), "available during model indexing");
         QFile model(root.filePath("Models/large")); QVERIFY(model.open(QIODevice::WriteOnly));

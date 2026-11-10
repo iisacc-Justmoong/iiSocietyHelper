@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Sync/Synchronizer.h>
 #include <SocietyDrive.h>
 #include <StorageMap.h>
@@ -29,7 +30,7 @@ class OnDemandTests : public QObject {
     }
 private slots:
     void targetedTransferCannotPublishAfterTheMirroredVersionChanges() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/targeted-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/targeted-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/targeted-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/targeted-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(a.filePath("Files/selected.bin"), QByteArray(100, 'a'));
         Replica host, phone; QVERIFY(host.open(a.path(), QString(64, 'a'))); QVERIFY(phone.open(b.path(), QString(64, 'a')));
@@ -49,7 +50,7 @@ private slots:
         QVERIFY(!operation("begin", phone.record("files/selected.bin")).value("ok").toBool());
     }
     void validatedHostDoesNotWaitForPendingUploads() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/ready-upload-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/ready-upload-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/ready-upload-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/ready-upload-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica phone, host; QVERIFY(phone.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         QStringList reads; cycle(phone, host, reads);
@@ -71,7 +72,7 @@ private slots:
         QVERIFY(!done.first()[1].toBool()); QVERIFY(validated.isEmpty());
     }
     void firstConnectionDoesNotWaitForThePhotoLibrary() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/first-gallery-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/first-gallery-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/first-gallery-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/first-gallery-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         for (int i = 0; i < 20; ++i) put(b.filePath(QString("Photos/%1.societyphoto").arg(i)), "photo identity");
         put(b.filePath("Models/Checkpoint/model.safetensors"), "remote model");
@@ -90,7 +91,7 @@ private slots:
         QVERIFY(!phone.resident("models/Checkpoint/model.safetensors"));
     }
     void metadataIsVisibleWhileAnUnrelatedConflictWaitsForBytes() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/metadata-priority-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/metadata-priority-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/metadata-priority-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/metadata-priority-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica phone, host; QVERIFY(phone.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         QStringList reads; cycle(phone, host, reads);
@@ -114,7 +115,7 @@ private slots:
         QCOMPARE(pending.readAll(), QByteArray("pending phone edit"));
     }
     void selectedDownloadFinishesBeforeUnrelatedConflictReconciliation() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/request-priority-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/request-priority-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/request-priority-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/request-priority-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         const QByteArray model(800123, 'm'); put(b.filePath("Models/selected.bin"), model);
         Replica phone, host; QVERIFY(phone.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -139,7 +140,7 @@ private slots:
         QCOMPARE(downloaded.readAll(), model); sync.stop();
     }
     void newUploadIsAcknowledgedBeforeUnrelatedConflictReconciliation() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/upload-priority-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/upload-priority-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/upload-priority-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/upload-priority-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica phone, host; QVERIFY(phone.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
         QStringList reads; cycle(phone, host, reads);
@@ -164,7 +165,7 @@ private slots:
         QCOMPARE(uploaded.readAll(), QByteArray(100123, 'g')); sync.stop();
     }
     void previewBatchesYieldToSelectedDownloads() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/preview-batch-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/preview-batch-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/preview-batch-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/preview-batch-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         for (int index = 0; index < 20; ++index) {
             QImage image(64, 64, QImage::Format_RGB32); image.fill(QColor(index * 10, 0, 0));
@@ -189,7 +190,7 @@ private slots:
         QVERIFY(!QFileInfo::exists(a.filePath("Generation History/image-0.png")));
     }
     void cancellationDuringTransferLeavesNoPublishedOriginal() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/cancel-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/cancel-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/cancel-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/cancel-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Models/large.bin"), QByteArray(4 * 1024 * 1024, 'm'));
         Replica phone, host; QVERIFY(phone.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));
@@ -209,7 +210,7 @@ private slots:
         QCOMPARE(map.requestState(resumed).value("state"), "ready"); QVERIFY(map.available({"models/large.bin"}));
     }
     void previewsAndCancellationDoNotFetchOriginals() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/preview-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/preview-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/preview-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/preview-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         QImage original(1024, 768, QImage::Format_RGB32); original.fill(Qt::red);
         QVERIFY(original.save(b.filePath("Generation History/large.png")));
@@ -226,7 +227,7 @@ private slots:
         QVERIFY(!map.available({"generation-history/large.png"}));
     }
     void metadataThenSelectedModelAndGeneratedUpload() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/demand-phone-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/demand-host-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/demand-phone-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/demand-host-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Models/Checkpoint/selected.safetensors"), QByteArray(800123, 'm'));
         put(b.filePath("Models/Checkpoint/unselected.safetensors"), QByteArray(1600555, 'x'));
@@ -257,7 +258,7 @@ private slots:
         QVERIFY(phone.changes().value("entries").toArray().isEmpty());
     }
     void staleRequestAndRemoteDeletion() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/demand-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/demand-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/demand-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/demand-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         put(b.filePath("Models/model.bin"), "old");
         Replica phone, host; QVERIFY(phone.open(a.path(), QString(64, 'a'))); QVERIFY(host.open(b.path(), QString(64, 'a')));

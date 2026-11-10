@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <limits>
 #include <string>
 #include <vector>
 #include <iiSocietyHelper/Monitoring/Export.h>
@@ -30,7 +31,8 @@ struct State {
     std::vector<std::string> changedSections;
 };
 struct Options {
-    std::size_t maxDepth = 64, maxEntries = 100000;
+    // Full inventory by default; callers may impose explicit traversal limits.
+    std::size_t maxDepth = 256, maxEntries = (std::numeric_limits<std::size_t>::max)();
 };
 struct Selection { std::filesystem::path root; std::string containerId; };
 template<class T> using Result = std::expected<T, std::string>;
@@ -45,6 +47,9 @@ public:
     Publisher& operator=(const Publisher&) = delete;
     Result<void> start(const std::filesystem::path& root, std::string expectedId = {}, Options options = {});
     Result<bool> poll(); // true only when the logical state/revision changed
+    Result<void> heartbeat(); // republishes the last state without scanning
+    // Optional CLI barrier; normal heartbeat and GUI consumers never wait here.
+    Result<void> waitForIndex(std::chrono::milliseconds timeout);
     void stop();
     const State& state() const;
 private:

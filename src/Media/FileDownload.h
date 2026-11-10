@@ -7,17 +7,20 @@
 namespace iiSocietyHelper {
 class FileSystem;
 class Client;
+class FileHost;
 
 // One explicit download into the selected native .societycontainer. The supplied
 // dedicated Client uses connectHost(), never the replica's shared-session lease
-// or a request file consumed by another application. FileSystem/Client must
-// outlive this object. All filesystem and journal transfer work runs off-thread.
+// or a request file consumed by another application. FileSystem and the supplied
+// Client or FileHost must outlive this object. Filesystem and journal work runs off-thread.
 class IISOCIETYHELPER_EXPORT FileDownload final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QVariantMap state READ state NOTIFY changed)
     Q_PROPERTY(bool active READ active NOTIFY changed)
 public:
     FileDownload(FileSystem *files, Client *client, QObject *parent = nullptr);
+    // The caller owns the transport and keeps it alive through this download.
+    FileDownload(FileSystem *files, FileHost &host, QObject *parent = nullptr);
     ~FileDownload() override;
     QVariantMap state() const;
     bool active() const;

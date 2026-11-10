@@ -11,21 +11,35 @@ if(IISOCIETYHELPER_BUILD_GENERATION_HOST)
     endif()
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Gui Concurrent)
     find_package(iiLocalDiffusion CONFIG REQUIRED)
-    add_library(iiSocietyHelperGenerationHost STATIC src/Generation/Host.cpp src/Generation/Host.h)
+    iisociety_check_provider_runtime_collision(iiLocalDiffusion::iiLocalDiffusion)
+    add_library(iiSocietyHelperGenerationHost SHARED src/Generation/Host.cpp src/Generation/Host.h)
     add_library(iiSocietyHelper::GenerationHost ALIAS iiSocietyHelperGenerationHost)
     set_target_properties(iiSocietyHelperGenerationHost PROPERTIES EXPORT_NAME GenerationHost
-        POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF)
+        POSITION_INDEPENDENT_CODE ON CXX_EXTENSIONS OFF WINDOWS_EXPORT_ALL_SYMBOLS ON)
     target_compile_features(iiSocietyHelperGenerationHost PUBLIC cxx_std_23)
+    target_compile_definitions(iiSocietyHelperGenerationHost PRIVATE IISOCIETYHELPER_GENERATION_BUILD)
     target_link_libraries(iiSocietyHelperGenerationHost PUBLIC iiSocietyHelper::iiSocietyHelper
         iiLocalDiffusion::iiLocalDiffusion PRIVATE Qt6::Gui Qt6::Concurrent)
-    install(TARGETS iiSocietyHelperGenerationHost EXPORT iiSocietyHelperGenerationHostTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+    install(TARGETS iiSocietyHelperGenerationHost EXPORT iiSocietyHelperGenerationHostTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
     install(EXPORT iiSocietyHelperGenerationHostTargets NAMESPACE iiSocietyHelper:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelper)
     if(BUILD_TESTING)
+        add_test(NAME iiSocietyHelper.Generation.SharedType COMMAND "${CMAKE_COMMAND}"
+            "-DTARGET_TYPE=$<TARGET_PROPERTY:iiSocietyHelperGenerationHost,TYPE>"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/shared_target_type.cmake")
         find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
         add_executable(iiSocietyHelperGenerationTests tests/generation/generation.cpp)
         target_link_libraries(iiSocietyHelperGenerationTests PRIVATE iiSocietyHelper::GenerationHost Qt6::Test Qt6::Gui)
-        target_compile_definitions(iiSocietyHelperGenerationTests PRIVATE GENERATION_TEST_DIRECTORY="${CMAKE_CURRENT_BINARY_DIR}")
-        add_test(NAME iiSocietyHelper.Generation.Protocol COMMAND iiSocietyHelperGenerationTests)
+        if(NOT CMAKE_CROSSCOMPILING)
+            add_test(NAME iiSocietyHelper.Generation.SharedLink COMMAND "${CMAKE_COMMAND}"
+                "-DIMAGE=$<TARGET_FILE:iiSocietyHelperGenerationTests>" "-DEXPECTED=$<TARGET_FILE:iiSocietyHelperGenerationHost>"
+                "-DNATIVE_PROVIDER=$<TARGET_FILE:iiFileProvider::Native>"
+                "-DQT_PROVIDER=$<TARGET_FILE:iiFileProvider::iiFileProvider>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/shared_link.cmake")
+        endif()
+        target_compile_definitions(iiSocietyHelperGenerationTests PRIVATE GENERATION_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
+        iisociety_fixture_test(iiSocietyHelper.Generation.Protocol iiSocietyHelperGenerationTests)
         set_tests_properties(iiSocietyHelper.Generation.Protocol PROPERTIES TIMEOUT 45)
     endif()
 endif()

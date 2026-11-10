@@ -1,6 +1,7 @@
 #include <iiFileProviderDevice.h>
 #include "FilePresentation_p.h"
 #include "PresenceWorker_p.h"
+#include "CallbackGate_p.h"
 #include "ManagedFileOperation_p.h"
 #include <QSet>
 #include <QPointer>
@@ -154,19 +155,22 @@ public:
 
 class FileSystem::Private {
 public:
-    explicit Private(FileSystem *owner) : q(owner), container(owner) {}
+    explicit Private(FileSystem *owner) : q(owner), container(owner),
+        callbacks(std::make_shared<detail::CallbackGate>(owner)) {}
     FileSystem *q;
     iiSocietyContainer::Container container;
     QTimer synchronization;
     std::unique_ptr<detail::PresenceWorker> mirrorWorker;
     std::unique_ptr<detail::PresenceWorker> intakeWorker;
     std::stop_source intakeCancellation;
+    std::shared_ptr<detail::CallbackGate> callbacks;
     quint64 mirrorEpoch = 0;
     bool mirrorInFlight = false, mirrorPending = false;
     QString selection;
     QString error;
     std::optional<SharedStorage> storage;
-    iiSocietyHelper::Monitoring::Subscription monitor;
+    std::unique_ptr<iiSocietyHelper::Monitoring::Subscription> monitor = std::make_unique<iiSocietyHelper::Monitoring::Subscription>();
+    bool shuttingDown = false;
     QVariantMap containerState;
     quint64 monitorEpoch = 0;
     std::filesystem::path monitorRoot;
@@ -175,7 +179,7 @@ public:
     void stopMonitor()
     {
         ++monitorEpoch;
-        monitor.stop();
+        if (monitor) monitor->stop();
         monitorRoot.clear(); monitorId.clear();
         if (!synchronization.isActive()) synchronization.start();
         if (!containerState.isEmpty()) {
@@ -186,7 +190,7 @@ public:
 
     void startMonitor()
     {
-        if (!storage) return;
+        if (!storage || shuttingDown || !monitor) return;
         const auto root = std::filesystem::path(storage->drive().rootPath().toStdU16String());
         const auto id = storage->drive().identifier().toStdString();
         if (root == monitorRoot && id == monitorId) return;
@@ -194,12 +198,13 @@ public:
         monitorRoot = root; monitorId = id;
         const auto epoch = monitorEpoch;
         auto *owner = q;
+        const auto gate = callbacks;
         // Subscription owns a native worker. Only the queued adapter touches
         // QObject state, and selection epochs discard obsolete queued events.
-        (void)monitor.start(root, id, [owner, epoch](const iiSocietyHelper::Monitoring::State &state) {
+        (void)monitor->start(root, id, [owner, gate, epoch](const iiSocietyHelper::Monitoring::State &state) {
             const auto json = iiSocietyHelper::Monitoring::toJson(state);
             const auto value = QJsonDocument::fromJson(QByteArray::fromStdString(json)).object().toVariantMap();
-            QMetaObject::invokeMethod(owner, [owner, epoch, value] {
+            gate->post([owner, epoch, value] {
                 auto &self = *owner->d;
                 if (self.monitorEpoch != epoch) return;
                 const auto previous = self.containerState;
@@ -216,7 +221,7 @@ public:
                     emit owner->storageChanged();
                 }
                 emit owner->containerStateChanged();
-            }, Qt::QueuedConnection);
+            });
         });
     }
 #ifdef Q_OS_ANDROID
@@ -280,14 +285,34 @@ FileSystem::FileSystem(Initialization initialization,QObject *parent)
 FileSystem::~FileSystem() {
     d->intakeCancellation.request_stop();
     ++d->monitorEpoch; ++d->mirrorEpoch;
-    d->monitor.stop();
-    // The receiver remains alive until its native I/O worker has stopped.
+    d->callbacks->close();
+    if (d->monitor) d->monitor->stop();
+    // A filesystem call can be blocked by the OS. Detached operations retain
+    // only value-owned storage and a closed callback gate after shutdown.
     d->mirrorWorker.reset();
     d->intakeWorker.reset();
 }
 
+void FileSystem::prepareForShutdown() {
+    if (d->shuttingDown) return;
+    d->shuttingDown = true;
+    d->intakeCancellation.request_stop();
+    ++d->monitorEpoch; ++d->mirrorEpoch;
+    d->synchronization.stop();
+    d->callbacks->close();
+    const bool hadMonitor = !d->monitorRoot.empty();
+    auto monitor = std::shared_ptr<iiSocietyHelper::Monitoring::Subscription>(std::move(d->monitor));
+    if (monitor && hadMonitor && !detail::PresenceWorker::retireDetached([monitor] { monitor->stop(); }))
+        monitor->stop(); // A host that closes admission first retains safe fallback behavior.
+    d->mirrorWorker.reset();
+    d->intakeWorker.reset();
+}
+
+void FileSystem::quiesceBackgroundWork() { detail::PresenceWorker::quiesceDetachedWork(); }
+
 bool FileSystem::open(const QString &containerPath)
 {
+    if (d->shuttingDown) { setError(QStringLiteral("Society storage is shutting down.")); return false; }
     d->intakeCancellation.request_stop(); d->intakeCancellation = std::stop_source{};
     ++d->mirrorEpoch;
     d->selection = containerPath;
@@ -366,6 +391,18 @@ bool FileSystem::isAvailable() const {
     if (d->remote) return !d->remoteId.isEmpty() && !d->request(QStringLiteral("open")).contains("error");
 #endif
     return d->storage && d->storage->drive().isValid();
+}
+bool FileSystem::matchesStorage(const QString &root, const QString &identifier) const {
+    if (root.isEmpty() || identifier.isEmpty()) return false;
+#ifdef Q_OS_ANDROID
+    if (d->remote) {
+        return d->remoteRoot == root && d->remoteId == identifier
+            && !d->request(QStringLiteral("open")).contains("error");
+    }
+#endif
+    if (!d->storage) return false;
+    const auto &drive = d->storage->drive();
+    return drive.rootPath() == root && drive.identifier() == identifier && drive.isValid();
 }
 QString FileSystem::rootPath() const {
 #ifdef Q_OS_ANDROID
@@ -503,6 +540,7 @@ bool FileSystem::synchronize() {
 
 void FileSystem::requestSynchronization()
 {
+    if (d->shuttingDown) return;
 #ifdef Q_OS_ANDROID
     // The existing provider adapter owns its Android request context.
     if (d->remote) { const auto ok = synchronize(); emit synchronizationFinished(ok); return; }
@@ -512,14 +550,15 @@ void FileSystem::requestSynchronization()
     const auto epoch = d->mirrorEpoch;
     const auto storage = d->storage;
     const auto intakeStop = d->intakeCancellation.get_token();
-    if (!d->mirrorWorker) d->mirrorWorker = std::make_unique<detail::PresenceWorker>();
-    d->mirrorWorker->post([this, epoch, storage, intakeStop] {
+    const auto callbacks = d->callbacks;
+    if (!d->mirrorWorker) d->mirrorWorker = std::make_unique<detail::PresenceWorker>(detail::PresenceWorker::Shutdown::detachActive);
+    d->mirrorWorker->post([this, callbacks, epoch, storage, intakeStop] {
         MirrorSnapshot snapshot;
         try { snapshot = scanMirror(storage); }
         catch (const std::exception &error) { snapshot.error = QString::fromUtf8(error.what()); }
         // Mirror discovery and RAW capture have independent coalesced owners.
         // Switching a selection must not wait for the previous archive.
-        QMetaObject::invokeMethod(this, [this, epoch, storage, intakeStop, snapshot = std::move(snapshot)] {
+        callbacks->post([this, callbacks, epoch, storage, intakeStop, snapshot = std::move(snapshot)] {
             const QPointer<FileSystem> guard(this);
             d->mirrorInFlight = false;
             if (epoch == d->mirrorEpoch) {
@@ -529,20 +568,20 @@ void FileSystem::requestSynchronization()
                     d->container.synchronize(snapshot.id, snapshot.root, snapshot.aliases, snapshot.available, snapshot.error);
                 if (!guard) return;
                 if (storage && snapshot.available && !intakeStop.stop_requested()) {
-                    if (!d->intakeWorker) d->intakeWorker = std::make_unique<detail::PresenceWorker>();
-                    d->intakeWorker->post([this, epoch, storage, intakeStop] {
+                    if (!d->intakeWorker) d->intakeWorker = std::make_unique<detail::PresenceWorker>(detail::PresenceWorker::Shutdown::detachActive);
+                    d->intakeWorker->post([this, callbacks, epoch, storage, intakeStop] {
                         if (intakeStop.stop_requested()) return;
                         QString error; storage->reconcileFiles(&error, intakeStop);
                         if (!error.isEmpty() && !intakeStop.stop_requested())
-                            QMetaObject::invokeMethod(this, [this, epoch, error] {
+                            callbacks->post([this, epoch, error] {
                                 if (epoch == d->mirrorEpoch) d->setError(error);
-                            }, Qt::QueuedConnection);
+                            });
                     });
                 }
             }
             emit synchronizationFinished(epoch == d->mirrorEpoch && snapshot.available);
             if (guard && std::exchange(d->mirrorPending, false)) requestSynchronization();
-        }, Qt::QueuedConnection);
+        });
     });
 }
 

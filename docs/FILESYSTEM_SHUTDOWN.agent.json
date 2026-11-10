@@ -1,0 +1,121 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:532e21319bde002f6f3504bdfdf4d32452c30e7357e85712e59c78bf7d860add",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/FILESYSTEM_SHUTDOWN.md",
+    "sha256": "4d458ed775103c1be9c5a9213a5747fb3584414e794aa9b991d25dc56cdee788",
+    "bytes": 2186,
+    "line_count": 24,
+    "encoding": "utf-8",
+    "language": "ko"
+  },
+  "document": {
+    "title": "파일 동기화 종료",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# 파일 동기화 종료\n",
+      "level": 1,
+      "title": "파일 동기화 종료"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 9,
+      "raw": "`FileSystem`은 종료 시 원본 수집의 취소 토큰을 먼저 요청하고 콜백 게이트를 닫는다.\n그다음 탐색과 원본 수집 워커의 대기 중인 작업을 버리고 진행 중인 I/O를 소유자와\n분리한다. 커널의 파일 읽기·쓰기가 지연되어도 UI 스레드가 이 워커의 종료를 기다리지\n않는다. 진행 중인 작업은 값으로 보유한 저장소와 취소 토큰만 사용하며, 삭제된\n`FileSystem`에 결과를 게시하지 않는다. 이미 게시된 결과도 게이트가 닫히면 실행하지\n않는다. 취소는 현재 시스템 호출을 강제로 중단하지 않으며, 호출이 돌아온 뒤 수집\n계층의 취소 검사가 적용된다. 작업 중이던 객체 저장소의 복구 및 내구성 규칙은 그대로다.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 10,
+      "end_line": 10,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 11,
+      "end_line": 15,
+      "raw": "이 분리 종료는 `FileSystem`의 탐색·수집 워커에만 적용한다. 일반 `PresenceWorker`는\n기본적으로 활성 작업을 기다리므로 다른 클라이언트의 수명 계약은 바뀌지 않는다.\n`iiSocietyHelper.presence_worker`는 막힌 작업 중 소유자를 파괴하는 시간과 종료 후\n콜백 차단, 대기 중인 콜백 차단, 기존 대기·병합 계약을 확인한다. 운영 앱의 실제 종료는\n이 SDK로 다시 빌드한 뒤 별도 검증해야 한다.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 16,
+      "end_line": 16,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 17,
+      "end_line": 24,
+      "raw": "프로세스 종료를 조정하는 호스트는 각 소유 스레드에서 먼저\n`FileSystem::prepareForShutdown()`을 호출한다. 이 메서드는 타이머와 콜백을 닫고,\n활성 모니터의 중단을 값 소유 워커에 넘기므로 모니터의 I/O를 UI에서 기다리지 않는다.\n이후 별도 워커에서 `FileSystem::quiesceBackgroundWork()`를 호출하면 분리된\n탐색·수집·모니터 종료 작업의 새 접수를 닫고 이미 접수된 작업이 끝나기를 기다린다.\n이 장벽은 프로세스 수명 중 되돌릴 수 없으며, 최종 정적 객체 해제 이전에 완료해야\n한다. 커널 I/O가 멈춘 경우 장벽은 그 호출이 돌아올 때까지 기다리지만 호스트의\n이벤트 루프는 계속 실행되어야 한다. 일반 화면 제거에는 이 전역 장벽을 호출하지 않는다.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "파일 동기화 종료",
+      "anchor": "파일-동기화-종료",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 7,
+        "text": "`FileSystem`에 결과를 게시하지 않는다. 이미 게시된 결과도 게이트가 닫히면 실행하지",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 15,
+        "text": "이 SDK로 다시 빌드한 뒤 별도 검증해야 한다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 24,
+        "text": "이벤트 루프는 계속 실행되어야 한다. 일반 화면 제거에는 이 전역 장벽을 호출하지 않는다.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}

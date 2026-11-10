@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/Generation/README.md",
-    "sha256": "e0ea27ca8aef9ec76f6b0e9a9f6caf4ded1f857db0751f89efc310fe291a7581",
-    "bytes": 3890,
-    "line_count": 26,
+    "sha256": "da7a1aee831a1a4691aa0929485ba95aa101280b42a0ea1d06bd5aa5b6928736",
+    "bytes": 4432,
+    "line_count": 34,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -168,7 +168,21 @@
       "id": "b000021",
       "kind": "paragraph",
       "start_line": 26,
-      "end_line": 26,
+      "end_line": 32,
+      "raw": "At final process shutdown, `Host::shutdownAsync()` cancels the current job,\ncloses result callbacks and retires the host without waiting for an inference\nengine that does not return promptly. It cannot be reopened. An injected engine\nand any state captured by it must remain valid until that engine returns. Normal\ndestruction continues to wait for the engine, preserving the existing lifetime\ncontract. Cancellation observed before the atomic output commit discards the\nstaged file; an atomic commit already in progress can still complete.\n"
+    },
+    {
+      "id": "b000022",
+      "kind": "blank",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "\n"
+    },
+    {
+      "id": "b000023",
+      "kind": "paragraph",
+      "start_line": 34,
+      "end_line": 34,
       "raw": "Build at `build/` and host pre-execution at `iiSocietyHelper.Generation.Protocol`, and verify reconnection, duplicate submission, cancellation, permission boundary, and result validation. The test injection engine provides transmission and scheduling evidence and does not substitute for actual model quality validation.\n"
     }
   ],
@@ -195,6 +209,13 @@
         "block_id": "b000017",
         "line": 22,
         "text": "The caller must check authentication and host role. Host additionally checks the job owning device, UUID reuse, changed model reference, path deviation, request size, queue size, and result chunk range. Retransmission of the same UUID does not cause duplicate execution, and cancellation status is maintained even if cancellation arrives before submission. After connection disconnection, jobs of the same process are re-queried. Upon host process restart, the memory queue is not recovered and an explicit job-not-found error is returned.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000021",
+        "line": 29,
+        "text": "and any state captured by it must remain valid until that engine returns. Normal",
         "basis": "lexical_match",
         "context": "paragraph"
       }

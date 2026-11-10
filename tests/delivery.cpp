@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include "DeliveryStore.h"
 #include "iiSocietyHelper.h"
 #include <QTemporaryDir>
@@ -17,7 +18,7 @@ class DeliveryTests : public QObject {
 private slots:
     void initializedStoreDoesNotWaitForAnotherInitializationLease()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/ready-delivery-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/ready-delivery-XXXXXX")));
         DeliveryStore initial;
         QVERIFY(initial.open(root.path()));
         const QVariantMap marker{{"instanceId", "existing-daemon"}, {"sequence", 42}};
@@ -36,7 +37,7 @@ private slots:
     }
     void firstSchemaCreationStillRequiresItsInitializationLease()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/new-delivery-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/new-delivery-XXXXXX")));
         QVERIFY(QDir().mkpath(root.filePath("delivery")));
         iiFileProvider::LockFile initializer(root.filePath("delivery/initialization.lock"));
         initializer.setStaleLockTime(0); QVERIFY(initializer.tryLock(0));
@@ -48,7 +49,7 @@ private slots:
     }
     void unsupportedSchemaIsNotAcceptedByReadyOpen()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/unsupported-delivery-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/unsupported-delivery-XXXXXX")));
         DeliveryStore initial; QVERIFY(initial.open(root.path())); initial.close();
         const auto connection = QUuid::createUuid().toString();
         {
@@ -67,7 +68,7 @@ private slots:
     }
     void localMessagesNeverLiveInsideAReplicatedDrive()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/local-boundary-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/local-boundary-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         for (const auto &path : {root.path(), root.filePath("Files/LocalMessages"), root.filePath("Models/LocalMessages")}) {
             Helper helper;
@@ -84,7 +85,7 @@ private slots:
     }
     void queueSurvivesSenderAndReceiverRestarts()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/delivery-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/delivery-XXXXXX")));
         QString messageId;
         {
             Helper helper;
@@ -115,7 +116,7 @@ private slots:
 
     void runningLocalQueueStopsIfItsDirectoryBecomesReplicated()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/late-boundary-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/late-boundary-XXXXXX.societycontainer")));
         Helper helper;
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root.path(), 50, 400}));
         DeliveryStore store;
@@ -128,7 +129,7 @@ private slots:
 
     void acknowledgementsNeverSkipUnreceivedOrGoBackwards()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/cursor-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/cursor-XXXXXX")));
         Helper helper;
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root.path(), 50, 400}));
         DeliveryStore store;
@@ -145,7 +146,7 @@ private slots:
 
     void readsArePagedAndSnapshotsSurviveRestart()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/pages-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/pages-XXXXXX")));
         Helper helper;
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root.path(), 50, 400}));
         for (int i = 0; i < 5; ++i) QVERIFY(!helper.sendData("test.data", {{"index", i}}).isEmpty());
@@ -166,7 +167,7 @@ private slots:
 
     void failedReceiptKeepsTheWholeOutboxBatch()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/rollback-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/rollback-XXXXXX")));
         Helper helper;
         QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root.path(), 50, 400}));
         QVERIFY(!helper.sendData("force.failure", {{"retained", true}}).isEmpty());

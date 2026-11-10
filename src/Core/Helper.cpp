@@ -4,6 +4,7 @@
 #include "DeliveryStore.h"
 #include "LocalDirectory.h"
 #include "PresenceWorker_p.h"
+#include "../Files/CallbackGate_p.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -23,6 +24,8 @@
 #include <QUuid>
 #include <utility>
 #include <exception>
+#include <condition_variable>
+#include <mutex>
 
 namespace iiSocietyHelper {
 Q_LOGGING_CATEGORY(presenceLog, "iisacc.society.helper")
@@ -113,6 +116,28 @@ struct AutomaticMessage {
     QVariantMap payload;
 };
 
+struct AsyncStartTicket {
+    std::mutex mutex;
+    std::condition_variable changed;
+    bool cancelled = false, accepted = false, finished = false;
+};
+
+struct AsyncStartResult {
+    QString root, error, startedId;
+    Peer local;
+    ObservationOptions options;
+    bool published = false;
+};
+
+struct AsyncStopData {
+    QString root, error;
+    Peer local;
+    QList<AutomaticMessage> pending;
+    DeliveryStore delivery;
+    std::unique_ptr<detail::PresenceWorker> presence, automatic;
+    std::function<void()> beforeIo;
+};
+
 // All recurring filesystem work consumes values and runs outside the UI thread.
 PresenceResult inspectPresence(const QString &root, const Peer &local, quint64 sequence,
                                bool publish, bool scan = true)
@@ -182,8 +207,11 @@ QVariantMap Peer::toVariantMap() const
 
 class Helper::Private {
 public:
-    explicit Private(Helper *owner) : q(owner), timer(new QTimer(owner)), watcher(new QFileSystemWatcher(owner)),
-        fileSystem(new FileSystem(owner))
+    explicit Private(Helper *owner, FileSystem::Initialization initialization)
+        : q(owner), timer(new QTimer(owner)), watcher(new QFileSystemWatcher(owner)),
+        fileSystem(new FileSystem(initialization, owner)),
+        cycleCallbacks(std::make_shared<detail::CallbackGate>(owner)),
+        lifecycleCallbacks(std::make_shared<detail::CallbackGate>(owner))
     {
         clock.start();
         QObject::connect(timer, &QTimer::timeout, owner, [this] {
@@ -223,7 +251,11 @@ public:
     bool publishPending = false;
     bool automaticInFlight = false;
     bool stopping = false;
+    bool fullyStopped = false;
     QList<AutomaticMessage> automaticMessages;
+    HelperLifecycleHooks hooks;
+    std::shared_ptr<AsyncStartTicket> startTicket;
+    std::shared_ptr<detail::CallbackGate> cycleCallbacks, lifecycleCallbacks;
 
     bool fail(const QString &message, QString *output = nullptr)
     {
@@ -267,20 +299,20 @@ public:
         const auto directory = root;
         const auto peer = local;
         const auto heartbeat = publish ? ++sequence : sequence;
+        const auto callbacks = cycleCallbacks;
         if (!presenceWorker) presenceWorker = std::make_unique<detail::PresenceWorker>();
-        presenceWorker->post([this, epoch, directory, peer, heartbeat, publish] {
+        presenceWorker->post([this, callbacks, epoch, directory, peer, heartbeat, publish] {
             PresenceResult result;
             try {
                 result = inspectPresence(directory, peer, heartbeat, publish);
             }
             catch (const std::exception &error) { result.error = QString::fromUtf8(error.what()); }
-            // stop() drains the worker before the receiver can be destroyed.
-            QMetaObject::invokeMethod(q, [this, epoch, result = std::move(result)] {
+            callbacks->post([this, epoch, result = std::move(result)] {
                 const QPointer<Helper> guard(q);
                 if (!running || presenceEpoch != epoch) return;
                 cycleInFlight = false;
                 if (!result.error.isEmpty()) {
-                    q->stop();
+                    (void)q->stopAsync();
                     if (guard) fail(result.error);
                     return;
                 }
@@ -289,7 +321,7 @@ public:
                 if (!guard || !running || presenceEpoch != epoch) return;
                 if (std::exchange(scanPending, false))
                     requestCycle(std::exchange(publishPending, false));
-            }, Qt::QueuedConnection);
+            });
         });
     }
 
@@ -307,9 +339,10 @@ public:
         if (!automaticWorker) automaticWorker = std::make_unique<detail::PresenceWorker>();
         const auto epoch = presenceEpoch;
         const auto directory = root;
+        const auto callbacks = cycleCallbacks;
         auto messages = std::exchange(automaticMessages, {});
         // History commits cannot hold up the independently scheduled heartbeat.
-        automaticWorker->post([this, epoch, directory, messages = std::move(messages)] {
+        automaticWorker->post([this, callbacks, epoch, directory, messages = std::move(messages)] {
             QStringList queued;
             QString error;
             try {
@@ -321,7 +354,7 @@ public:
                         else queued.append(id);
                     }
             } catch (const std::exception &failure) { error = QString::fromUtf8(failure.what()); }
-            QMetaObject::invokeMethod(q, [this, epoch, queued, error] {
+            callbacks->post([this, epoch, queued, error] {
                 const QPointer<Helper> guard(q);
                 if (presenceEpoch == epoch) automaticInFlight = false;
                 for (const auto &id : queued) {
@@ -332,7 +365,7 @@ public:
                 if (!error.isEmpty()) fail(error);
                 if (!guard || !running || presenceEpoch != epoch) return;
                 scheduleAutomatic();
-            }, Qt::QueuedConnection);
+            });
         });
     }
 
@@ -419,7 +452,10 @@ public:
     }
 };
 
-Helper::Helper(QObject *parent) : QObject(parent), d(std::make_unique<Private>(this))
+Helper::Helper(QObject *parent) : Helper(FileSystem::Initialization::Discover, parent) {}
+
+Helper::Helper(FileSystem::Initialization initialization, QObject *parent)
+    : QObject(parent), d(std::make_unique<Private>(this, initialization))
 {
     if (qApp) connect(qApp, &QCoreApplication::aboutToQuit, this, &Helper::stop);
     connect(this, &Helper::peerAppeared, this, [this](const Peer &peer) { d->queueAutomatic("helper.peerAppeared", peer.toVariantMap()); });
@@ -431,7 +467,15 @@ Helper::Helper(QObject *parent) : QObject(parent), d(std::make_unique<Private>(t
     });
 }
 
-Helper::~Helper() { stop(); }
+Helper::~Helper() {
+    if (d->startTicket) {
+        { std::lock_guard lock(d->startTicket->mutex); d->startTicket->cancelled = true; }
+        d->startTicket->changed.notify_all();
+    }
+    d->cycleCallbacks->close();
+    d->lifecycleCallbacks->close();
+    stop();
+}
 
 QString Helper::defaultDirectory(QString *error)
 {
@@ -455,12 +499,15 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
     if (error) error->clear();
     if (!qApp || QThread::currentThread() != thread() || thread() != qApp->thread())
         return d->fail(QStringLiteral("Start Society Helper on the application's event-loop thread."), error);
-    if (d->running) return d->fail(QStringLiteral("Society Helper is already observing."), error);
+    if (d->running || d->startTicket || d->stopping) return d->fail(QStringLiteral("Society Helper is already observing or changing state."), error);
     if (!validApplication(application))
         return d->fail(QStringLiteral("Provide a reverse-DNS application ID, a name and bounded version metadata."), error);
     if (options.heartbeatIntervalMs < 20 || options.heartbeatIntervalMs > 60000
         || options.peerTimeoutMs < qint64(options.heartbeatIntervalMs) * 3 || options.peerTimeoutMs > 300000)
         return d->fail(QStringLiteral("Heartbeat must be 20–60000 ms; timeout must be at least three heartbeats and at most 300000 ms."), error);
+    d->hooks = {};
+    d->fullyStopped = false;
+    d->cycleCallbacks = std::make_shared<detail::CallbackGate>(this);
     QString rootError;
     QString root = options.directory.isEmpty() ? defaultDirectory(&rootError) : options.directory;
     if (root.isEmpty() || !iiFileProvider::Directory::isAbsolutePath(root) || iiFileProvider::Directory(root).isRoot())
@@ -470,7 +517,7 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
     const bool existed = QFileInfo::exists(root);
     if (QFileInfo(root).isSymLink() || !iiFileProvider::Directory().mkpath(root) || !QFileInfo(root).isDir())
         return d->fail(QStringLiteral("Cannot create the shared observation directory."), error);
-    if (!existed && !iiFileProvider::FileDevice::setPermissions(root, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner))
+    if (!existed && !iiFileProvider::FileDevice::setPermissions(root, iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner))
         return d->fail(QStringLiteral("Cannot restrict the observation directory to its owner."), error);
     d->root = QFileInfo(root).canonicalFilePath();
     if (!d->delivery.open(d->root, &rootError)) return d->fail(rootError, error);
@@ -499,9 +546,194 @@ bool Helper::start(const ApplicationInfo &application, const ObservationOptions 
     return true;
 }
 
+bool Helper::startAsync(const ApplicationInfo &application, const ObservationOptions &options, HelperLifecycleHooks hooks)
+{
+    if (!qApp || QThread::currentThread() != thread() || thread() != qApp->thread())
+        return d->fail(QStringLiteral("Start Society Helper on the application's event-loop thread."));
+    if (d->running || d->startTicket || d->stopping)
+        return d->fail(QStringLiteral("Society Helper is already observing or changing state."));
+    if (!validApplication(application))
+        return d->fail(QStringLiteral("Provide a reverse-DNS application ID, a name and bounded version metadata."));
+    if (options.heartbeatIntervalMs < 20 || options.heartbeatIntervalMs > 60000
+        || options.peerTimeoutMs < qint64(options.heartbeatIntervalMs) * 3 || options.peerTimeoutMs > 300000)
+        return d->fail(QStringLiteral("Heartbeat must be 20–60000 ms; timeout must be at least three heartbeats and at most 300000 ms."));
+    const auto ticket = d->startTicket = std::make_shared<AsyncStartTicket>();
+    d->fullyStopped = false;
+    const auto callbacks = d->lifecycleCallbacks;
+    d->cycleCallbacks = std::make_shared<detail::CallbackGate>(this);
+    d->hooks = hooks;
+    auto *worker = QThread::create([this, ticket, callbacks, application, options, hooks] {
+        AsyncStartResult result; result.options = options;
+        try {
+            if (hooks.beforeStartIo) hooks.beforeStartIo();
+            bool cancelled;
+            { std::lock_guard lock(ticket->mutex); cancelled = ticket->cancelled; }
+            if (!cancelled) {
+                QString error;
+                auto root = options.directory.isEmpty() ? Helper::defaultDirectory(&error) : options.directory;
+                if (root.isEmpty() || !iiFileProvider::Directory::isAbsolutePath(root) || iiFileProvider::Directory(root).isRoot())
+                    result.error = error.isEmpty() ? QStringLiteral("Provide an absolute shared observation directory.") : error;
+                else {
+                    root = iiFileProvider::Directory::cleanPath(root);
+                    if (!local::validateDirectory(root, &error)) result.error = error;
+                    else {
+                        const bool existed = QFileInfo::exists(root);
+                        if (QFileInfo(root).isSymLink() || !iiFileProvider::Directory().mkpath(root) || !QFileInfo(root).isDir())
+                            result.error = QStringLiteral("Cannot create the shared observation directory.");
+                        else if (!existed && !iiFileProvider::FileDevice::setPermissions(root, iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner))
+                            result.error = QStringLiteral("Cannot restrict the observation directory to its owner.");
+                        else {
+                            result.root = QFileInfo(root).canonicalFilePath();
+                            DeliveryStore delivery;
+                            if (!delivery.open(result.root, &error)) result.error = error;
+                            else {
+                                result.local = {application, QUuid::createUuid().toString(QUuid::WithoutBraces),
+                                    QCoreApplication::applicationPid(), Activity::Unknown, QDateTime::currentDateTimeUtc(), {}};
+                                const auto presence = inspectPresence(result.root, result.local, 1, true, false);
+                                result.error = presence.error;
+                                if (result.error.isEmpty()) {
+                                    result.published = true; result.local.lastSeenAt = presence.publishedAt;
+                                    result.startedId = delivery.enqueue(result.local, "helper.started", result.local.toVariantMap());
+                                    if (result.startedId.isEmpty()) result.error = delivery.errorString();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (const std::exception &error) { result.error = QString::fromUtf8(error.what()); }
+        catch (...) { result.error = QStringLiteral("Cannot prepare Society Helper observation."); }
+        if (!result.error.isEmpty() && result.published && intactRoot(result.root)) {
+            iiFileProvider::FileDevice::remove(iiFileProvider::Directory(result.root).filePath(result.local.instanceId + ".json"));
+            result.published = false;
+        }
+        callbacks->post([this, ticket, result] {
+            {
+                std::lock_guard lock(ticket->mutex);
+                if (ticket->cancelled || d->startTicket != ticket) return;
+                ticket->accepted = true;
+            }
+            ticket->changed.notify_all();
+            d->startTicket.reset();
+            const QPointer<Helper> guard(this);
+            if (!result.error.isEmpty() || !result.published) {
+                d->fail(result.error.isEmpty() ? QStringLiteral("Cannot prepare Society Helper observation.") : result.error);
+                if (guard) emit lifecycleChanged();
+                if (guard) emit startFinished(false);
+                return;
+            }
+            d->root = result.root; d->options = result.options; d->local = result.local;
+            d->sequence = 1; ++d->presenceEpoch; d->lastScan = d->clock.elapsed();
+            d->observations.clear(); d->running = true;
+            if (!d->error.isEmpty()) { d->error.clear(); emit errorChanged(); if (!guard) return; }
+            d->timer->start(result.options.heartbeatIntervalMs);
+            d->requestCycle(false);
+            qCInfo(presenceLog).noquote() << d->local.application.id << "observing as" << d->local.instanceId;
+            emit dataQueued(result.startedId); if (!guard) return;
+            emit lifecycleChanged(); if (!guard) return;
+            emit runningChanged(); if (!guard) return;
+            emit startFinished(true);
+        });
+        bool accepted;
+        {
+            std::unique_lock lock(ticket->mutex);
+            ticket->changed.wait(lock, [&] { return ticket->cancelled || ticket->accepted; });
+            accepted = ticket->accepted;
+        }
+        if (!accepted && result.published && intactRoot(result.root)) {
+            if (!result.startedId.isEmpty()) {
+                DeliveryStore delivery; QString ignored;
+                if (delivery.open(result.root, &ignored)) (void)delivery.enqueue(result.local, "helper.stopped", result.local.toVariantMap());
+            }
+            iiFileProvider::FileDevice::remove(iiFileProvider::Directory(result.root).filePath(result.local.instanceId + ".json"));
+        }
+        { std::lock_guard lock(ticket->mutex); ticket->finished = true; }
+        ticket->changed.notify_all();
+    });
+    connect(worker, &QThread::finished, worker, &QObject::deleteLater);
+    worker->start();
+    emit lifecycleChanged();
+    return true;
+}
+
+bool Helper::stopAsync()
+{
+    if (QThread::currentThread() != thread()) return false;
+    if (d->stopping) return true;
+    if (d->startTicket) {
+        const auto ticket = std::exchange(d->startTicket, {});
+        { std::lock_guard lock(ticket->mutex); ticket->cancelled = true; }
+        ticket->changed.notify_all(); d->stopping = true;
+        auto *worker = QThread::create([ticket] {
+            std::unique_lock lock(ticket->mutex);
+            ticket->changed.wait(lock, [&] { return ticket->finished; });
+        });
+        connect(worker, &QThread::finished, this, [this] {
+            d->stopping = false; d->fullyStopped = true; const QPointer<Helper> guard(this);
+            emit lifecycleChanged(); if (guard) emit stopFinished();
+        });
+        connect(worker, &QThread::finished, worker, &QObject::deleteLater);
+        worker->start(); emit lifecycleChanged(); return true;
+    }
+    if (!d->running) {
+        d->fullyStopped = true;
+        QTimer::singleShot(0, this, [this] { emit stopFinished(); });
+        return true;
+    }
+    const auto state = std::make_shared<AsyncStopData>();
+    auto *worker = QThread::create([state] {
+        try { if (state->beforeIo) state->beforeIo(); }
+        catch (const std::exception &error) { state->error = QString::fromUtf8(error.what()); }
+        catch (...) { state->error = QStringLiteral("Society Helper shutdown hook failed."); }
+        if (state->presence) state->presence->clearAndWait();
+        if (state->automatic) state->automatic->drain();
+        state->presence.reset(); state->automatic.reset();
+        QString error;
+        if (state->delivery.isOpen() || state->delivery.open(state->root, &error)) {
+            for (const auto &message : state->pending)
+                if (state->delivery.enqueue(message.sender, message.topic, message.payload).isEmpty()) error = state->delivery.errorString();
+            if (state->delivery.enqueue(state->local, "helper.stopped", state->local.toVariantMap()).isEmpty())
+                error = state->delivery.errorString();
+        }
+        if (state->error.isEmpty()) state->error = error;
+        if (!state->local.instanceId.isEmpty() && intactRoot(state->root))
+            iiFileProvider::FileDevice::remove(iiFileProvider::Directory(state->root).filePath(state->local.instanceId + ".json"));
+        state->delivery.close();
+    });
+    state->delivery.swap(d->delivery);
+    if (!state->delivery.moveToThread(worker)) {
+        state->delivery.swap(d->delivery); delete worker;
+        return d->fail(QStringLiteral("Cannot transfer Society delivery storage to the shutdown worker."));
+    }
+    state->root = d->root; state->local = d->local; state->pending = std::exchange(d->automaticMessages, {});
+    state->beforeIo = d->hooks.beforeStopIo;
+    state->presence = std::move(d->presenceWorker); state->automatic = std::move(d->automaticWorker);
+    const bool hadPeers = !peers().isEmpty();
+    d->stopping = true; d->running = false; ++d->presenceEpoch; d->timer->stop();
+    d->cycleCallbacks->close(); d->cycleInFlight = d->scanPending = d->publishPending = d->automaticInFlight = false;
+    if (!d->watcher->directories().isEmpty()) d->watcher->removePaths(d->watcher->directories());
+    d->observations.clear();
+    connect(worker, &QThread::finished, this, [this, state] {
+        d->stopping = false; d->fullyStopped = true; const QPointer<Helper> guard(this);
+        if (!state->error.isEmpty()) d->fail(state->error);
+        if (!guard) return; emit lifecycleChanged(); if (guard) emit stopFinished();
+    });
+    connect(worker, &QThread::finished, worker, &QObject::deleteLater);
+    worker->start();
+    const QPointer<Helper> guard(this); emit runningChanged();
+    if (guard && hadPeers) emit peersChanged();
+    if (guard) emit lifecycleChanged();
+    return true;
+}
+
 void Helper::stop()
 {
-    if (d->stopping) return;
+    if (d->stopping || (d->fullyStopped && !d->startTicket && !d->running)) return;
+    if (d->startTicket) {
+        const auto ticket = std::exchange(d->startTicket, {});
+        { std::lock_guard lock(ticket->mutex); ticket->cancelled = true; }
+        ticket->changed.notify_all();
+    }
     d->stopping = true;
     const QPointer<Helper> guard(this);
     ++d->presenceEpoch;
@@ -510,6 +742,7 @@ void Helper::stop()
     if (d->automaticWorker) d->automaticWorker->drain();
     d->cycleInFlight = d->scanPending = d->publishPending = false;
     d->automaticInFlight = false;
+    if (!d->delivery.isOpen() && d->running) { QString ignored; (void)d->delivery.open(d->root, &ignored); }
     d->flushAutomatic();
     if (!guard) return;
     const bool wasRunning = d->running;
@@ -523,6 +756,7 @@ void Helper::stop()
     d->observations.clear();
     d->delivery.close();
     d->stopping = false;
+    d->fullyStopped = true;
     if (wasRunning) emit runningChanged();
     if (guard && hadPeers) emit peersChanged();
 }
@@ -541,6 +775,7 @@ void Helper::setActivity(Activity activity)
 QString Helper::sendData(const QString &topic, const QVariantMap &payload)
 {
     if (!d->running) { d->fail(QStringLiteral("Start Society Helper before sending data.")); return {}; }
+    if (!d->delivery.isOpen()) { QString error; if (!d->delivery.open(d->root, &error)) { d->fail(error); return {}; } }
     const auto id = d->delivery.enqueue(d->local, topic, payload);
     if (id.isEmpty()) d->fail(d->delivery.errorString());
     else emit dataQueued(id);
@@ -580,6 +815,8 @@ QString Helper::sendObjectImpl(const QString &topic, const QObject *object, cons
 }
 
 bool Helper::isRunning() const { return d->running; }
+bool Helper::isStarting() const { return bool(d->startTicket); }
+bool Helper::isStopping() const { return d->stopping; }
 Peer Helper::self() const { return d->local; }
 QString Helper::directory() const { return d->root; }
 QString Helper::errorString() const { return d->error; }

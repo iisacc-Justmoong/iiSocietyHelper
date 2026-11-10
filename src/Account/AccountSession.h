@@ -72,6 +72,7 @@ private:
     void initializePersistence(iisacc::accounts::SessionStore *store);
     void restoreCachedAccount();
     void schedulePairingExpiry();
+    void retryPendingPairing();
     void restorePairingState();
     void persistPairingState();
     void discardPairingState();
@@ -91,5 +92,6 @@ private:
     QString m_pairingLoadedSession, m_pairingStorageError;
     quint64 m_pairingRevision = 0;
     bool m_pairingRequestBlocked = false, m_verifiedThisRun = false;
-    bool m_pairingLoading = false, m_automaticPairingEnabled = true, m_pairingSessionEnding = false;
+    bool m_pairingLoading = false, m_pairingRequestPending = false;
+    bool m_automaticPairingEnabled = true, m_pairingSessionEnding = false;
 };

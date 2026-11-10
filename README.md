@@ -1,5 +1,8 @@
 # iiSocietyHelper
 
+See [build and test resources](docs/BuildLayout.md) for isolated test fixtures
+and the compatibility package used by existing application builds.
+
 Sources and adjacent headers are organized by responsibility under `src/`; see [source layout](docs/SourceLayout.md). Existing public include names remain unchanged.
 
 All iisacc products access the common `.societycontainer` contract through
@@ -13,18 +16,20 @@ the provider package to be installed. See
 
 Device replication now sends timestamped, revision-pinned local snapshots for
 host-side difference analysis before payload transfer. Conflicts preserve both
-contents; source timestamps never decide overwrite order. Core QueryPort reads
-and QueryStream subscriptions expose only an integer synchronization state:
+contents; source timestamps never decide overwrite order. The independent
+status snapshot and host-supplied executor expose an integer synchronization state:
 `0` before, `1` in progress, `2` complete, `3` failed, `4` cancelled. Use
-`Client::synchronizationStatus()` or `Sync::Controller::status()` with iiSDKCore
-0.18 Runtime. See [snapshot and status contracts](docs/Sync/Snapshots.md).
+`Client::synchronizationStatus()` or `Sync::Controller::status()`. Queue gaps,
+cancelled subscriptions and host wake recovery are explicit. The status API
+does not depend on iiSDKCore; other Helper components still have existing SDK
+dependencies. See [snapshot and status contracts](docs/Sync/Snapshots.md).
 
 Storage operations and background intake now use iiFileProvider's RAW originals,
 revision journal, work sessions and ontology filesystem through the container
 repository. `FileSystem` exposes indexed search, metadata edits, journal/session
 pages and typed ontology changes. See [managed files](docs/ManagedFiles.md).
 
-Version 0.11.0 is the single Society integration SDK: account/client access,
+Version 0.12.0 is the single Society integration SDK: account/client access,
 local IPC, storage/media operations, device synchronization, native monitoring
 and local/remote generation. See [consolidation and component usage](docs/Consolidation.md).
 
@@ -36,7 +41,7 @@ use the remote generation API without linking the desktop inference host.
 
 [Windows build and execution](docs/WindowsBuildAndRun.md)
 
-Package release: **0.11.0**. This package pins iiSharedCanvas 0.32.0 Core
+Package version: **0.12.0**. This package pins iiSharedCanvas 0.32.0 Core
 so exported package discovery and the compiled storage adapter use the same
 native contract. Prepared storage, detached image reads and stateless export
 retain their existing interfaces.
@@ -197,7 +202,7 @@ Survival signals, delivery SQLite ·ACK are not replication targets. Specifying 
 ## Use from app
 
 ```cmake
-find_package(iiSocietyHelper 0.11.0 CONFIG REQUIRED)
+find_package(iiSocietyHelper 0.12.0 CONFIG REQUIRED)
 target_link_libraries(my_application PRIVATE iiSocietyHelper::iiSocietyHelper)
 ```
 
@@ -279,7 +284,15 @@ pinned until `open()`/`refresh()`. Generation does not create `.iisc`; the edito
 creates its native document when the user opens an image for editing. This
 native-path operation is unavailable to an Android content-URI-only peer.
 
-`Helper` 's `fileSystem()` automatically opens the Society original at creation and continues to use it before `start()` and after `stop()`. Linking only the Helper connects iiSocietyContainer 0.9.0 and Qt are also connected. In the existing QML context, it is used as `societyHelper.fileSystem` .
+The default `Helper` constructor opens the Society original for `fileSystem()` at creation and keeps it available independently of `start()` and `stop()`. A presence-only consumer can instead construct `Helper(FileSystem::Initialization::Deferred)` to avoid discovering a second storage mirror; its FileSystem remains unopened until an explicit storage operation. Presence observation and the default constructor's behavior are unchanged. In QML, the adapter is exposed as `societyHelper.fileSystem`.
+
+GUI hosts can use `Helper::startAsync()` and `stopAsync()` to perform presence
+and delivery I/O off the owner thread. Observe `startFinished` and `stopFinished`;
+the latter is the durable cleanup barrier. Existing synchronous operations remain
+available. During process shutdown, call each `FileSystem::prepareForShutdown()`
+on its owner thread and then `FileSystem::quiesceBackgroundWork()` on a worker
+before allowing static teardown. The process-wide barrier is irreversible and
+must not be used when merely closing a view.
 
 ```cpp
 auto *storage = helper.fileSystem();
@@ -615,7 +628,7 @@ covered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.m
 
 ## Native publication metadata (0.11.0)
 
-The package and its by-value canvas storage boundary rebuild against iiSharedCanvas 0.32.0 / ABI 0.32. The Helper library uses ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts.
+The 0.11 package and its by-value canvas storage boundary rebuilt against iiSharedCanvas 0.32.0 / ABI 0.32 and used Helper ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts. The independent status API in 0.12 uses a new Helper ABI; consumers must rebuild.
 
 Related implementation contracts: [Sync journal startup and WAL snapshots](docs/SyncStartup.md).
 

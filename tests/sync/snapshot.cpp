@@ -1,5 +1,6 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Sync/Controller.h>
-#include <iiSDKCore/Runtime/EventLoop.h>
+#include "../../example/ManualStatusExecutor.h"
 #include <SocietyDrive.h>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -9,6 +10,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 #include <QUuid>
 #include <vector>
 
@@ -26,9 +28,9 @@ class SnapshotTests final : public QObject {
     Q_OBJECT
     void cycle(Replica &client, Replica &host, std::function<void(QJsonObject &, QJsonObject &)> inspect = {}) {
         Synchronizer sync(&client); QSignalSpy done(&sync, &Synchronizer::finished);
-        ii::runtime::EventLoop receiver;
+        ManualStatusExecutor receiver;
         std::vector<int> states;
-        auto watching = sync.status().changes().subscribe(receiver, {}, [&](auto event) { states.push_back(event.value); });
+        auto watching = sync.status().subscribe(receiver, [&](auto event) { states.push_back(event.value); });
         QVERIFY(watching);
         connect(&sync, &Synchronizer::requestReady, &sync, [&](auto id, auto, auto wire) {
             auto request = wire.value("message").toObject(); QJsonObject unused;
@@ -39,12 +41,59 @@ class SnapshotTests final : public QObject {
         });
         QVERIFY(sync.start("host")); QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 20000);
         QVERIFY2(done[0][1].toBool(), qPrintable(done[0][2].toString()));
-        receiver.poll(); QVERIFY(states == std::vector<int>({1, 2}));
-        QCOMPARE(*sync.status().query().send({}), 2);
+        receiver.drain(); QVERIFY(states == std::vector<int>({1, 2}));
+        QCOMPARE(sync.status().snapshot().value, 2);
     }
 private slots:
+    void requestDeadlineTracksOutstandingWork() {
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/request-deadline-XXXXXX.societycontainer")));
+        QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
+        Replica replica; QVERIFY(replica.open(root.path(), scope));
+        Synchronizer sync(&replica);
+        auto *deadline = sync.findChild<QTimer *>(QStringLiteral("Sync.requestDeadline"), Qt::FindDirectChildrenOnly);
+        QVERIFY(deadline); QVERIFY(deadline->isSingleShot()); QVERIFY(!deadline->isActive());
+        QSignalSpy requests(&sync, &Synchronizer::requestReady);
+        QVERIFY(sync.start("host")); QVERIFY(deadline->isActive());
+        QTRY_COMPARE(requests.size(), 1);
+        const auto id = requests.first().first().toString();
+        sync.receive(id, {{"ok", true}, {"pending", true}});
+        QVERIFY(deadline->remainingTime() > 100000);
+        // An early timer delivery must retain the existing request deadline.
+        QVERIFY(QMetaObject::invokeMethod(deadline, "timeout", Qt::DirectConnection));
+        QVERIFY(deadline->remainingTime() > 100000);
+        sync.stop(); QVERIFY(!deadline->isActive());
+        sync.receive(id, {{"ok", true}, {"pending", true}});
+        QVERIFY(!deadline->isActive());
+    }
+    void incomingSnapshotDeadlineTracksOnlyAuthorizedWork() {
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-deadline-XXXXXX.societycontainer")));
+        const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
+        Controller host({});
+        auto *deadline = host.findChild<QTimer *>(QStringLiteral("Sync.snapshotDeadline"), Qt::FindDirectChildrenOnly);
+        QVERIFY(deadline); QVERIFY(deadline->isSingleShot()); QVERIFY(!deadline->isActive());
+        host.open(root.path(), scope); QTRY_VERIFY_WITH_TIMEOUT(host.available(), 30000);
+        host.setPeers({"one", "two"}, {});
+        const auto request = [&] {
+            return QJsonObject{{"op", "society.sync"}, {"protocol", 2}, {"namespaceVersion", 1},
+                {"scope", scope}, {"token", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+                {"message", QJsonObject{{"action", "manifest"}, {"container", drive->identifier()},
+                    {"snapshot", QJsonObject{{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)}}}}}};
+        };
+        QVERIFY(host.handle("one", request()).value("pending").toBool());
+        QVERIFY(host.handle("two", request()).value("pending").toBool());
+        QVERIFY(deadline->isActive()); QVERIFY(deadline->remainingTime() > 100000);
+        // A spurious early wake must preserve the actual 120-second deadline.
+        deadline->start(1);
+        QVERIFY(QMetaObject::invokeMethod(deadline, "timeout", Qt::DirectConnection));
+        QVERIFY(deadline->remainingTime() > 100000);
+        QCOMPARE(host.status().snapshot().value, 1);
+        host.setPeers({"two"}, {}); QVERIFY(deadline->isActive());
+        host.setPeers({}, {}); QVERIFY(!deadline->isActive());
+        QCOMPARE(host.status().snapshot().value, 4);
+        host.closeAndWait();
+    }
     void timestampedSnapshotIsAnalyzedBeforeAnyBytesAndReceiptSurvivesReopen() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/snapshot-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/snapshot-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope)); cycle(client, host);
         put(b.filePath("Files/new"), "local snapshot");
@@ -69,7 +118,7 @@ private slots:
     }
     void transferMustMatchTheAnalyzedSnapshotAndAllEntriesMustComplete() {
         QFETCH(QString, capturedAt);
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/snapshot-pin-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/snapshot-pin-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-pin-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-pin-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope)); cycle(client, host);
         put(b.filePath("Files/item"), "original"); QVERIFY(client.scan());
@@ -111,7 +160,7 @@ private slots:
         QTest::newRow("clock-ahead") << QString("9007199254740991");
     }
     void hostEditAfterAnalysisPreservesBothFiles() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/snapshot-race-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/snapshot-race-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-race-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-race-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope));
         put(a.filePath("Files/item"), "base"); cycle(client, host); put(b.filePath("Files/item"), "client edit");
@@ -128,7 +177,7 @@ private slots:
         QCOMPARE(get(b.filePath("Files/" + conflicts.front())), "client edit");
     }
     void snapshotPagesKeepOneIdentityAndOmissionNeverDeletesHostFiles() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/snapshot-pages-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/snapshot-pages-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-pages-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-pages-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope));
         put(a.filePath("Files/keep"), "host only"); cycle(client, host);
@@ -152,33 +201,34 @@ private slots:
         QCOMPARE(get(a.filePath("Files/keep")), "host only"); QCOMPARE(host.namespaceState(), state);
     }
     void integerQueriesDeliverSuccessFailureAndCancellationOnTheReceiverLoop() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/snapshot-status-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-status-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path())); Replica replica; QVERIFY(replica.open(root.path(), scope));
-        ii::runtime::EventLoop loop; Synchronizer sync(&replica); std::vector<int> values;
-        QCOMPARE(*sync.status().query().send({}), 0);
-        auto subscription = sync.status().changes().subscribe(loop, {}, [&](auto event) { values.push_back(event.value); });
-        QVERIFY(subscription); QVERIFY(sync.start("host")); QCOMPARE(*sync.status().query().send({}), 1);
-        sync.stop(); QCOMPARE(*sync.status().query().send({}), 4); loop.poll();
+        ManualStatusExecutor loop; Synchronizer sync(&replica); std::vector<int> values;
+        QCOMPARE(sync.status().snapshot().value, 0);
+        auto subscription = sync.status().subscribe(loop, [&](auto event) { values.push_back(event.value); });
+        QVERIFY(subscription); QVERIFY(sync.start("host")); QCOMPARE(sync.status().snapshot().value, 1);
+        sync.stop(); QCOMPARE(sync.status().snapshot().value, 4); loop.drain();
         QVERIFY(values == std::vector<int>({1, 4}));
         auto connection = connect(&sync, &Synchronizer::requestReady, &sync, [&](auto id, auto, auto) { sync.receive(id, {{"ok", false}, {"error", "offline"}}); });
         QSignalSpy done(&sync, &Synchronizer::finished); QVERIFY(sync.start("host")); QTRY_COMPARE(done.size(), 1);
-        loop.poll(); QCOMPARE(*sync.status().query().send({}), 3); QVERIFY(values == std::vector<int>({1, 4, 1, 3}));
+        loop.drain(); QCOMPARE(sync.status().snapshot().value, 3); QVERIFY(values == std::vector<int>({1, 4, 1, 3}));
         disconnect(connection);
-        bool replied = false; QVERIFY(sync.status().query().post(loop, {}, [&](auto reply) { QVERIFY(reply); QCOMPARE(*reply, 3); replied = true; }));
-        QVERIFY(!replied); loop.poll(); QVERIFY(replied);
-        Controller controller({}); QCOMPARE(*controller.status().query().send({}), 0);
+        bool replied = false;
+        auto query = loop.reserve([&] { QCOMPARE(sync.status().snapshot().value, 3); replied = true; });
+        QVERIFY(query && query->signal()); QVERIFY(!replied); loop.drain(); QVERIFY(replied); query->cancel();
+        Controller controller({}); QCOMPARE(controller.status().snapshot().value, 0);
     }
     void closingTheProducerCancelsQueuedReceiverCalls() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/snapshot-status-close-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-status-close-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path())); Replica replica; QVERIFY(replica.open(root.path(), scope));
-        ii::runtime::EventLoop loop; int calls = 0;
+        ManualStatusExecutor loop; int calls = 0;
         auto producer = std::make_unique<Synchronizer>(&replica);
-        auto watching = producer->status().changes().subscribe(loop, {}, [&](auto) { ++calls; });
-        QVERIFY(watching); QVERIFY(producer->start("host")); producer.reset(); loop.poll();
-        QCOMPARE(calls, 0); QVERIFY(watching->stats().closed);
+        auto watching = producer->status().subscribe(loop, [&](auto) { ++calls; });
+        QVERIFY(watching); QVERIFY(producer->start("host")); producer.reset(); loop.drain();
+        QCOMPARE(calls, 0); QVERIFY(!watching);
     }
     void invalidCompletionReceiptFailsAndRetryConvergesWithoutDuplicateConflicts() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/snapshot-receipt-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/snapshot-receipt-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-receipt-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/snapshot-receipt-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope)); cycle(client, host);
         put(b.filePath("Files/item"), "verified upload"); Synchronizer sync(&client); QSignalSpy done(&sync, &Synchronizer::finished);
@@ -189,7 +239,7 @@ private slots:
         });
         QVERIFY(sync.start("host")); QTRY_COMPARE_WITH_TIMEOUT(done.size(), 1, 15000);
         QVERIFY(!done[0][1].toBool()); QCOMPARE(done[0][2].toString(), "invalid_snapshot_receipt");
-        QCOMPARE(*sync.status().query().send({}), 3); QCOMPARE(get(a.filePath("Files/item")), "verified upload");
+        QCOMPARE(sync.status().snapshot().value, 3); QCOMPARE(get(a.filePath("Files/item")), "verified upload");
         cycle(client, host); QCOMPARE(get(b.filePath("Files/item")), "verified upload");
         QVERIFY(QDir(a.filePath("Files")).entryList({"item.sync-conflict-*"}, QDir::Files).isEmpty());
     }

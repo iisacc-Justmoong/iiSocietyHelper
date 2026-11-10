@@ -61,6 +61,8 @@ void DeliveryStore::close()
     d->connection.clear();
 }
 bool DeliveryStore::isOpen() const { return d->database.isOpen(); }
+bool DeliveryStore::moveToThread(QThread *thread) { return !d->database.isValid() || d->database.moveToThread(thread); }
+void DeliveryStore::swap(DeliveryStore &other) noexcept { d.swap(other.d); }
 QString DeliveryStore::errorString() const { return d->error; }
 
 bool DeliveryStore::open(const QString &observationDirectory, QString *error)

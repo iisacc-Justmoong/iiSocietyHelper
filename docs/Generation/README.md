@@ -23,4 +23,12 @@ The caller must check authentication and host role. Host additionally checks the
 
 Host output is limited to 64 MiB, concurrent pending jobs are 64, and session records are 4096. The mobile package builds only Remote. iOS Network transmission in the background follows OS execution permission, and already accepted host inference continues even if the app is suspended. Model download continues from an executable Society session.
 
+At final process shutdown, `Host::shutdownAsync()` cancels the current job,
+closes result callbacks and retires the host without waiting for an inference
+engine that does not return promptly. It cannot be reopened. An injected engine
+and any state captured by it must remain valid until that engine returns. Normal
+destruction continues to wait for the engine, preserving the existing lifetime
+contract. Cancellation observed before the atomic output commit discards the
+staged file; an atomic commit already in progress can still complete.
+
 Build at `build/` and host pre-execution at `iiSocietyHelper.Generation.Protocol`, and verify reconnection, duplicate submission, cancellation, permission boundary, and result validation. The test injection engine provides transmission and scheduling evidence and does not substitute for actual model quality validation.

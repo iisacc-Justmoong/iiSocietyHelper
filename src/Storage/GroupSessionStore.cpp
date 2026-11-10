@@ -113,7 +113,7 @@ bool GroupSessionStore::prepare() {
         if (!info.exists() && !iiFileProvider::Directory().mkdir(current)) return fail("The Society state directory cannot be created.");
         info.refresh(); if (!info.isDir()) return fail("The Society state directory is unavailable.");
     }
-    if (!iiFileProvider::FileDevice::setPermissions(m_directory, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner)) return fail("Society state permissions could not be applied.");
+    if (!iiFileProvider::FileDevice::setPermissions(m_directory, iiFileProvider::FileDevice::ReadOwner | iiFileProvider::FileDevice::WriteOwner | iiFileProvider::FileDevice::ExeOwner)) return fail("Society state permissions could not be applied.");
 #ifdef Q_OS_WIN
     if (!protectWindowsState(m_directory, true)) return fail("Society state ACL could not be applied.");
 #endif
@@ -151,7 +151,7 @@ bool GroupSessionStore::migrateRecord(const QString &key) {
 }
 QByteArray GroupSessionStore::generation(const QString &key) const {
     if (!iiFileProvider::Directory::isAbsolutePath(m_directory)) return {};
-    iiFileProvider::FileDevice file(path(key) + ".revocation"); const QFileInfo info(file);
+    iiFileProvider::FileDevice file(path(key) + ".revocation"); const QFileInfo info(file.fileName());
     if (info.isSymLink() || info.isJunction()) return {};
     if (!info.exists()) return QByteArray(16, '\0');
     if (!info.isFile() || !file.open(QIODevice::ReadOnly) || file.size() != 16) return {};
@@ -195,7 +195,7 @@ void GroupSessionStore::remove(const QString &key, Completion completion) {
     const auto token = QUuid::createUuid().toRfc4122();
     bool ok = prepare() && save(key, token, ".revocation");
     if (ok) m_observedGenerations[key] = token;
-    if (ok) save(key, tombstone);
+    if (ok) ok = save(key, tombstone);
     if (!ok) { completion({Error::Unavailable, {}}); return; }
     enqueue({Operation::Remove, key, {}, std::move(completion), revision, token});
 }
@@ -223,7 +223,11 @@ void GroupSessionStore::next() {
     if (request.operation == Operation::Remove) {
         if (!m_legacy) { finish(std::move(request), {}); return; }
         const QPointer<GroupSessionStore> guard(this);
-        m_legacy->remove(request.key, [guard, request](Result) mutable { if (guard) guard->finish(std::move(request), {}); });
+        m_legacy->remove(request.key, [guard, request](Result result) mutable {
+            if (!guard) return;
+            if (result.error == Error::Missing) result = {};
+            guard->finish(std::move(request), std::move(result));
+        });
         return;
     }
     if (request.operation == Operation::Write) {
@@ -235,7 +239,7 @@ void GroupSessionStore::next() {
         request.generation = generation(request.key);
         m_observedGenerations[request.key] = request.generation;
     }
-    iiFileProvider::FileDevice file(path(request.key)); const QFileInfo info(file);
+    iiFileProvider::FileDevice file(path(request.key)); const QFileInfo info(file.fileName());
     if (info.isSymLink() || info.isJunction() || (info.exists() && (!info.isFile() || !file.open(QIODevice::ReadOnly) || file.size() > MaximumSocietyStateBytes + 48))) {
         finish(std::move(request), {Error::Unavailable, {}}); return;
     }

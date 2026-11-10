@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include "iiSocietyHelper.h"
 #include "DeliveryStore.h"
 #include "ObjectTestTypes.h"
@@ -126,7 +127,7 @@ private slots:
 
     void objectFailuresNeverCreatePartialOutboxMessages()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/object-failure-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/object-failure-XXXXXX")));
         Helper helper;
         CallbackObject callback;
         bool accessed = false;
@@ -150,7 +151,7 @@ private slots:
 
     void getterRestartAndDeletionCannotQueueUnderAnotherSender()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/object-reentry-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/object-reentry-XXXXXX")));
         Helper helper;
         const ObservationOptions options{root.path(), 50, 400};
         QVERIFY(helper.start({"com.iisacc.first", "First", "1"}, options));
@@ -205,7 +206,7 @@ private slots:
 
     void errorNotificationMayDestroyHelperWithoutAStaleSignal()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/object-error-lifetime-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/object-error-lifetime-XXXXXX")));
         QPointer<Helper> helper = new Helper;
         QVERIFY(helper->start({"com.iisacc.error", "Error", "1"}, {root.path(), 50, 400}));
         bool staleError = false;
@@ -218,7 +219,7 @@ private slots:
 
     void qmlCanQueueTheQObjectDirectly()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/object-qml-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/object-qml-XXXXXX")));
         Helper helper;
         TransferObject object;
         QVERIFY(helper.start({"com.iisacc.qml", "QML", "1"}, {root.path(), 50, 400}));
@@ -244,7 +245,7 @@ private slots:
 
     void senderAndReceiverProcessesRestoreObjectsAfterSenderExit()
     {
-        QTemporaryDir root(HELPER_TEST_DIRECTORY "/object-process-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/object-process-XXXXXX")));
         for (const auto &mode : {"send", "receive", "receive"}) {
             QProcess process;
             process.start(QStringLiteral(HELPER_OBJECT_PEER), {mode, root.path()});

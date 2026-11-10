@@ -1,4 +1,5 @@
 #include <iiSocietyHelper/FileDownload.h>
+#include <iiSocietyHelper/FileHost.h>
 #include <iiSocietyHelper/Client.h>
 #include <iiSocietyHelper.h>
 #include <iiSocietyHelper/Sync/Sync.h>
@@ -13,6 +14,25 @@
 namespace iiSocietyHelper {
 namespace {
 QJsonObject failure(const QString &error) { return {{"ok", false}, {"error", error}}; }
+class ClientFileHost final : public FileHost {
+public:
+    explicit ClientFileHost(Client *client, QObject *parent) : FileHost(parent), client_(client) {
+        if (client) {
+            connect(client, &Client::changed, this, &FileHost::changed);
+            connect(client, &Client::hostDriveResponse, this, &FileHost::hostDriveResponse);
+        }
+    }
+    bool connectHost() override { return client_ && client_->connectHost(); }
+    void stop() override { if (client_) client_->stop(); }
+    bool connected() const override { return client_ && client_->connected(); }
+    QJsonObject hostBinding() const override { return client_ ? client_->hostBinding() : QJsonObject{}; }
+    QString statHostEntry(const QString &path) override { return client_ ? client_->statHostEntry(path) : QString{}; }
+    QString readHostFile(const QString &path, qint64 offset, const QString &version) override {
+        return client_ ? client_->readHostFile(path, offset, version) : QString{};
+    }
+private:
+    QPointer<Client> client_;
+};
 class DownloadWorker final : public QObject {
 public:
     std::unique_ptr<iiSocietyHelper::Sync::Replica> replica;
@@ -62,7 +82,7 @@ class FileDownload::Private {
 public:
     FileDownload *q;
     QPointer<FileSystem> files;
-    QPointer<Client> client;
+    QPointer<FileHost> client;
     QThread thread;
     DownloadWorker *worker = nullptr;
     QTimer deadline;
@@ -74,12 +94,12 @@ public:
     QJsonObject binding;
     qint64 offset = 0, total = 0;
     bool active = false, prepared = false, pending = false;
-    Private(FileDownload *owner, FileSystem *storage, Client *transport) : q(owner), files(storage), client(transport) {
+    Private(FileDownload *owner, FileSystem *storage, FileHost *transport) : q(owner), files(storage), client(transport) {
         deadline.setSingleShot(true); deadline.setInterval(30000);
         QObject::connect(&deadline, &QTimer::timeout, q, [this] { finish("failed", "download_timeout"); });
         if (client) {
-            QObject::connect(client, &Client::changed, q, [this] { advance(); });
-            QObject::connect(client, &Client::hostDriveResponse, q, [this](const QString &token, const QJsonObject &response) {
+            QObject::connect(client, &FileHost::changed, q, [this] { advance(); });
+            QObject::connect(client, &FileHost::hostDriveResponse, q, [this](const QString &token, const QJsonObject &response) {
                 if (!active || token != request) return;
                 request.clear();
                 if (!response.value("ok").toBool()) { finish("failed", response.value("error").toString()); return; }
@@ -123,7 +143,7 @@ public:
         cancelled->store(true); deadline.stop();
         if (thread.isRunning()) { thread.quit(); thread.wait(); }
     }
-    bool sameStorage() const { return files && files->isAvailable() && files->containerId() == id && files->rootPath() == root; }
+    bool sameStorage() const { return files && files->matchesStorage(root, id); }
     void closeWorker() {
         if (worker) QMetaObject::invokeMethod(worker, [io = worker] { io->close(); }, Qt::QueuedConnection);
     }
@@ -183,7 +203,9 @@ public:
 };
 
 FileDownload::FileDownload(FileSystem *files, Client *client, QObject *parent)
-    : QObject(parent), d(std::make_unique<Private>(this, files, client)) {}
+    : QObject(parent), d(std::make_unique<Private>(this, files, client ? new ClientFileHost(client, this) : nullptr)) {}
+FileDownload::FileDownload(FileSystem *files, FileHost &host, QObject *parent)
+    : QObject(parent), d(std::make_unique<Private>(this, files, &host)) {}
 FileDownload::~FileDownload() = default;
 QVariantMap FileDownload::state() const { return d->value; }
 bool FileDownload::active() const { return d->active; }

@@ -1,9 +1,14 @@
 #pragma once
-#include <QtCore/qglobal.h>
 #if defined(IISOCIETYHELPER_STATIC)
 #  define IISOCIETYHELPER_EXPORT
-#elif defined(IISOCIETYHELPER_BUILDING_LIBRARY)
-#  define IISOCIETYHELPER_EXPORT Q_DECL_EXPORT
+#elif defined(_WIN32)
+#  if defined(IISOCIETYHELPER_BUILDING_LIBRARY)
+#    define IISOCIETYHELPER_EXPORT __declspec(dllexport)
+#  else
+#    define IISOCIETYHELPER_EXPORT __declspec(dllimport)
+#  endif
+#elif defined(__GNUC__) || defined(__clang__)
+#  define IISOCIETYHELPER_EXPORT __attribute__((visibility("default")))
 #else
-#  define IISOCIETYHELPER_EXPORT Q_DECL_IMPORT
+#  define IISOCIETYHELPER_EXPORT
 #endif

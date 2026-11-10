@@ -22,6 +22,12 @@ container/path mismatches. Inspection is limited to eight concurrent requests,
 results. Remote aliases advertise `informationAvailable` and `informationKey`;
 their original `source` remains empty until separately requested.
 
+분할 전송 중 `drive_information_changed` 또는 `drive_file_changed`를 받으면 이미
+받은 조각과 판본을 모두 버리고 처음부터 최대 두 번 다시 조회한다. 각 시도는 자체
+판본과 전체 SHA-256을 검증하므로 서로 다른 판본의 조각을 합치지 않는다. 재시도도
+원래 요청의 30초 제한과 연결 종료·취소 경계를 공유하며, 계속 변경되면 마지막 오류를
+호출자에게 반환한다.
+
 The container [file-information contract](../../iiSocietyContainer/docs/FilePresentation.md)
 defines details and explicit failure states. The native implementation and
 provider ownership remain below the Helper/Container application adapters.

@@ -2,6 +2,8 @@
 
 #include "iiSocietyHelper.h"
 
+class QThread;
+
 namespace iiSocietyHelper {
 
 // Durable per-user outbox and daemon inbox. One object/SQL connection per thread.
@@ -16,6 +18,9 @@ public:
     [[nodiscard]] bool open(const QString &observationDirectory, QString *error = nullptr);
     void close();
     [[nodiscard]] bool isOpen() const;
+    // Transfer only when no query is active, from the connection's thread.
+    [[nodiscard]] bool moveToThread(QThread *thread);
+    void swap(DeliveryStore &other) noexcept;
     [[nodiscard]] QString errorString() const;
     [[nodiscard]] QString enqueue(const Peer &sender, const QString &topic, const QVariantMap &payload);
     // Atomic outbox -> inbox move; a successful retry cannot create duplicate receipts.

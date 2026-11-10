@@ -36,7 +36,7 @@ AccountSession::AccountSession(const QUrl &serviceUrl, QObject *parent)
         persistPairingState(); emit pairingCredentialsChanged(); emit pairingCredentialsRequired();
     });
     connect(m_manager.account(), &iisacc::accounts::Account::changed, this, &AccountSession::changed);
-    connect(&m_manager, &AccountManager::loadingChanged, this, &AccountSession::changed);
+    connect(&m_manager, &AccountManager::loadingChanged, this, [this] { retryPendingPairing(); emit changed(); });
     connect(&m_manager, &AccountManager::errorChanged, this, &AccountSession::changed);
     connect(&m_manager, &AccountManager::authenticatedChanged, this, [this] {
         if (signedIn()) m_pairingSessionEnding = false;
@@ -44,7 +44,7 @@ AccountSession::AccountSession(const QUrl &serviceUrl, QObject *parent)
             m_serverConfiguration = {};
             m_hostConnection = {};
             m_verifiedThisRun = false; clearPairingCredentials();
-            ++m_pairingRevision; m_pairingLoadedSession.clear(); m_pairingLoading = false; m_rememberedPeers = {};
+            ++m_pairingRevision; m_pairingLoadedSession.clear(); m_pairingLoading = false; m_pairingRequestPending = false; m_rememberedPeers = {};
         }
         emit changed();
     });
@@ -52,7 +52,7 @@ AccountSession::AccountSession(const QUrl &serviceUrl, QObject *parent)
     connect(&m_manager, &AccountManager::loginChallengeChanged, this, &AccountSession::changed);
     connect(&m_manager, &AccountManager::sessionEnding, this, &AccountSession::discardPairingState);
     connect(&m_manager, &AccountManager::sessionEnding, this, &AccountSession::sessionEnding);
-    connect(&m_manager, &AccountManager::restoringSessionChanged, this, &AccountSession::changed);
+    connect(&m_manager, &AccountManager::restoringSessionChanged, this, [this] { retryPendingPairing(); emit changed(); });
     connect(&m_manager, &AccountManager::sessionStorageErrorChanged, this, &AccountSession::changed);
     connect(&m_manager, &AccountManager::sessionVerified, this, [this] {
         m_verifiedThisRun = true; m_pairingRequestBlocked = false;
@@ -109,6 +109,11 @@ void AccountSession::schedulePairingExpiry() {
     const auto expiry = QDateTime::fromString(m_pairingCredentials.value("expiresAt").toString(), Qt::ISODate);
     m_pairingExpiry.start(int(qBound(qint64(1), QDateTime::currentDateTimeUtc().msecsTo(expiry), qint64(2147483647))));
 }
+void AccountSession::retryPendingPairing() {
+    if (!m_pairingRequestPending || !signedIn() || busy() || m_pairingLoading || m_pairingSessionEnding) return;
+    m_pairingRequestPending = false;
+    QTimer::singleShot(0, this, &AccountSession::requestPairingCredentials);
+}
 void AccountSession::restorePairingState() {
     if (!m_stateStore || !signedIn() || m_pairingSessionEnding || m_pairingRestoreRetryAt > QDateTime::currentDateTimeUtc()) return;
     const auto session = m_manager.loginSession().value("id").toString();
@@ -151,6 +156,7 @@ void AccountSession::restorePairingState() {
         }
         self->m_pairingStorageError.clear();
         if (valid && record.value("schemaVersion").toInt() < 3) self->persistPairingState();
+        self->retryPendingPairing();
         emit self->pairingStateRestored(); emit self->pairingCredentialsChanged(); emit self->changed();
     });
 }
@@ -173,7 +179,7 @@ void AccountSession::discardPairingState() {
     m_pairingSessionEnding = true;
     clearPairingCredentials(); ++m_pairingRevision;
     m_pairingLoadedSession.clear(); m_pairingStorageError.clear(); m_pairingRestoreRetryAt = {};
-    m_pairingLoading = false; m_rememberedPeers = {}; m_automaticPairingEnabled = true;
+    m_pairingLoading = false; m_pairingRequestPending = false; m_rememberedPeers = {}; m_automaticPairingEnabled = true;
     m_serverConfiguration = {};
     m_hostConnection = {};
     m_verifiedThisRun = false;
@@ -235,24 +241,21 @@ void AccountSession::clearPairingCredentials() {
 }
 
 void AccountSession::requestPairingCredentials() {
-    if (!signedIn() || busy() || m_pairingLoading || m_pairingSessionEnding || m_pairingReply || m_pairingRequestBlocked
+    if (!signedIn() || m_pairingSessionEnding) return;
+    if (busy() || m_pairingLoading) { m_pairingRequestPending = true; return; }
+    if (m_pairingReply || m_pairingRequestBlocked
         || (m_pairingCredentials.value("version").toInt() == 2 && validPairingCredentials(m_pairingCredentials))) return;
     const auto service = m_manager.serviceUrl();
     if (service.scheme() != "https" && !(service.scheme() == "http" && QHostAddress(service.host()).isLoopback())) return;
     const auto session = m_manager.loginSession().value("id").toString();
     auto device = m_manager.deviceInfo(); device.insert("pairingVersion", 2);
-    QNetworkRequest request(service.resolved(QUrl("/Account/GraphQL")));
-    request.setRawHeader("Accept", "application/json");
-    request.setRawHeader("Origin", service.adjusted(QUrl::RemovePath | QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo).toEncoded());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    request.setRawHeader("Cache-Control", "no-store");
-    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
-    request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
-    request.setTransferTimeout(10000);
+    // The account manager owns authenticated server transport and checks the
+    // current session binding and origin before admitting the request.
+    auto *reply = m_manager.postAuthenticated(service.resolved(QUrl("/Account/GraphQL")),
+        iisacc::accounts::graphql::appSessionRequest(QJsonObject{{"intent", "pairing"},
+            {"device", QJsonObject::fromVariantMap(device)}}));
+    if (!reply) return;
     m_pairingRequestBlocked = true;
-    auto *reply = m_network.post(request, iisacc::accounts::graphql::appSessionRequest(QJsonObject{{"intent", "pairing"},
-        {"device", QJsonObject::fromVariantMap(device)}}));
     m_pairingReply = reply;
     QTimer::singleShot(10000, reply, [reply] { if (!reply->isFinished()) reply->abort(); });
     connect(reply, &QNetworkReply::readyRead, this, [reply] { if (reply->bytesAvailable() > 8192) reply->abort(); });

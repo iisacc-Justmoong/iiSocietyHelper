@@ -1,21 +1,31 @@
 #include <iiSocietyHelper/Sync/Controller.h>
-#include <iiSDKCore/Runtime/EventLoop.h>
+#include "ManualStatusExecutor.h"
 #include <QCoreApplication>
+#include <QMetaObject>
 #include <iostream>
+#include <memory>
 
 int main(int argc, char **argv) {
     QCoreApplication application(argc, argv);
-    ii::runtime::EventLoop receiver;
+    auto target = std::make_shared<std::weak_ptr<ManualStatusExecutor>>();
+    auto receiver = std::make_shared<ManualStatusExecutor>([&application, target] {
+        QMetaObject::invokeMethod(&application, [target] {
+            if (auto executor = target->lock()) executor->drain();
+        }, Qt::QueuedConnection);
+    });
+    *target = receiver;
     iiSocietyHelper::Sync::Controller controller({});
-    auto subscription = controller.status().changes().subscribe(receiver, {}, [](auto event) {
+    auto subscription = controller.status().subscribe(*receiver, [](auto event) {
         std::cout << "sync=" << event.value << '\n';
     });
     if (!subscription) return 1;
     bool read = false;
-    const auto submitted = controller.status().query().post(receiver, {}, [&](auto reply) {
-        if (reply) { read = true; std::cout << "sync=" << *reply << '\n'; }
+    auto query = receiver->reserve([&] {
+        read = true; std::cout << "sync=" << controller.status().snapshot().value << '\n';
+        application.quit();
     });
-    if (!submitted) return 2;
-    receiver.poll();
+    if (!query || !query->signal()) return 2;
+    application.exec();
+    query->cancel(); subscription.close();
     return read ? 0 : 3;
 }

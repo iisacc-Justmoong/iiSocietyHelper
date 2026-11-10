@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Sync/Controller.h>
 #include <iiSocietyHelper/Sync/Replica.h>
 #include <iiSocietyHelper/Sync/RemoteFiles.h>
@@ -12,6 +13,7 @@
 #include <QJsonDocument>
 #include <QFile>
 #include <QJsonArray>
+#include <QLockFile>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUuid>
@@ -27,8 +29,32 @@ class HostDriveTests : public QObject {
         QFile file(path); return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
     }
 private slots:
+    void pinnedReadsDoNotContendWithTheMutationLock() {
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/read-lock-XXXXXX.societycontainer")));
+        const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
+        put(root.filePath("Files/payload.bin"), "original bytes");
+        Replica host; QVERIFY(host.open(root.path(), scope));
+        const auto call = [&](QJsonObject request) {
+            request.insert("container", drive->identifier()); return host.handle("phone", request, false);
+        };
+        const auto stat = call({{"action", "drive.stat"}, {"path", "files/payload.bin"}});
+        QVERIFY2(stat.value("ok").toBool(), qPrintable(stat.value("error").toString()));
+        const auto version = stat.value("version").toString(); QVERIFY(!version.isEmpty());
+        QLockFile mutation(root.filePath(".society-sync/operation.lock")); mutation.setStaleLockTime(0);
+        QVERIFY(mutation.tryLock());
+        const auto read = call({{"action", "drive.read"}, {"path", "files/payload.bin"}, {"offset", "0"}, {"version", version}});
+        QVERIFY2(read.value("ok").toBool(), qPrintable(read.value("error").toString()));
+        QCOMPARE(QByteArray::fromBase64(read.value("data").toString().toLatin1()), QByteArray("original bytes"));
+        const auto unpinned = call({{"action", "drive.read"}, {"path", "files/payload.bin"}, {"offset", "0"}});
+        QCOMPARE(unpinned.value("error").toString(), QString("sync_store_busy"));
+        const auto write = call({{"action", "drive.write"}, {"path", "files/other.bin"}, {"data", "eA=="}});
+        QCOMPARE(write.value("error").toString(), QString("sync_store_busy"));
+        put(root.filePath("Files/payload.bin"), "changed bytes!");
+        const auto stale = call({{"action", "drive.read"}, {"path", "files/payload.bin"}, {"offset", "0"}, {"version", version}});
+        QVERIFY(!stale.value("ok").toBool()); QVERIFY(!stale.contains("data"));
+    }
     void richInformationIsBoundedVersionedAndIndependentOfPayloadReads() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/rich-host-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/rich-host-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         Replica host; QVERIFY(host.open(root.path(), scope));
         const auto call = [&](QJsonObject request) {
@@ -79,7 +105,7 @@ private slots:
         iiFileProvider::native::Presentation::cancelPending(std::filesystem::path(root.path().toStdU16String()));
     }
     void legacyShareHidesDerivedDocumentsWhileServingOriginalBytes() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/direct-presentation-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/direct-presentation-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         put(root.filePath("Files/report.txt"), "public source bytes");
         put(root.filePath("Files/.report.txt.iisacc-preview"), "private derived fixture");
@@ -96,7 +122,7 @@ private slots:
         QCOMPARE(QByteArray::fromBase64(read.value("data").toString().toLatin1()), QByteArray("public source bytes"));
     }
     void abandonedDirectWriteUsesTheExistingMaintenanceContract() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/direct-orphan-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/direct-orphan-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         put(root.filePath("Files/.society-write-abandoned"), "incomplete staging");
         put(root.filePath("Files/published.bin"), "complete publication");
@@ -110,7 +136,7 @@ private slots:
         QCOMPARE(get(root.filePath("Files/published.bin")), QByteArray("complete publication"));
     }
     void liveAccessDoesNotRequireTheIndexOrLocalPayload() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/direct-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/direct-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         Replica host; QVERIFY(host.open(root.path(), scope));
         const auto call = [&](const QString &action, QJsonObject data = {}) {
@@ -163,7 +189,7 @@ private slots:
         QVERIFY(!catalog.value("revision").toString().isEmpty());
     }
     void pagingIsBoundedAndRevisionChecked() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/pages-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/pages-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         const auto privateUse = QString(QChar(0xe000)), emoji = QString::fromUtf8("\xf0\x9f\x98\x80");
         for (int i = 0; i < 135; ++i)
@@ -205,7 +231,7 @@ private slots:
         QVERIFY(!call({{"action", "drive.list"}, {"path", "files"}, {"cursor", page.value("nextCursor")}}).value("ok").toBool());
     }
     void rejectsEscapesPrivateStateAndOtherContainers() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/boundary-XXXXXX.societycontainer"), outside(SYNC_TEST_DIRECTORY "/outside-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/boundary-XXXXXX.societycontainer"))), outside((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/outside-XXXXXX")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         put(outside.filePath("secret"), "outside");
         QVERIFY(nativeTestLink(outside.path(), root.filePath("Files/redirect")));
@@ -221,7 +247,7 @@ private slots:
         QCOMPARE(get(outside.filePath("secret")), QByteArray("outside"));
     }
     void controllerRequiresPeerScopeAndExactRequestToken() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/authority-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/authority-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         Controller host({}); host.open(root.path(), scope); QTRY_VERIFY(host.available()); host.setPeers({"phone"}, {});
         QJsonObject request{{"op", "society.sync"}, {"protocol", 2}, {"namespaceVersion", 1}, {"scope", scope},

@@ -1,5 +1,7 @@
+#include "../TestWorkspace.h"
 #include "iiSocietyHelper/Sync/Sync.h"
 #include "TestLink.h"
+#include "../../example/ManualStatusExecutor.h"
 #include <SocietyDrive.h>
 #include <SharedStorage.h>
 #include <QDir>
@@ -17,7 +19,7 @@ class ControllerTests : public QObject {
     Q_OBJECT
 private slots:
     void transientOperationLockKeepsTheOriginalRequestPending() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/pending-lock-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/pending-lock-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));const QString scope(64,'a');
         Controller hosting({});hosting.open(root.path(),scope);QTRY_VERIFY(hosting.available());hosting.setPeers({"phone"},{});
         QLockFile lock(root.filePath(".society-sync/operation.lock"));lock.setStaleLockTime(0);QVERIFY(lock.tryLock(3000));
@@ -30,7 +32,7 @@ private slots:
         QVERIFY(reply.value("ok").toBool());QVERIFY(reply.value("result").toObject().value("ok").toBool());hosting.closeAndWait();
     }
     void hostSelectionRetriesTheLocalOperationLockWithoutBlockingTheCaller() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/primary-claim-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/primary-claim-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path())); const QString scope(64, 'a');
         Controller sync({}); sync.open(root.path(), scope); QTRY_VERIFY(sync.available());
         QLockFile lock(root.filePath(".society-sync/operation.lock")); lock.setStaleLockTime(0); QVERIFY(lock.tryLock(3000));
@@ -44,7 +46,7 @@ private slots:
         QTRY_VERIFY(sync.errorString().isEmpty()); sync.closeAndWait();
     }
     void failedStartupCanRetryTheSameContainer() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/startup-retry-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/startup-retry-XXXXXX")));
         const auto path = root.filePath("later.societycontainer"); const QString scope(64, 'a');
         Controller sync({}); sync.open(path, scope);
         QTRY_VERIFY(!sync.errorString().isEmpty()); QVERIFY(!sync.available());
@@ -55,7 +57,7 @@ private slots:
         QVERIFY(sync.errorString().isEmpty());
     }
     void remoteDownloadsOpenWriteAndCommitAsynchronously() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/async-download-XXXXXX");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/async-download-XXXXXX")));
         QList<QPair<QString, QJsonObject>> requests;
         RemoteFiles remote([&](const QString &, const QJsonObject &payload) {
             const auto id = QUuid::createUuid().toString(); requests.append({id, payload}); return id;
@@ -91,7 +93,7 @@ private slots:
         QVERIFY(file.open(QIODevice::ReadOnly)); QCOMPARE(file.readAll(), "abcdef");
     }
     void inspectionsAreQueuedReadOnlyAndDiscardSupersededContainers() {
-        QTemporaryDir first(SYNC_TEST_DIRECTORY "/inspect-first-XXXXXX.societycontainer"), second(SYNC_TEST_DIRECTORY "/inspect-next-XXXXXX.societycontainer");
+        QTemporaryDir first((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/inspect-first-XXXXXX.societycontainer"))), second((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/inspect-next-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(first.path()));
         const auto drive = iiSocietyContainer::SocietyDrive::create(second.path()); QVERIFY(drive);
         Controller sync({}); QSignalSpy inspected(&sync, &Controller::containerInspected);
@@ -110,7 +112,7 @@ private slots:
         sync.open(second.path(), QString(64, 'b')); QVERIFY(!sync.available());
     }
     void asynchronousShutdownDoesNotWaitForAnActiveScan() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/async-stop-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/async-stop-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         QFile file(root.filePath("Models/large")); QVERIFY(file.open(QIODevice::WriteOnly));
         QVERIFY(file.resize(1024LL * 1024 * 1024)); file.close();
@@ -128,7 +130,7 @@ private slots:
         Replica next; QVERIFY(next.open(root.path(), scope));
     }
     void processHandoffDrainsAnActiveFileScan() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/handoff-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/handoff-XXXXXX.societycontainer")));
         const auto drive = iiSocietyContainer::SocietyDrive::create(root.path()); QVERIFY(drive);
         QFile file(root.filePath("Models/large")); QVERIFY(file.open(QIODevice::WriteOnly));
         QVERIFY(file.resize(1024LL * 1024 * 1024)); file.close();
@@ -146,7 +148,7 @@ private slots:
         QVERIFY(!sync.handle("trusted", request).value("ok").toBool());
     }
     void filesProjectionSupportsCreateReadAndPaginationWithoutExposingOtherSections() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/files-service-XXXXXX.societycontainer"); QVERIFY(root.isValid());
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/files-service-XXXXXX.societycontainer"))); QVERIFY(root.isValid());
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         QFile model(root.filePath("Models/private")); QVERIFY(model.open(QIODevice::WriteOnly)); model.write("model"); model.close();
         const auto files = filesHandler(root.path());
@@ -180,7 +182,7 @@ private slots:
         QVERIFY(removeNativeTestLink(root.filePath("Files/link")));
     }
     void endpointRequiresTheAuthenticatedPeerAndRejectsTokenMutation() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/endpoint-XXXXXX.societycontainer"); QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/endpoint-XXXXXX.societycontainer"))); QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         Controller sync({}); sync.open(root.path(), QString(64, 'a')); QTRY_VERIFY(sync.available());
         QFile payload(root.filePath("Models/progress")); QVERIFY(payload.open(QIODevice::WriteOnly));
         payload.write(QByteArray(2 * 1024 * 1024 + 51, 'p')); payload.close();
@@ -206,16 +208,16 @@ private slots:
         sync.close(); QVERIFY(!sync.available()); QVERIFY(!sync.handle("trusted", message).value("ok").toBool());
     }
     void aClientSynchronizesBothDirectionsOverRealLocalTls() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/tls-host-XXXXXX.societycontainer"), mobile(SYNC_TEST_DIRECTORY "/tls-client-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/tls-host-XXXXXX.societycontainer"))), mobile((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/tls-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(mobile.path()));
         QFile file(root.filePath("Models/host.bin")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QByteArray(700000, 'h')); file.close();
         QFile local(mobile.filePath("Files/mobile.txt")); QVERIFY(local.open(QIODevice::WriteOnly)); local.write("mobile edit"); local.close();
         iiWebServer::LanPeer host, client;
         Controller hosting({}), syncing([&](const auto &peer, const auto &message) { return client.request(peer, message); });
-        ii::runtime::EventLoop receiver;
+        ManualStatusExecutor receiver;
         QList<int> hostStates, clientStates;
-        auto hostWatch = hosting.status().changes().subscribe(receiver, {}, [&](auto event) { hostStates.append(event.value); });
-        auto clientWatch = syncing.status().changes().subscribe(receiver, {}, [&](auto event) { clientStates.append(event.value); });
+        auto hostWatch = hosting.status().subscribe(receiver, [&](auto event) { hostStates.append(event.value); });
+        auto clientWatch = syncing.status().subscribe(receiver, [&](auto event) { clientStates.append(event.value); });
         QVERIFY(hostWatch); QVERIFY(clientWatch);
         syncing.setContentPolicy(Synchronizer::ContentPolicy::FullReplica);
         const auto files = filesHandler(root.path());
@@ -235,7 +237,7 @@ private slots:
         QSignalSpy completed(&syncing, &Controller::synchronized);
         syncing.setPeers({"desktop"}, {"desktop"});
         QTRY_VERIFY2_WITH_TIMEOUT(completed.size() > 0, qPrintable(syncing.errorString()), 30000);
-        receiver.poll();
+        receiver.drain();
         QVERIFY(hostStates.contains(1)); QVERIFY(hostStates.contains(2));
         QVERIFY(clientStates.contains(1)); QVERIFY(clientStates.contains(2));
         // A completed snapshot can precede the authority's next indexing batch.
@@ -264,7 +266,7 @@ private slots:
         syncing.close(); hosting.close(); client.stop(); host.stop();
     }
     void anIdleHostArchivesExternalFilesAfterPublishingItsNamespace() {
-        QTemporaryDir root(SYNC_TEST_DIRECTORY "/provider-intake-XXXXXX.societycontainer");
+        QTemporaryDir root((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/provider-intake-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(root.path()));
         QFile file(root.filePath("Files/external.txt")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("external input"); file.close();
         Controller controller({}); controller.open(root.path(), QString(64, 'a'));

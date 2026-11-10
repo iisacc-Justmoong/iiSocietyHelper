@@ -1,5 +1,3 @@
-find_package(iiSDKCore 0.18 CONFIG REQUIRED COMPONENTS Runtime)
-target_link_libraries(iiSocietyHelper PUBLIC iiSDKCore::Runtime)
 option(IISOCIETYHELPER_WITH_BLE "Discover nearby peers and exchange bootstrap metadata over BLE" ON)
 if(IISOCIETYHELPER_WITH_BLE)
     find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Bluetooth)

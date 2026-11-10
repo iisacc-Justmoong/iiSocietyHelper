@@ -1,2 +1,9 @@
 /build/
+/resources/dependencies/
+/resources/.recovery/
+/resources/.state/
+/resources/.t/
+__pycache__/
+.iisacc-temporary.lock
+.*.iisacc-preview
 .DS_Store

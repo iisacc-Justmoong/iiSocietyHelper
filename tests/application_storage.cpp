@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include <iiSocietyHelper.h>
 #include <ApplicationStorage.h>
 #include <iiSocietyHelper/Sync/Controller.h>
@@ -15,7 +16,7 @@ class ApplicationStorageTests final : public QObject {
     Q_OBJECT
 private slots:
     void differentProductsUseTheSameSuiteStorageWithoutAnExplicitContainer() {
-        QTemporaryDir isolated(HELPER_TEST_DIRECTORY "/suite-helper-XXXXXX"); QVERIFY(isolated.isValid());
+        QTemporaryDir isolated((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/suite-helper-XXXXXX"))); QVERIFY(isolated.isValid());
         const auto selected = qgetenv("SOCIETY_CONTAINER_PATH"), settings = qgetenv("SOCIETY_STORAGE_SETTINGS_PATH"), suite = qgetenv("IISACC_SHARED_STORAGE_ROOT");
         const auto restore = qScopeGuard([&] {
             selected.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", selected);
@@ -36,7 +37,7 @@ private slots:
         QVERIFY(!second.openForApplication("../invalid"));
     }
     void modelsAndGeneratedImagesWorkWithoutASocietyProcessAndSurviveAdoption() {
-        QTemporaryDir group(HELPER_TEST_DIRECTORY "/logical-helper-XXXXXX"); QString error;
+        QTemporaryDir group((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/logical-helper-XXXXXX"))); QString error;
         const auto storage = iiSocietyContainer::ApplicationStorage::openInGroup(group.path(), "com.iisacc.dreamscapes", &error);
         QVERIFY2(storage, qPrintable(error)); const auto selected = qgetenv("SOCIETY_CONTAINER_PATH");
         qputenv("SOCIETY_CONTAINER_PATH", storage->drive().rootPath().toUtf8());
@@ -59,7 +60,7 @@ private slots:
         QCOMPARE(after.readAll(), before.readAll()); QVERIFY(!QFileInfo::exists(group.filePath("Society.societycontainer")));
     }
     void anUnavailableSuiteRootDoesNotCreatePrivateFallbackStorage() {
-        QTemporaryDir isolated(HELPER_TEST_DIRECTORY "/logical-unentitled-XXXXXX");
+        QTemporaryDir isolated((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/logical-unentitled-XXXXXX")));
         const auto selected = qgetenv("SOCIETY_CONTAINER_PATH"), settings = qgetenv("SOCIETY_STORAGE_SETTINGS_PATH"), suite = qgetenv("IISACC_SHARED_STORAGE_ROOT");
         qunsetenv("SOCIETY_CONTAINER_PATH"); qputenv("SOCIETY_STORAGE_SETTINGS_PATH", isolated.filePath("missing.json").toUtf8());
         qputenv("IISACC_SHARED_STORAGE_ROOT", "invalid-relative-suite-root");
@@ -74,7 +75,7 @@ private slots:
     }
     void logicalFilesMigrateToAnAuthenticatedHostAndModelsDownloadOverTls() {
         using namespace iiSocietyHelper::Sync;
-        QTemporaryDir group(HELPER_TEST_DIRECTORY "/logical-tls-XXXXXX"), hostDirectory(HELPER_TEST_DIRECTORY "/logical-host-XXXXXX"); QString error;
+        QTemporaryDir group((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/logical-tls-XXXXXX"))), hostDirectory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/logical-host-XXXXXX"))); QString error;
         const auto local = iiSocietyContainer::ApplicationStorage::openInGroup(group.path(), "com.iisacc.dreamscapes", &error); QVERIFY2(local, qPrintable(error));
         const auto desktop = iiSocietyContainer::SocietyDrive::createAt(hostDirectory.path(), &error); QVERIFY2(desktop, qPrintable(error));
         const auto root = local->drive().rootPath(), physicalId = local->drive().storageIdentifier();

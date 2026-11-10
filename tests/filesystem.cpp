@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include <iiSocietyHelper.h>
 #include <iiSocietyHelper/MediaExport.h>
 #include <SharedStorage.h>
@@ -38,7 +39,7 @@ using namespace iiSocietyContainer;
 class FileSystemTests : public QObject
 {
     Q_OBJECT
-    QTemporaryDir m_fixture{QStringLiteral(HELPER_TEST_DIRECTORY "/filesystem-XXXXXX")};
+    QTemporaryDir m_fixture{(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/filesystem-XXXXXX"))};
     static bool createText(const QString &path,const QByteArray &bytes) {
         QFile file(path);return file.open(QIODevice::WriteOnly)&&file.write(bytes)==bytes.size();
     }
@@ -478,11 +479,15 @@ private slots:
     void invalidPreparedStoragePreservesTheSelectedDrive() {
         const auto root=createDrive("Keep selected storage");QVERIFY(!root.isEmpty());
         FileSystem files;QVERIFY(files.open(root));const auto id=files.containerId();
+        QVERIFY(files.matchesStorage(root,id));
+        QVERIFY(!files.matchesStorage(root,id+"-wrong"));
+        QVERIFY(!files.matchesStorage(root+"-wrong",id));
         QVERIFY(!files.adoptStorage({}));QCOMPARE(files.rootPath(),root);QCOMPARE(files.containerId(),id);
         QVERIFY(!files.errorString().isEmpty());
         const auto captured=files.preparedStorage();
         const auto moved=root+".previous";QVERIFY(QDir().rename(root,moved));QVERIFY(QDir().mkdir(root));
         QVERIFY(SocietyDrive::create(root));QVERIFY(!files.adoptStorage(captured));
+        QVERIFY(!files.matchesStorage(root,id));
         QCOMPARE(files.container()->containerId(),id);
     }
     void generatedPngIsPublishedToThePinnedDriveWithoutRunningSociety() {
@@ -730,6 +735,17 @@ private slots:
         QVERIFY(!storage->errorString().isEmpty());
         QVERIFY(storage->refresh());
         QVERIFY(storage->containerId() != oldId);
+    }
+    // Process-wide quiescence is irreversible, so this test must remain last.
+    void shutdownPreparationRetiresMonitorAndStopsAdmission() {
+        const auto root=createDrive("shutdown-preparation");QVERIFY(!root.isEmpty());
+        auto files=std::make_unique<FileSystem>(FileSystem::Initialization::Deferred);
+        QVERIFY(files->open(root));files->requestSynchronization();
+        QElapsedTimer elapsed;elapsed.start();files->prepareForShutdown();QVERIFY(elapsed.elapsed()<250);
+        QVERIFY(!files->open(root));files.reset();
+        auto barrier=std::async(std::launch::async,[]{FileSystem::quiesceBackgroundWork();});
+        QTRY_VERIFY_WITH_TIMEOUT(barrier.wait_for(std::chrono::milliseconds(0))==std::future_status::ready,20000);
+        barrier.get();
     }
 };
 

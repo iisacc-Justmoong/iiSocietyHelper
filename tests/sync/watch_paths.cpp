@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include "WatchPaths.h"
 #include <filesystem>
 #include <fstream>
@@ -10,7 +11,7 @@ static void require(bool condition, const char *message) {
     if (!condition) throw std::runtime_error(message);
 }
 int main() {
-    const auto root = fs::path(SYNC_TEST_DIRECTORY) / ("watch-paths-" +
+    const auto root = society_test::rootPath(fs::path(SYNC_TEST_DIRECTORY)) / ("watch-paths-" +
         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     struct Cleanup { fs::path path; ~Cleanup() { std::error_code ec; fs::remove_all(path, ec); } } cleanup{root};
     try {

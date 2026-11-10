@@ -1,3 +1,4 @@
+#include "../TestWorkspace.h"
 #include <iiSocietyHelper/Sync/Replica.h>
 #include <iiSocietyHelper/Sync/Synchronizer.h>
 #include <iiSocietyHelper/Sync/ObjectProvider.h>
@@ -54,7 +55,7 @@ class NamespaceTests : public QObject {
     }
 private slots:
     void authorityKeepsHistoryAndStableBoundedSnapshotsOffline() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/namespace-XXXXXX.societycontainer");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/namespace-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         Replica host; QVERIFY(host.open(dir.path(), scope)); put(dir.filePath("Files/note"), "first"); QVERIFY(host.scan());
         const auto first = host.objectMetadata("files/note"); const auto bound = host.namespaceState().value("sequence").toString().toLongLong();
@@ -70,7 +71,7 @@ private slots:
         const auto head = host.namespaceState(); host.close(); QVERIFY(host.open(dir.path(), scope)); QCOMPARE(host.namespaceState(), head);
     }
     void clientsOnlyProposeAndAllNodesReceiveTheHostDecision() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/authority-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/mirror-XXXXXX.societycontainer"), c(SYNC_TEST_DIRECTORY "/other-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/authority-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/mirror-XXXXXX.societycontainer"))), c((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/other-XXXXXX.societycontainer")));
         for (auto dir : {&a, &b, &c}) QVERIFY(iiSocietyContainer::SocietyDrive::create(dir->path()));
         Replica host, phone, pc; QVERIFY(host.open(a.path(), scope)); QVERIFY(phone.open(b.path(), scope)); QVERIFY(pc.open(c.path(), scope));
         put(a.filePath("Files/note"), "initial"); cycle(phone, host); cycle(pc, host, "pc");
@@ -90,7 +91,7 @@ private slots:
         QVERIFY(!phone.handle("other", {{"action", "describe"}}).value("ok").toBool());
     }
     void anEditDuringUploadAcknowledgementSurvivesTheHostRevision() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/ack-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/ack-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/ack-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/ack-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope)); cycle(client, host);
         put(b.filePath("Files/note"), "first proposal");
@@ -113,7 +114,7 @@ private slots:
         QVERIFY(QDir(b.filePath("Files")).entryList({"note.sync-conflict-*"}, QDir::Files).isEmpty());
     }
     void anEmptyCommittedJournalPageDoesNotNeedTheMutationLock() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/empty-journal-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/empty-journal-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/empty-journal-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/empty-journal-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path()));QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host,client;QVERIFY(host.open(a.path(),scope));QVERIFY(client.open(b.path(),scope));
         QVERIFY(client.bindHost("host",host.replicaId(),host.containerId()));
@@ -125,7 +126,7 @@ private slots:
         QCOMPARE(client.namespaceState().value("sequence"),"0");
     }
     void journalRejectsForgedGapsWrongAuthorityAndRollsBackWholePage() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/journal-a-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/journal-b-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/journal-a-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/journal-b-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope));
         put(a.filePath("Files/item"), "bytes"); QVERIFY(host.scan()); QVERIFY(client.bindHost("host", host.replicaId(), host.containerId()));
@@ -141,7 +142,7 @@ private slots:
         QCOMPARE(client.namespaceState().value("head"), host.namespaceState().value("head"));
     }
     void authorityResolvesAFileAgainstOfflineDirectoryChildrenWithoutLoss() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/file-authority-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/directory-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/file-authority-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/directory-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope)); cycle(client, host);
         put(a.filePath("Files/object"), "host file"); put(b.filePath("Files/object/child"), "offline child");
@@ -152,7 +153,7 @@ private slots:
         QCOMPARE(client.namespaceState().value("head"), host.namespaceState().value("head"));
     }
     void journalMigrationRetainsCurrentStateWithoutInventingOldHistory() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/migration-XXXXXX.societycontainer"); QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/migration-XXXXXX.societycontainer"))); QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         Replica host; QVERIFY(host.open(dir.path(), scope)); put(dir.filePath("Files/item"), "old journal"); QVERIFY(host.scan());
         auto old = host.record("files/item"); const auto identity = host.containerId(); host.close();
         {
@@ -167,7 +168,7 @@ private slots:
         QCOMPARE(get(dir.filePath("Files/item")), "old journal");
     }
     void journalPagesRejectGapsAndResumeFromTheDurableCursor() {
-        QTemporaryDir a(SYNC_TEST_DIRECTORY "/pages-host-XXXXXX.societycontainer"), b(SYNC_TEST_DIRECTORY "/pages-client-XXXXXX.societycontainer");
+        QTemporaryDir a((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/pages-host-XXXXXX.societycontainer"))), b((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/pages-client-XXXXXX.societycontainer")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(a.path())); QVERIFY(iiSocietyContainer::SocietyDrive::create(b.path()));
         Replica host, client; QVERIFY(host.open(a.path(), scope)); QVERIFY(client.open(b.path(), scope));
         for (int i = 0; i < 150; ++i) put(a.filePath("Files/item-" + QString::number(i)), "item");
@@ -186,7 +187,7 @@ private slots:
         QVERIFY(!host.bindHost("other", client.replicaId(), client.containerId())); QCOMPARE(host.errorString(), "authority_cannot_become_mirror");
     }
     void providerCopiesAndRestoresWithoutChangingNamespaceOrRevision() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/provider-host-XXXXXX.societycontainer"), backing(SYNC_TEST_DIRECTORY "/provider-nas-XXXXXX");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/provider-host-XXXXXX.societycontainer"))), backing((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/provider-nas-XXXXXX")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         Replica host; QVERIFY(host.open(dir.path(), scope)); const auto path = dir.filePath("Models/model.bin");
         const QByteArray bytes(1024 * 1024 + 37, 'm'); put(path, bytes); QVERIFY(host.scan());
@@ -209,7 +210,7 @@ private slots:
         QVERIFY(!nas.put(object, path, &error, [] { return true; })); QCOMPARE(error, "provider_cancelled");
     }
     void offlineControllerCommitsWithoutAnyPeersOrInternet() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/offline-controller-XXXXXX.societycontainer"); QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/offline-controller-XXXXXX.societycontainer"))); QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path()));
         int requests = 0; Controller controller([&](auto, auto) { ++requests; return QString(); });
         QSignalSpy changed(&controller, &Controller::namespaceChanged); controller.open(dir.path(), scope);
         QTRY_VERIFY(controller.available()); QTRY_VERIFY(!changed.isEmpty()); changed.clear();
@@ -223,7 +224,7 @@ private slots:
         controller.closeAndWait(); Replica host; QVERIFY(host.open(dir.path(), scope)); QCOMPARE(host.objectMetadata("files/offline").value("kind"), "file");
     }
     void slowProviderDoesNotBlockLocalAuthorityCommits() {
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/slow-provider-host-XXXXXX.societycontainer"), remote(SYNC_TEST_DIRECTORY "/slow-provider-XXXXXX");
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/slow-provider-host-XXXXXX.societycontainer"))), remote((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/slow-provider-XXXXXX")));
         QVERIFY(iiSocietyContainer::SocietyDrive::create(dir.path())); put(dir.filePath("Files/stored"), "stored bytes");
         Controller controller({}); QSignalSpy changed(&controller, &Controller::namespaceChanged), done(&controller, &Controller::providerFinished);
         controller.open(dir.path(), scope); QTRY_VERIFY(!changed.isEmpty());
@@ -241,7 +242,7 @@ private slots:
     }
     void realS3CompatibleProviderRoundTrip() {
         const auto rclone = qEnvironmentVariable("IIWEBSERVER_TEST_RCLONE"); if (rclone.isEmpty()) QSKIP("Set IIWEBSERVER_TEST_RCLONE for the local S3 fixture");
-        QTemporaryDir dir(SYNC_TEST_DIRECTORY "/s3-provider-XXXXXX"); QVERIFY(QDir(dir.path()).mkdir("runtime")); QVERIFY(QDir(dir.path()).mkpath("buckets/bucket"));
+        QTemporaryDir dir((society_test::root(QString::fromUtf8(SYNC_TEST_DIRECTORY)) + QStringLiteral("/s3-provider-XXXXXX"))); QVERIFY(QDir(dir.path()).mkdir("runtime")); QVERIFY(QDir(dir.path()).mkpath("buckets/bucket"));
         QVERIFY(QFile::setPermissions(dir.filePath("runtime"), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
         QTcpServer probe; QVERIFY(probe.listen(QHostAddress::LocalHost)); const auto port = probe.serverPort(); probe.close();
         iiWebServer::StorageBridgeOptions backend{rclone, {}, {}, dir.filePath("runtime")};

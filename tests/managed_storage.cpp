@@ -1,3 +1,4 @@
+#include "TestWorkspace.h"
 #include <iiSocietyHelper.h>
 #include <File.h>
 #include <SocietyDrive.h>
@@ -12,7 +13,7 @@ using namespace iiFileProvider;
 void check(bool ok,const QString &message){if(!ok)throw std::runtime_error(message.toStdString());}
 int main(int argc,char**argv)try{
     QCoreApplication app(argc,argv);app.setApplicationName("SocietyHelperIntegration");app.setApplicationVersion("test");
-    QTemporaryDir fixture(QString(HELPER_TEST_DIRECTORY)+"/managed-XXXXXX.societycontainer");
+    QTemporaryDir fixture((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/managed-XXXXXX.societycontainer")));
     check(fixture.isValid() && bool(iiSocietyContainer::SocietyDrive::create(fixture.path())),"fixture");
     iiSocietyHelper::FileSystem files(iiSocietyHelper::FileSystem::Initialization::Deferred);
     check(files.open(fixture.path()),files.errorString());

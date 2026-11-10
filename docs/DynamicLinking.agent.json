@@ -1,0 +1,114 @@
+{
+  "format": "iisacc.agent-document",
+  "schema_version": 1,
+  "document_id": "urn:iisacc:document:71bea74da1854be4f9ad3235690fdf57e61378fd873b0b99200255f2b4f1abfe",
+  "project": {
+    "id": "urn:iisacc:project:SDK%2FiiSocietyHelper",
+    "name": "iiSocietyHelper",
+    "root": "SDK/iiSocietyHelper",
+    "kind": "sdk"
+  },
+  "source": {
+    "path": "docs/DynamicLinking.md",
+    "sha256": "a4ce3a1b3d71623ed109922212ec652e8a782532e54d824de6392ffd0f054649",
+    "bytes": 2227,
+    "line_count": 33,
+    "encoding": "utf-8",
+    "language": "en"
+  },
+  "document": {
+    "title": "Dynamic linking",
+    "role": "guide",
+    "authority": "markdown_source"
+  },
+  "blocks": [
+    {
+      "id": "b000001",
+      "kind": "heading",
+      "start_line": 1,
+      "end_line": 1,
+      "raw": "# Dynamic linking\n",
+      "level": 1,
+      "title": "Dynamic linking"
+    },
+    {
+      "id": "b000002",
+      "kind": "blank",
+      "start_line": 2,
+      "end_line": 2,
+      "raw": "\n"
+    },
+    {
+      "id": "b000003",
+      "kind": "paragraph",
+      "start_line": 3,
+      "end_line": 23,
+      "raw": "The helper facade, monitoring interface and optional desktop generation host\nare shared targets. iOS uses frameworks and WebAssembly uses side modules for\nthe mobile-capable targets. The Swift crypto archive is an internal implementation\nof the helper framework, not a separately distributed SDK library. The desktop\ngeneration interface exports its QObject type for Windows consumers.\nThe Qt facade uses the file provider's own owner-permission flags when\nrestricting newly created observation directories.\nWhen both installed Native and Qt provider packages expose the Qt file-device\nheader, configuration rejects different copies. Mixing their incompatible\nclass layouts with a shared library can otherwise corrupt objects at runtime.\nThe configuration also compares a selected native provider with any same-named\nprovider bundled beside an imported Container, Canvas, WebServer, or generation\nbackend. A different binary is rejected before linking. On native macOS builds,\nthe imported libraries are also inspected for a different Qt adapter ABI name.\nRebuild those SDK\npackages against the same provider and use one coherent package set; do not\nrepair the error by changing a library search order or replacing a running\ninstallation. The shared-link check rejects unresolved libraries, different\nsame-named binaries, and, on macOS, an additional incompatible Qt provider ABI.\nIt also verifies that the binary dependency graph resolves to the selected\nnative and Qt providers.\n"
+    },
+    {
+      "id": "b000004",
+      "kind": "blank",
+      "start_line": 24,
+      "end_line": 24,
+      "raw": "\n"
+    },
+    {
+      "id": "b000005",
+      "kind": "paragraph",
+      "start_line": 25,
+      "end_line": 31,
+      "raw": "Provider class layouts can change between SDK generations even when the C++\nnames match. Rebuild dependent Qt libraries with the selected provider headers\nand binary. The existing separately installed inference backend can be staged\nwithout its stale provider copy when its native provider interface is compatible;\nthis does not update an existing system installation or prove model inference.\nThe generation protocol suite uses its original 45-second limit and an injected\ntest engine; it checks the protocol without launching a product app or model.\n"
+    },
+    {
+      "id": "b000006",
+      "kind": "blank",
+      "start_line": 32,
+      "end_line": 32,
+      "raw": "\n"
+    },
+    {
+      "id": "b000007",
+      "kind": "paragraph",
+      "start_line": 33,
+      "end_line": 33,
+      "raw": "The Emscripten package configuration enables CMake shared-library imports for side modules. The builder or application must supply the main-module compile and link options.\n"
+    }
+  ],
+  "outline": [
+    {
+      "block_id": "b000001",
+      "parent_id": null,
+      "level": 1,
+      "title": "Dynamic linking",
+      "anchor": "dynamic-linking",
+      "start_line": 1
+    }
+  ],
+  "indexes": {
+    "directive_candidates": [
+      {
+        "block_id": "b000003",
+        "line": 18,
+        "text": "packages against the same provider and use one coherent package set; do not",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000007",
+        "line": 33,
+        "text": "The Emscripten package configuration enables CMake shared-library imports for side modules. The builder or application must supply the main-module compile and link options.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      }
+    ],
+    "commands": [],
+    "links": [],
+    "tables": []
+  },
+  "provenance": {
+    "generator": "workspace-docs",
+    "version": "1.0.0",
+    "profile": "lossless-blocks-v1",
+    "derived": true
+  }
+}
