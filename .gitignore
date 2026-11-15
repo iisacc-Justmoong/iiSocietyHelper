@@ -7,3 +7,4 @@ __pycache__/
 .iisacc-temporary.lock
 .*.iisacc-preview
 .DS_Store
+resources/
