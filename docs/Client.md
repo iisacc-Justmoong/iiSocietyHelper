@@ -144,6 +144,46 @@ On the first read of a missing record, an existing previous OS Society state loc
 
 `iiSocietyHelper.apple_state` checks that an actual ad-hoc app and daemon resolve the same selected package and that resolving paths creates no state. Society.GroupState covers preserved ciphertext migration, restart and revocation races.
 
+`ResidentClient` is a local, event-driven application client for the Society
+daemon's shared iisaccson model. Explicit connection subscribes to actual
+residency changes; each text request owns its request ID and receives only its
+own stream and terminal result. The caller supplies its own conversation and
+generation options. Cancel and disconnect never unload the daemon's model.
+The client authenticates the local operating-system user, limits frames and
+does not automatically reconnect or retry an uncertain request. Model files,
+weights, tools, and the Society workspace conversation are not transferred.
+The Python `resident_client.ResidentClient` uses the same bounded local protocol;
+the caller explicitly receives events and owns its connection and cancellation.
+
+Applications link `iiSocietyHelper::iiSocietyHelper` and include
+`<iiSocietyHelper/ResidentClient.h>`. Connect the `residentChanged` and
+`generationEvent` signals before calling `connectToDaemon()`. Once the status is
+`ready`, call `generate()` with the application's own list of `role`/`content`
+messages and optional iiLocalLLM generation parameters. The returned ID scopes
+the response and can be passed to `cancel()`. On failure or disconnect, callers
+decide whether to retry. Each existing application must adopt this API in its
+own agent or view model; installing the SDK does not rewrite existing binaries.
+The installed Python module is in `share/iiSocietyHelper/python`; use it as a
+context manager, call `generate()`, then consume `receive()` events. The native
+client uses Unix-domain sockets or Windows named pipes and verifies the peer's
+OS user. Mobile device-to-desktop transport is outside this local broker.
+
+Qt-free C++23 applications can instead link
+`iiSocietyHelperNative::ResidentClient` from the separate
+`iiSocietyHelperNative` CMake package. `ResidentNative` exposes explicit connect,
+subscribe, generate, cancel and framed JSON send/receive operations without an
+SDK or GUI dependency. Receive blocks until a daemon message arrives and is
+intended for a caller-owned asynchronous task; it starts no polling thread.
+The host application parses responses and owns its conversation history. A
+closed connection cancels its accepted daemon requests, not the resident model.
+On Unix, close interrupts a blocked receive; the caller joins outstanding calls
+before reconnecting or destroying the client.
+
 LAN clients require server-issued account pairing proofs. Both LAN and relay select the host and container in the authenticated account `societyContainerDrive`; missing registration or another host grants no synchronization. The registered replacement host adopts a fresh mirror while retaining previous files in recovery.
 
 Apple keychain reads, writes and duplicate-item checks execute on worker threads. Completion returns to the session store thread and is cancelled when its QObject is destroyed. Keychain access prompts therefore cannot block the Society or consumer application event loop; existing access controls and encrypted state are preserved.
+
+`GroupSessionStore::recordRevision(key)`는 선택된 컨테이너의 해당 암호화 세션
+레코드와 철회 세대를 읽어 자격 증명을 노출하지 않는 지문을 반환한다. 값이 없거나
+저장소 선택이 바뀌고 레코드가 훼손·변경되면 빈 값 또는 새 지문을 반환한다.
+이는 명시적 조회이며 복호화·키체인 접근이나 전체 디렉터리 순회를 수행하지 않는다.

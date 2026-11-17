@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.24)
+project(ResidentNativeConsumer LANGUAGES CXX)
+find_package(iiSocietyHelperNative 0.12 CONFIG REQUIRED)
+add_executable(resident-native main.cpp)
+target_compile_features(resident-native PRIVATE cxx_std_23)
+target_link_libraries(resident-native PRIVATE iiSocietyHelperNative::ResidentClient)

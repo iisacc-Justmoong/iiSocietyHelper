@@ -157,6 +157,26 @@ QByteArray GroupSessionStore::generation(const QString &key) const {
     if (!info.isFile() || !file.open(QIODevice::ReadOnly) || file.size() != 16) return {};
     return file.readAll();
 }
+QByteArray GroupSessionStore::recordRevision(const QString &key) const {
+    if (key.isEmpty() || key.size() > 512 || !iiFileProvider::Directory::isAbsolutePath(m_directory)
+        || (m_followsSelection && defaultDirectory() != m_directory)) return {};
+    const auto name=path(key);
+    const auto read=[&]() -> QByteArray {
+        const QFileInfo info(name);
+        if (info.isSymLink() || info.isJunction() || !info.isFile()
+            || info.size() <= 20 || info.size() > MaximumSocietyStateBytes + 48) return {};
+        iiFileProvider::FileDevice file(name);
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
+    };
+    const auto before=generation(key);
+    if (before.size()!=16) return {};
+    const auto bytes=read();
+    if (!bytes.startsWith(version) || bytes.mid(4,16)!=before || read()!=bytes || generation(key)!=before) return {};
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    hash.addData(m_directory.toUtf8());hash.addData(QByteArrayView("\0",1));hash.addData(key.toUtf8());
+    hash.addData(QByteArrayView("\0",1));hash.addData(before);hash.addData(bytes);
+    return hash.result();
+}
 bool GroupSessionStore::save(const QString &key, const QByteArray &bytes, const QString &suffix) {
     const QFileInfo info(path(key) + suffix);
     if (info.isSymLink() || info.isJunction()) return fail("The Society state record is redirected.");

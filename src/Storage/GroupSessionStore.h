@@ -19,6 +19,10 @@ public:
     void remove(const QString &key, Completion completion) override;
     QString directory() const { return m_directory; }
     QString errorString() const { return m_error; }
+    // A non-secret content revision of one encrypted record and its revocation
+    // marker. Empty means missing, redirected, changed selection, or unsafe.
+    // This is a request-time query; it never reads or decrypts the master key.
+    [[nodiscard]] QByteArray recordRevision(const QString &key) const;
 private:
     enum class Operation { Read, Write, Remove };
     struct Request {

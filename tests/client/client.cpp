@@ -29,6 +29,7 @@
 #include <QTest>
 #include <QImage>
 #include <QBuffer>
+#include <filesystem>
 #include <utility>
 #include <iiFileProviderPresentation.h>
 class ClientTests : public QObject {
@@ -346,6 +347,32 @@ private slots:
         Store::Result result; bool done = false;
         store.remove("synthetic", [&](auto value) { result = value; done = true; });
         QTRY_VERIFY(done); QCOMPARE(result.error, Store::Error::Unavailable);
+    }
+
+    void sessionRecordRevisionTracksReplacementAndRevocation() {
+        QTemporaryDir fixture((society_test::root(QString::fromUtf8(CLIENT_TEST_DIRECTORY)) + QStringLiteral("/group-revision-XXXXXX")));
+        QVERIFY(fixture.isValid());
+        MemorySessionStore keys;
+        GroupSessionStore first(fixture.path(), &keys, nullptr), second(fixture.path(), &keys, nullptr);
+        QVERIFY(first.recordRevision("account-session").isEmpty());
+        using Store = iisacc::accounts::SessionStore;
+        Store::Result result; bool done = false;
+        first.write("account-session", "session-a", [&](auto value) {result=value;done=true;});
+        QTRY_VERIFY(done); QCOMPARE(result.error, Store::Error::None);
+        const auto initial=first.recordRevision("account-session");
+        QCOMPARE(initial.size(),32);QCOMPARE(second.recordRevision("account-session"),initial);
+        done=false;second.write("account-session", "session-b", [&](auto value) {result=value;done=true;});
+        QTRY_VERIFY(done);QCOMPARE(result.error,Store::Error::None);
+        QVERIFY(first.recordRevision("account-session")!=initial);
+        done=false;second.remove("account-session", [&](auto value) {result=value;done=true;});
+        QTRY_VERIFY(done);QCOMPARE(result.error,Store::Error::None);
+        QVERIFY(first.recordRevision("account-session").isEmpty());
+        // The provider may create preview sidecars while removing state files.
+        // Remove only this test's freshly created private fixture tree.
+        fixture.setAutoRemove(false);
+        std::error_code error;
+        std::filesystem::remove_all(std::filesystem::path(fixture.path().toStdString()), error);
+        QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
     }
 
     void stateRemovalAcceptsMissingLegacyEntry() {

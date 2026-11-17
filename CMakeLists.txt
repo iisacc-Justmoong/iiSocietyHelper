@@ -57,11 +57,31 @@ if(BUILD_TESTING)
     endif()
 endif()
 find_package(Threads REQUIRED)
+add_library(iiSocietyHelperResidentNative SHARED src/Client/ResidentNative.cpp src/Client/ResidentNative.h)
+add_library(iiSocietyHelperNative::ResidentClient ALIAS iiSocietyHelperResidentNative)
+set_target_properties(iiSocietyHelperResidentNative PROPERTIES EXPORT_NAME ResidentClient
+    VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR} AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_compile_features(iiSocietyHelperResidentNative PUBLIC cxx_std_23)
+target_compile_definitions(iiSocietyHelperResidentNative PRIVATE IISOCIETYHELPER_RESIDENT_BUILD)
+target_link_libraries(iiSocietyHelperResidentNative PRIVATE Threads::Threads)
+if(EMSCRIPTEN)
+    target_compile_options(iiSocietyHelperResidentNative PRIVATE -fPIC)
+    target_link_options(iiSocietyHelperResidentNative PRIVATE -sSIDE_MODULE=1)
+endif()
+target_include_directories(iiSocietyHelperResidentNative PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/iiSocietyHelperNative/ResidentNative.h"
+    CONTENT "#pragma once\n#include \"${CMAKE_CURRENT_SOURCE_DIR}/src/Client/ResidentNative.h\"\n")
+if(WIN32)
+    target_link_libraries(iiSocietyHelperResidentNative PRIVATE bcrypt advapi32)
+endif()
 set(_helper_root_headers
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Core/Export.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Account/AccountSession.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Client/Client.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Client/LocalClient.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Client/ResidentClient.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Client/LocalService.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/AutomaticPairing.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Discovery/DeviceInfo.h"
@@ -161,6 +181,7 @@ target_sources(iiSocietyHelper PRIVATE
     src/Media/FileDownload.h src/Media/FileDownload.cpp src/Media/FileHost.h src/Media/FileHost.cpp
     src/Client/Client.h src/Client/Client.cpp src/Client/LocalFrame.h src/Client/LocalFrame.cpp
     src/Client/LocalClient.h src/Client/LocalClient.cpp src/Client/LocalService.h src/Client/LocalService.cpp
+    src/Client/ResidentClient.h src/Client/ResidentClient.cpp
     src/Account/AccountSession.h src/Account/AccountSession.cpp src/Discovery/DeviceInfo.h src/Discovery/DeviceInfo.cpp
     src/Discovery/DiscoveryService.h src/Discovery/NearbyDevices.h src/Discovery/NearbyDevices.cpp src/Discovery/AutomaticPairing.h src/Discovery/AutomaticPairing.cpp
     src/Storage/PairingCredentials.h src/Storage/PairingCredentials.cpp src/Discovery/HybridDiscoveryService.cpp
@@ -175,6 +196,9 @@ target_link_libraries(iiSocietyHelper PUBLIC Qt6::Core Qt6::Sql
     iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core iiAccountManager::iiAccountManager Qt6::Network Qt6::Gui iiWebServer::iiWebServer)
 target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::iiFileProvider iiSocietyHelper::Monitoring iiFileProvider::Temporary)
 target_link_libraries(iiSocietyHelper PRIVATE Threads::Threads)
+if(WIN32)
+    target_link_libraries(iiSocietyHelper PRIVATE advapi32)
+endif()
 target_sources(iiSocietyHelper PRIVATE src/Files/FilePresentation.cpp src/Files/FilePresentation_p.h)
 target_link_libraries(iiSocietyHelper PRIVATE iiFileProvider::Native)
 target_include_directories(iiSocietyHelper PUBLIC
@@ -276,6 +300,17 @@ if(BUILD_TESTING)
     target_compile_definitions(iiSocietyHelper_merged_api_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
     iisociety_fixture_test(iiSocietyHelper.merged_api iiSocietyHelper_merged_api_tests)
     if(NOT CMAKE_CROSSCOMPILING)
+        if(UNIX)
+            add_executable(iiSocietyHelper_resident_native_tests tests/client/resident_native.cpp)
+            target_link_libraries(iiSocietyHelper_resident_native_tests PRIVATE iiSocietyHelperNative::ResidentClient Threads::Threads)
+            target_compile_definitions(iiSocietyHelper_resident_native_tests PRIVATE RESIDENT_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
+            iisociety_fixture_test(iiSocietyHelper.resident_native iiSocietyHelper_resident_native_tests)
+        endif()
+        add_executable(iiSocietyHelper_resident_client_tests tests/client/resident_client.cpp src/Client/LocalFrame.cpp)
+        target_link_libraries(iiSocietyHelper_resident_client_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+        iisociety_fixture_test(iiSocietyHelper.resident_client iiSocietyHelper_resident_client_tests)
+        add_test(NAME iiSocietyHelper.resident_python COMMAND ${_helper_test_runner}
+            "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/client/test_resident_client.py")
         add_executable(iiSocietyHelper_local_frame_tests tests/client/local_frame.cpp src/Client/LocalFrame.cpp src/Client/LocalFrame.h)
         target_link_libraries(iiSocietyHelper_local_frame_tests PRIVATE Qt6::Core Qt6::Test)
         iisociety_fixture_test(iiSocietyHelper.local_frame iiSocietyHelper_local_frame_tests)
@@ -377,6 +412,18 @@ install(TARGETS iiSocietyHelper EXPORT iiSocietyHelperTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES src/Core/iiSocietyHelper.h src/Delivery/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES src/Client/resident_client.py DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper/python)
+install(TARGETS iiSocietyHelperResidentNative EXPORT iiSocietyHelperNativeTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES src/Client/ResidentNative.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelperNative)
+install(EXPORT iiSocietyHelperNativeTargets NAMESPACE iiSocietyHelperNative:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
+configure_package_config_file(cmake/iiSocietyHelperNativeConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
 install(FILES ${_helper_root_headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper)
 install(DIRECTORY src/Sync src/Monitoring src/Generation DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h"
     PATTERN "ConfinedFiles.h" EXCLUDE PATTERN "NamespaceJournal.h" EXCLUDE
