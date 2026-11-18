@@ -14,14 +14,14 @@
       "document_id": "urn:iisacc:document:f6521aba0c40705a200ff3c4497efbdfa4843a4b9a9e427f70d7ae10b04180da",
       "source": "AGENT.md",
       "agent_json": "docs/entrypoints/AGENT.agent.json",
-      "source_sha256": "238bb77da3bded565773a7c0ee0a1ff47c365f869600b7e01d505d5db76d0c82",
+      "source_sha256": "102b686741229c589ef35ec30dc4c44e2c38dc6281a6338238b8f7f44c5309aa",
       "role": "instructions"
     },
     {
       "document_id": "urn:iisacc:document:6e0d8fa2d2288ac54aa36e60db96988d4439d2796a75fbdc849da6fe57aa9722",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "69873ff929f2d385c40b4378506db0982baddf429e6a78ff565c4a84567d80a1",
+      "source_sha256": "c756481f8836e63e485784234f6bfeba4a0621d869b9d38112925ae553bc9135",
       "role": "overview"
     },
     {
@@ -130,6 +130,13 @@
       "role": "guide"
     },
     {
+      "document_id": "urn:iisacc:document:75aa96a444474f70282ab41e615a2225c76225a44ac97db9d3de50300ca150fa",
+      "source": "docs/License.md",
+      "agent_json": "docs/License.agent.json",
+      "source_sha256": "da263b8d5760542267bea6dfbc9155f3e6b17dde240bdd9d5e66699a10b51fb1",
+      "role": "guide"
+    },
+    {
       "document_id": "urn:iisacc:document:ad2b4daea3f82d65b6211d0cccf1ff990034c8f0f6c72f7f1ed566220690ca3c",
       "source": "docs/ManagedFiles.md",
       "agent_json": "docs/ManagedFiles.agent.json",
@@ -175,7 +182,7 @@
       "document_id": "urn:iisacc:document:a22253e355216c2d11db174e0a6dc437e9725c6f7b72caa531483c3b94a27a62",
       "source": "docs/README.md",
       "agent_json": "docs/README.agent.json",
-      "source_sha256": "006f7762960a98587b43b197d156ab94106ff5e31be472f91c726867ccff80a4",
+      "source_sha256": "1ee9d70c65e037a885dba7815503f6f23d82ddd6d28c69dbb01512c34d8f296b",
       "role": "overview"
     },
     {
@@ -217,7 +224,7 @@
       "document_id": "urn:iisacc:document:a03c56e3bb25caf98ac44fc4e016e4190f03177e38f1bd77e9d4a2faaf02dc5e",
       "source": "docs/Sync/README.md",
       "agent_json": "docs/Sync/README.agent.json",
-      "source_sha256": "825fa3871045fea4612a3a6c22de3c8bef45b3fb970b1cf893c67b3ccd8303a2",
+      "source_sha256": "b99d06ba8be4f99353b8b7f21aee012b5570022d9ed879ac70fdde877d1590eb",
       "role": "overview"
     },
     {
