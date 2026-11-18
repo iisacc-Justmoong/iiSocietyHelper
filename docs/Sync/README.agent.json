@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/Sync/README.md",
-    "sha256": "825fa3871045fea4612a3a6c22de3c8bef45b3fb970b1cf893c67b3ccd8303a2",
-    "bytes": 43630,
-    "line_count": 335,
+    "sha256": "b99d06ba8be4f99353b8b7f21aee012b5570022d9ed879ac70fdde877d1590eb",
+    "bytes": 44004,
+    "line_count": 345,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -1202,7 +1202,7 @@
       "kind": "paragraph",
       "start_line": 252,
       "end_line": 252,
-      "raw": "SPDX-License-Identifier: MIT\n"
+      "raw": "SPDX-License-Identifier: Apache-2.0\n"
     },
     {
       "id": "b000150",
@@ -1215,404 +1215,432 @@
       "id": "b000151",
       "kind": "paragraph",
       "start_line": 254,
-      "end_line": 254,
-      "raw": "The self-written code and documentation of iiSocietyHelper::Sync are under the MIT License. The full terms follow [preserved Sync license](../../licenses/Sync.LICENSE). Licenses for Qt and other external components are maintained separately.\n"
+      "end_line": 259,
+      "raw": "iiSocietyHelper::Sync is part of this iiSDK module and is licensed under the\n[Apache License, Version 2.0](../../LICENSE) (SPDX `Apache-2.0`).\nThe copyright notice is `Copyright (c) 2026 iisacc`. Attribution is in\n[NOTICE](../../NOTICE). The installed copy\n[licenses/Sync.LICENSE](../../licenses/Sync.LICENSE) is the same Apache-2.0 text.\nThe Korean statement of the same policy is [docs/License.md](../License.md).\n"
     },
     {
       "id": "b000152",
       "kind": "blank",
-      "start_line": 255,
-      "end_line": 255,
+      "start_line": 260,
+      "end_line": 260,
       "raw": "\n"
     },
     {
       "id": "b000153",
       "kind": "paragraph",
-      "start_line": 256,
-      "end_line": 256,
-      "raw": "Regression checks verify if 0.4.0 multi-manifest ACKs precede the first byte, if byte transmission from incorrect ACKs occurs 140 times, if actual TLS propagation of creation/modification/host changes without manual calls happens 0 times, and if it ends within the 1.8 second inspection limit. Period and inspection limits are not completion times guaranteed by the network or OS.\n"
+      "start_line": 261,
+      "end_line": 262,
+      "raw": "iisacc products under Product are licensed under the GNU Affero General\nPublic License, version 3 or later (AGPL-3.0-or-later).\n"
     },
     {
       "id": "b000154",
       "kind": "blank",
-      "start_line": 257,
-      "end_line": 257,
+      "start_line": 263,
+      "end_line": 263,
       "raw": "\n"
     },
     {
       "id": "b000155",
       "kind": "paragraph",
-      "start_line": 258,
-      "end_line": 258,
-      "raw": "Apple platform large files SHA-256 use OS default CommonCrypto. Deployment Qt 6.8.3 software SHA-256 bottlenecks are reduced while maintaining hash format, file handle/modification checks, and per-block cancellation contracts. System libraries from macOS / iOS SDKs are used without additional packages or server dependencies, and other platforms maintain existing Qt paths. Empty files, SHA padding boundaries, 1MiB read boundaries, and binary inputs are compared against Qt's independent results. API rationale is [Apple CommonCrypto   CommonDigest](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/CC_SHA512_Update.3cc.html) documentation.\n"
+      "start_line": 264,
+      "end_line": 264,
+      "raw": "Qt and other external components keep their original licenses.\n"
     },
     {
       "id": "b000156",
       "kind": "blank",
-      "start_line": 259,
-      "end_line": 259,
+      "start_line": 265,
+      "end_line": 265,
       "raw": "\n"
     },
     {
       "id": "b000157",
       "kind": "paragraph",
-      "start_line": 260,
-      "end_line": 260,
-      "raw": "When returning desktop process ownership, complete the cancellation of the previous task and the termination of file/DB handles before passing the lock to Controller::closeAndWait(). A regular close() maintains the existing asynchronous cancellation. The controller check verifies whether the next Replica can acquire the lock immediately upon return during an actual large-scale file scan.\n"
+      "start_line": 266,
+      "end_line": 266,
+      "raw": "Regression checks verify if 0.4.0 multi-manifest ACKs precede the first byte, if byte transmission from incorrect ACKs occurs 140 times, if actual TLS propagation of creation/modification/host changes without manual calls happens 0 times, and if it ends within the 1.8 second inspection limit. Period and inspection limits are not completion times guaranteed by the network or OS.\n"
     },
     {
       "id": "b000158",
       "kind": "blank",
-      "start_line": 261,
-      "end_line": 262,
-      "raw": "\n\n"
+      "start_line": 267,
+      "end_line": 267,
+      "raw": "\n"
     },
     {
       "id": "b000159",
-      "kind": "html",
-      "start_line": 263,
-      "end_line": 263,
-      "raw": "<a id=\"모바일-비동기-실행-050\"></a>\n"
+      "kind": "paragraph",
+      "start_line": 268,
+      "end_line": 268,
+      "raw": "Apple platform large files SHA-256 use OS default CommonCrypto. Deployment Qt 6.8.3 software SHA-256 bottlenecks are reduced while maintaining hash format, file handle/modification checks, and per-block cancellation contracts. System libraries from macOS / iOS SDKs are used without additional packages or server dependencies, and other platforms maintain existing Qt paths. Empty files, SHA padding boundaries, 1MiB read boundaries, and binary inputs are compared against Qt's independent results. API rationale is [Apple CommonCrypto   CommonDigest](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/CC_SHA512_Update.3cc.html) documentation.\n"
     },
     {
       "id": "b000160",
       "kind": "blank",
-      "start_line": 264,
-      "end_line": 264,
+      "start_line": 269,
+      "end_line": 269,
       "raw": "\n"
     },
     {
       "id": "b000161",
-      "kind": "heading",
-      "start_line": 265,
-      "end_line": 265,
-      "raw": "## Mobile asynchronous execution ( 0.5.0 )\n",
-      "level": 2,
-      "title": "Mobile asynchronous execution ( 0.5.0 )"
+      "kind": "paragraph",
+      "start_line": 270,
+      "end_line": 270,
+      "raw": "When returning desktop process ownership, complete the cancellation of the previous task and the termination of file/DB handles before passing the lock to Controller::closeAndWait(). A regular close() maintains the existing asynchronous cancellation. The controller check verifies whether the next Replica can acquire the lock immediately upon return during an actual large-scale file scan.\n"
     },
     {
       "id": "b000162",
       "kind": "blank",
-      "start_line": 266,
-      "end_line": 266,
-      "raw": "\n"
+      "start_line": 271,
+      "end_line": 272,
+      "raw": "\n\n"
     },
     {
       "id": "b000163",
-      "kind": "paragraph",
-      "start_line": 267,
-      "end_line": 267,
-      "raw": "`Controller::inspectContainer(path, scope)` reads from existing replica work thread in container UUID ·mirror binding·primary host and passes to `containerInspected` . No need to call `Replica::binding` / `primaryHost` directly from UI. Query does not create database or replica directory and discards old results when new query arrives. Signals and `RequestSender` are processed in Controller-owned thread and file system work is executed serially in work thread.\n"
+      "kind": "html",
+      "start_line": 273,
+      "end_line": 273,
+      "raw": "<a id=\"모바일-비동기-실행-050\"></a>\n"
     },
     {
       "id": "b000164",
-      "kind": "blank",
-      "start_line": 268,
-      "end_line": 268,
-      "raw": "\n"
-    },
-    {
-      "id": "b000165",
-      "kind": "paragraph",
-      "start_line": 269,
-      "end_line": 269,
-      "raw": "`open` 's initial preparation, SQLite , monitoring registration, hash, manifest, and chunk processing are asynchronous. After initial open failure, it can retry by `open` with same path and account. In-progress or prepared same container is not re-initialized redundantly. `close` requests cancellation and returns immediately. When discarding mobile object, calling `shutdownAsync()` causes work thread to clean up resources and terminate itself. Subsequently, that Controller cannot be opened again. Desktop execution right handover maintains `closeAndWait()` . Default destructor waits for work cleanup for desktop compatibility.\n"
-    },
-    {
-      "id": "b000166",
-      "kind": "blank",
-      "start_line": 270,
-      "end_line": 270,
-      "raw": "\n"
-    },
-    {
-      "id": "b000167",
-      "kind": "paragraph",
-      "start_line": 271,
-      "end_line": 271,
-      "raw": "`RemoteFiles` 's destination open, Base64 chunk check, write, and final `QSaveFile::commit()` are also performed in separate work thread. While saving, it maintains `busy()` and passes `downloadFinished` only after commit completion. Cancellation and object destruction do not wait for work and invalidate late callbacks. Failed transfer preserves existing destination file. Already running OS file operation checks cancellation upon return.\n"
-    },
-    {
-      "id": "b000168",
-      "kind": "blank",
-      "start_line": 272,
-      "end_line": 272,
-      "raw": "\n"
-    },
-    {
-      "id": "b000169",
-      "kind": "paragraph",
-      "start_line": 273,
-      "end_line": 273,
-      "raw": "0.5.0 changes the ownership implementation and destruction boundary of RemoteFiles, so consumers must rebuild. The dynamic library's ABI name is separated as `0.5`; the existing `0` library is not replaced with the new implementation. Synchronization protocol 2 and the disk format are retained. It reuses [worker objects and queued connections](https://doc.qt.io/qt-6/qthread.html)from the existing Qt Core, with no new external dependencies.\n"
-    },
-    {
-      "id": "b000170",
       "kind": "blank",
       "start_line": 274,
       "end_line": 274,
       "raw": "\n"
     },
     {
-      "id": "b000171",
-      "kind": "paragraph",
+      "id": "b000165",
+      "kind": "heading",
       "start_line": 275,
       "end_line": 275,
-      "raw": "`iiSocietyHelper.Sync.Controller` performs asynchronous lookup, discards stale results, retries after initial failure, checks 1 GiB during asynchronous termination, hands over desktop execution rights, preserves successful downloads and incomplete files, and checks actual local TLS bidirectional synchronization.\n"
+      "raw": "## Mobile asynchronous execution ( 0.5.0 )\n",
+      "level": 2,
+      "title": "Mobile asynchronous execution ( 0.5.0 )"
     },
     {
-      "id": "b000172",
+      "id": "b000166",
       "kind": "blank",
       "start_line": 276,
       "end_line": 276,
       "raw": "\n"
     },
     {
-      "id": "b000173",
+      "id": "b000167",
       "kind": "paragraph",
       "start_line": 277,
       "end_line": 277,
-      "raw": "Photos is the top-level section of Container 0.13.0. It is automatically enumerated from `allStoreSections()` to apply normal section transfer and host adoption rules. Existing path migration is performed by the Container, and all synchronized participating devices must use the new layout. Society. Photos' TLS integration test checks `Photos/`'s alias, preview, and original channel together.\n"
+      "raw": "`Controller::inspectContainer(path, scope)` reads from existing replica work thread in container UUID ·mirror binding·primary host and passes to `containerInspected` . No need to call `Replica::binding` / `primaryHost` directly from UI. Query does not create database or replica directory and discards old results when new query arrives. Signals and `RequestSender` are processed in Controller-owned thread and file system work is executed serially in work thread.\n"
     },
     {
-      "id": "b000174",
+      "id": "b000168",
       "kind": "blank",
       "start_line": 278,
       "end_line": 278,
       "raw": "\n"
     },
     {
-      "id": "b000175",
-      "kind": "html",
+      "id": "b000169",
+      "kind": "paragraph",
       "start_line": 279,
       "end_line": 279,
-      "raw": "<a id=\"무결성-검사-진행-보고\"></a>\n"
+      "raw": "`open` 's initial preparation, SQLite , monitoring registration, hash, manifest, and chunk processing are asynchronous. After initial open failure, it can retry by `open` with same path and account. In-progress or prepared same container is not re-initialized redundantly. `close` requests cancellation and returns immediately. When discarding mobile object, calling `shutdownAsync()` causes work thread to clean up resources and terminate itself. Subsequently, that Controller cannot be opened again. Desktop execution right handover maintains `closeAndWait()` . Default destructor waits for work cleanup for desktop compatibility.\n"
     },
     {
-      "id": "b000176",
+      "id": "b000170",
       "kind": "blank",
       "start_line": 280,
       "end_line": 280,
       "raw": "\n"
     },
     {
-      "id": "b000177",
-      "kind": "heading",
+      "id": "b000171",
+      "kind": "paragraph",
       "start_line": 281,
       "end_line": 281,
-      "raw": "## Integrity check progress report\n",
-      "level": 2,
-      "title": "Integrity check progress report"
+      "raw": "`RemoteFiles` 's destination open, Base64 chunk check, write, and final `QSaveFile::commit()` are also performed in separate work thread. While saving, it maintains `busy()` and passes `downloadFinished` only after commit completion. Cancellation and object destruction do not wait for work and invalidate late callbacks. Failed transfer preserves existing destination file. Already running OS file operation checks cancellation upon return.\n"
     },
     {
-      "id": "b000178",
+      "id": "b000172",
       "kind": "blank",
       "start_line": 282,
       "end_line": 282,
       "raw": "\n"
     },
     {
-      "id": "b000179",
+      "id": "b000173",
       "kind": "paragraph",
       "start_line": 283,
       "end_line": 283,
-      "raw": "`Replica::setVerificationProgress` and `Controller::verificationProgress` deliver the actual bytes of SHA-256 processing. It starts from per-file 0, and progress events mean processed bytes. It does not stand in for hash success or transfer completion. The controller delivers up to approximately 10 Hz from its own thread, along with start and end chunks, and discards events from the previous container. Separated from the transfer progress signal, this allows observation of progress even while the mobile OS's persistent execution task is performing large model checks. OS execution permission is the responsibility of the consumer app. ConfinedFiles test checks accurate hash, per-chunk progress, and intermediate cancellation together.\n"
+      "raw": "0.5.0 changes the ownership implementation and destruction boundary of RemoteFiles, so consumers must rebuild. The dynamic library's ABI name is separated as `0.5`; the existing `0` library is not replaced with the new implementation. Synchronization protocol 2 and the disk format are retained. It reuses [worker objects and queued connections](https://doc.qt.io/qt-6/qthread.html)from the existing Qt Core, with no new external dependencies.\n"
     },
     {
-      "id": "b000180",
+      "id": "b000174",
       "kind": "blank",
       "start_line": 284,
       "end_line": 284,
       "raw": "\n"
     },
     {
-      "id": "b000181",
-      "kind": "heading",
+      "id": "b000175",
+      "kind": "paragraph",
       "start_line": 285,
       "end_line": 285,
-      "raw": "## Provider file information on the host drive\n",
-      "level": 2,
-      "title": "Provider file information on the host drive"
+      "raw": "`iiSocietyHelper.Sync.Controller` performs asynchronous lookup, discards stale results, retries after initial failure, checks 1 GiB during asynchronous termination, hands over desktop execution rights, preserves successful downloads and incomplete files, and checks actual local TLS bidirectional synchronization.\n"
     },
     {
-      "id": "b000182",
+      "id": "b000176",
       "kind": "blank",
       "start_line": 286,
       "end_line": 286,
       "raw": "\n"
     },
     {
-      "id": "b000183",
+      "id": "b000177",
       "kind": "paragraph",
       "start_line": 287,
-      "end_line": 291,
-      "raw": "`drive.describe` advertises `inspect` and `fileInformationSchema: 1`. File rows\nfrom `drive.list`, `drive.catalog` and `drive.stat` carry an `information`\ndescriptor (`provider: iiFileProvider`, `action: drive.inspect`, `schema: 1`).\nListing remains metadata-only; neither indexing nor downloading a local replica\nis required for direct host inspection.\n"
+      "end_line": 287,
+      "raw": "Photos is the top-level section of Container 0.13.0. It is automatically enumerated from `allStoreSections()` to apply normal section transfer and host adoption rules. Existing path migration is performed by the Container, and all synchronized participating devices must use the new layout. Society. Photos' TLS integration test checks `Photos/`'s alias, preview, and original channel together.\n"
     },
     {
-      "id": "b000184",
+      "id": "b000178",
+      "kind": "blank",
+      "start_line": 288,
+      "end_line": 288,
+      "raw": "\n"
+    },
+    {
+      "id": "b000179",
+      "kind": "html",
+      "start_line": 289,
+      "end_line": 289,
+      "raw": "<a id=\"무결성-검사-진행-보고\"></a>\n"
+    },
+    {
+      "id": "b000180",
+      "kind": "blank",
+      "start_line": 290,
+      "end_line": 290,
+      "raw": "\n"
+    },
+    {
+      "id": "b000181",
+      "kind": "heading",
+      "start_line": 291,
+      "end_line": 291,
+      "raw": "## Integrity check progress report\n",
+      "level": 2,
+      "title": "Integrity check progress report"
+    },
+    {
+      "id": "b000182",
       "kind": "blank",
       "start_line": 292,
       "end_line": 292,
       "raw": "\n"
     },
     {
-      "id": "b000185",
+      "id": "b000183",
       "kind": "paragraph",
       "start_line": 293,
-      "end_line": 299,
-      "raw": "Send `drive.inspect` with the pinned container identity, logical `path` such as\n`files/brief.txt`, and optional decimal-string `offset` (default `0`). The host\nuses `SharedStorage::fileInformation` and returns the provider's actual details,\npreview and published classification as one JSON document split into at most\n256-KiB decoded chunks. Each response includes `data` (base64), `offset`, `size`,\n`eof`, the native source `version`, and an `informationVersion` SHA-256 of the\nwhole serialized document. The document is limited to 3 MiB.\n"
+      "end_line": 293,
+      "raw": "`Replica::setVerificationProgress` and `Controller::verificationProgress` deliver the actual bytes of SHA-256 processing. It starts from per-file 0, and progress events mean processed bytes. It does not stand in for hash success or transfer completion. The controller delivers up to approximately 10 Hz from its own thread, along with start and end chunks, and discards events from the previous container. Separated from the transfer progress signal, this allows observation of progress even while the mobile OS's persistent execution task is performing large model checks. OS execution permission is the responsibility of the consumer app. ConfinedFiles test checks accurate hash, per-chunk progress, and intermediate cancellation together.\n"
+    },
+    {
+      "id": "b000184",
+      "kind": "blank",
+      "start_line": 294,
+      "end_line": 294,
+      "raw": "\n"
+    },
+    {
+      "id": "b000185",
+      "kind": "heading",
+      "start_line": 295,
+      "end_line": 295,
+      "raw": "## Provider file information on the host drive\n",
+      "level": 2,
+      "title": "Provider file information on the host drive"
     },
     {
       "id": "b000186",
       "kind": "blank",
-      "start_line": 300,
-      "end_line": 300,
+      "start_line": 296,
+      "end_line": 296,
       "raw": "\n"
     },
     {
       "id": "b000187",
       "kind": "paragraph",
-      "start_line": 301,
-      "end_line": 307,
-      "raw": "Every continuation must carry both returned versions. `drive_file_changed` rejects\na changed original; `drive_information_changed` rejects an updated preview or\nclassification even when the original is unchanged. Offset, document bounds,\ncontrol names, container identity and ordinary confined-path checks apply before\ndata is returned. Private companions are never published as user files, and no\nhost-native address is added to the projection. The operation shares the existing\nauthenticated account/peer channel and permissions of direct file reads.\n"
+      "start_line": 297,
+      "end_line": 301,
+      "raw": "`drive.describe` advertises `inspect` and `fileInformationSchema: 1`. File rows\nfrom `drive.list`, `drive.catalog` and `drive.stat` carry an `information`\ndescriptor (`provider: iiFileProvider`, `action: drive.inspect`, `schema: 1`).\nListing remains metadata-only; neither indexing nor downloading a local replica\nis required for direct host inspection.\n"
     },
     {
       "id": "b000188",
       "kind": "blank",
-      "start_line": 308,
-      "end_line": 308,
+      "start_line": 302,
+      "end_line": 302,
       "raw": "\n"
     },
     {
       "id": "b000189",
       "kind": "paragraph",
-      "start_line": 309,
-      "end_line": 313,
-      "raw": "`iiSocietyHelper::Client::inspectHostFile` assembles these chunks asynchronously,\nvalidates their sequence, bounds and document checksum, and emits one\n`hostDriveResponse` containing `information`. It does not read/materialize the\noriginal. Unknown formats retain a truthful information card. Missing or invalid\nclassification is explicit, independent of content-preview availability.\n"
+      "start_line": 303,
+      "end_line": 309,
+      "raw": "Send `drive.inspect` with the pinned container identity, logical `path` such as\n`files/brief.txt`, and optional decimal-string `offset` (default `0`). The host\nuses `SharedStorage::fileInformation` and returns the provider's actual details,\npreview and published classification as one JSON document split into at most\n256-KiB decoded chunks. Each response includes `data` (base64), `offset`, `size`,\n`eof`, the native source `version`, and an `informationVersion` SHA-256 of the\nwhole serialized document. The document is limited to 3 MiB.\n"
     },
     {
       "id": "b000190",
       "kind": "blank",
-      "start_line": 314,
-      "end_line": 314,
+      "start_line": 310,
+      "end_line": 310,
       "raw": "\n"
     },
     {
       "id": "b000191",
-      "kind": "heading",
-      "start_line": 315,
-      "end_line": 315,
-      "raw": "## Source layout\n",
-      "level": 2,
-      "title": "Source layout"
+      "kind": "paragraph",
+      "start_line": 311,
+      "end_line": 317,
+      "raw": "Every continuation must carry both returned versions. `drive_file_changed` rejects\na changed original; `drive_information_changed` rejects an updated preview or\nclassification even when the original is unchanged. Offset, document bounds,\ncontrol names, container identity and ordinary confined-path checks apply before\ndata is returned. Private companions are never published as user files, and no\nhost-native address is added to the projection. The operation shares the existing\nauthenticated account/peer channel and permissions of direct file reads.\n"
     },
     {
       "id": "b000192",
       "kind": "blank",
-      "start_line": 316,
-      "end_line": 316,
+      "start_line": 318,
+      "end_line": 318,
       "raw": "\n"
     },
     {
       "id": "b000193",
       "kind": "paragraph",
-      "start_line": 317,
-      "end_line": 317,
-      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
+      "start_line": 319,
+      "end_line": 323,
+      "raw": "`iiSocietyHelper::Client::inspectHostFile` assembles these chunks asynchronously,\nvalidates their sequence, bounds and document checksum, and emits one\n`hostDriveResponse` containing `information`. It does not read/materialize the\noriginal. Unknown formats retain a truthful information card. Missing or invalid\nclassification is explicit, independent of content-preview availability.\n"
     },
     {
       "id": "b000194",
-      "kind": "heading",
-      "start_line": 318,
-      "end_line": 318,
-      "raw": "# Native Files volume\n",
-      "level": 1,
-      "title": "Native Files volume"
-    },
-    {
-      "id": "b000195",
       "kind": "blank",
-      "start_line": 319,
-      "end_line": 319,
+      "start_line": 324,
+      "end_line": 324,
       "raw": "\n"
     },
     {
-      "id": "b000196",
-      "kind": "paragraph",
-      "start_line": 320,
+      "id": "b000195",
+      "kind": "heading",
+      "start_line": 325,
       "end_line": 325,
-      "raw": "On macOS, Society's public APFS volume contains only the Files namespace. `ConfinedFiles` resolves\nthe Files section through the container SDK's verified volume identity; other sections and recovery\nmetadata remain on the private data volume. Public-volume removal invalidates the open filesystem.\nTransfers crossing these two volumes copy to a temporary destination before publishing the file, and\nrecovery copies preserve the previous bytes. Arbitrary symlinks remain rejected. Native integration\ncoverage lives in `tests/sync/confined_files.cpp`; all fixtures are created below `build/`.\n"
+      "raw": "## Source layout\n",
+      "level": 2,
+      "title": "Source layout"
     },
     {
-      "id": "b000197",
+      "id": "b000196",
       "kind": "blank",
       "start_line": 326,
       "end_line": 326,
       "raw": "\n"
     },
     {
-      "id": "b000198",
+      "id": "b000197",
       "kind": "paragraph",
       "start_line": 327,
       "end_line": 327,
-      "raw": "`Controller::setPeers` accepts an authenticated account host and container expectation. A matching authority may replace the old mirror host; existing data and pending edits move to `.society-sync/detached/` before adoption. A mismatched host/container fails before any adoption or upload. Without an explicit expectation, the existing primary-host restriction remains.\n"
+      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
+    },
+    {
+      "id": "b000198",
+      "kind": "heading",
+      "start_line": 328,
+      "end_line": 328,
+      "raw": "# Native Files volume\n",
+      "level": 1,
+      "title": "Native Files volume"
     },
     {
       "id": "b000199",
       "kind": "blank",
-      "start_line": 328,
-      "end_line": 328,
+      "start_line": 329,
+      "end_line": 329,
       "raw": "\n"
     },
     {
       "id": "b000200",
-      "kind": "heading",
-      "start_line": 329,
-      "end_line": 329,
-      "raw": "### Local failure diagnostics\n",
-      "level": 3,
-      "title": "Local failure diagnostics"
+      "kind": "paragraph",
+      "start_line": 330,
+      "end_line": 335,
+      "raw": "On macOS, Society's public APFS volume contains only the Files namespace. `ConfinedFiles` resolves\nthe Files section through the container SDK's verified volume identity; other sections and recovery\nmetadata remain on the private data volume. Public-volume removal invalidates the open filesystem.\nTransfers crossing these two volumes copy to a temporary destination before publishing the file, and\nrecovery copies preserve the previous bytes. Arbitrary symlinks remain rejected. Native integration\ncoverage lives in `tests/sync/confined_files.cpp`; all fixtures are created below `build/`.\n"
     },
     {
       "id": "b000201",
       "kind": "blank",
-      "start_line": 330,
-      "end_line": 330,
+      "start_line": 336,
+      "end_line": 336,
       "raw": "\n"
     },
     {
       "id": "b000202",
       "kind": "paragraph",
-      "start_line": 331,
-      "end_line": 331,
-      "raw": "Set `SOCIETY_SYNC_TRACE=1` when launching a development build to log changed synchronization error messages. It is disabled by default and does not print account credentials, proof keys or protocol payloads. The UI retry state alone does not establish a successful host connection.\n"
+      "start_line": 337,
+      "end_line": 337,
+      "raw": "`Controller::setPeers` accepts an authenticated account host and container expectation. A matching authority may replace the old mirror host; existing data and pending edits move to `.society-sync/detached/` before adoption. A mismatched host/container fails before any adoption or upload. Without an explicit expectation, the existing primary-host restriction remains.\n"
     },
     {
       "id": "b000203",
       "kind": "blank",
-      "start_line": 332,
-      "end_line": 332,
+      "start_line": 338,
+      "end_line": 338,
       "raw": "\n"
     },
     {
       "id": "b000204",
-      "kind": "paragraph",
-      "start_line": 333,
-      "end_line": 333,
-      "raw": "Initial `MetadataFirst` connection does not wait for the full download of photo identification files and previews. It first prepares the host's verified list and model index, and recovers up to 16 photo identification files in subsequent synchronizations. The missing list is retained on disk and continues after restart, and the original model is downloaded only if explicitly requested.\n"
+      "kind": "heading",
+      "start_line": 339,
+      "end_line": 339,
+      "raw": "### Local failure diagnostics\n",
+      "level": 3,
+      "title": "Local failure diagnostics"
     },
     {
       "id": "b000205",
       "kind": "blank",
-      "start_line": 334,
-      "end_line": 334,
+      "start_line": 340,
+      "end_line": 340,
       "raw": "\n"
     },
     {
       "id": "b000206",
       "kind": "paragraph",
-      "start_line": 335,
-      "end_line": 335,
+      "start_line": 341,
+      "end_line": 341,
+      "raw": "Set `SOCIETY_SYNC_TRACE=1` when launching a development build to log changed synchronization error messages. It is disabled by default and does not print account credentials, proof keys or protocol payloads. The UI retry state alone does not establish a successful host connection.\n"
+    },
+    {
+      "id": "b000207",
+      "kind": "blank",
+      "start_line": 342,
+      "end_line": 342,
+      "raw": "\n"
+    },
+    {
+      "id": "b000208",
+      "kind": "paragraph",
+      "start_line": 343,
+      "end_line": 343,
+      "raw": "Initial `MetadataFirst` connection does not wait for the full download of photo identification files and previews. It first prepares the host's verified list and model index, and recovers up to 16 photo identification files in subsequent synchronizations. The missing list is retained on disk and continues after restart, and the original model is downloaded only if explicitly requested.\n"
+    },
+    {
+      "id": "b000209",
+      "kind": "blank",
+      "start_line": 344,
+      "end_line": 344,
+      "raw": "\n"
+    },
+    {
+      "id": "b000210",
+      "kind": "paragraph",
+      "start_line": 345,
+      "end_line": 345,
       "raw": "`hostValidated` is the point at which host/container match and prepared mirror are confirmed in the currently authenticated transfer. It occurs only after bootstrap completion in the first connection. The meaning of `synchronized`'s full round-trip completion is retained, and consumers can separate the photo upload queue and onboarding readiness status.\n"
     }
   ],
@@ -1706,52 +1734,52 @@
       "start_line": 250
     },
     {
-      "block_id": "b000161",
+      "block_id": "b000165",
       "parent_id": "b000001",
       "level": 2,
       "title": "Mobile asynchronous execution ( 0.5.0 )",
       "anchor": "mobile-asynchronous-execution--050-",
-      "start_line": 265
-    },
-    {
-      "block_id": "b000177",
-      "parent_id": "b000001",
-      "level": 2,
-      "title": "Integrity check progress report",
-      "anchor": "integrity-check-progress-report",
-      "start_line": 281
+      "start_line": 275
     },
     {
       "block_id": "b000181",
       "parent_id": "b000001",
       "level": 2,
-      "title": "Provider file information on the host drive",
-      "anchor": "provider-file-information-on-the-host-drive",
-      "start_line": 285
+      "title": "Integrity check progress report",
+      "anchor": "integrity-check-progress-report",
+      "start_line": 291
     },
     {
-      "block_id": "b000191",
+      "block_id": "b000185",
+      "parent_id": "b000001",
+      "level": 2,
+      "title": "Provider file information on the host drive",
+      "anchor": "provider-file-information-on-the-host-drive",
+      "start_line": 295
+    },
+    {
+      "block_id": "b000195",
       "parent_id": "b000001",
       "level": 2,
       "title": "Source layout",
       "anchor": "source-layout",
-      "start_line": 315
+      "start_line": 325
     },
     {
-      "block_id": "b000194",
+      "block_id": "b000198",
       "parent_id": null,
       "level": 1,
       "title": "Native Files volume",
       "anchor": "native-files-volume",
-      "start_line": 318
+      "start_line": 328
     },
     {
-      "block_id": "b000200",
-      "parent_id": "b000194",
+      "block_id": "b000204",
+      "parent_id": "b000198",
       "level": 3,
       "title": "Local failure diagnostics",
       "anchor": "local-failure-diagnostics",
-      "start_line": 329
+      "start_line": 339
     }
   ],
   "indexes": {
@@ -1855,43 +1883,43 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000167",
-        "line": 271,
+        "block_id": "b000171",
+        "line": 281,
         "text": "`RemoteFiles` 's destination open, Base64 chunk check, write, and final `QSaveFile::commit()` are also performed in separate work thread. While saving, it maintains `busy()` and passes `downloadFinished` only after commit completion. Cancellation and object destruction do not wait for work and invalidate late callbacks. Failed transfer preserves existing destination file. Already running OS file operation checks cancellation upon return.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000169",
-        "line": 273,
+        "block_id": "b000173",
+        "line": 283,
         "text": "0.5.0 changes the ownership implementation and destruction boundary of RemoteFiles, so consumers must rebuild. The dynamic library's ABI name is separated as `0.5`; the existing `0` library is not replaced with the new implementation. Synchronization protocol 2 and the disk format are retained. It reuses [worker objects and queued connections](https://doc.qt.io/qt-6/qthread.html)from the existing Qt Core, with no new external dependencies.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000173",
-        "line": 277,
+        "block_id": "b000177",
+        "line": 287,
         "text": "Photos is the top-level section of Container 0.13.0. It is automatically enumerated from `allStoreSections()` to apply normal section transfer and host adoption rules. Existing path migration is performed by the Container, and all synchronized participating devices must use the new layout. Society. Photos' TLS integration test checks `Photos/`'s alias, preview, and original channel together.",
-        "basis": "lexical_match",
-        "context": "paragraph"
-      },
-      {
-        "block_id": "b000183",
-        "line": 291,
-        "text": "is required for direct host inspection.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000187",
         "line": 301,
+        "text": "is required for direct host inspection.",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000191",
+        "line": 311,
         "text": "Every continuation must carry both returned versions. `drive_file_changed` rejects",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000187",
-        "line": 305,
+        "block_id": "b000191",
+        "line": 315,
         "text": "data is returned. Private companions are never published as user files, and no",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -1977,24 +2005,45 @@
       },
       {
         "block_id": "b000151",
-        "label": "preserved Sync license",
-        "target": "../../licenses/Sync.LICENSE",
+        "label": "Apache License, Version 2.0",
+        "target": "../../LICENSE",
         "kind": "relative",
-        "line": 254
+        "line": 255
       },
       {
-        "block_id": "b000155",
-        "label": "Apple CommonCrypto   CommonDigest",
-        "target": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/CC_SHA512_Update.3cc.html",
-        "kind": "external",
+        "block_id": "b000151",
+        "label": "NOTICE",
+        "target": "../../NOTICE",
+        "kind": "relative",
+        "line": 257
+      },
+      {
+        "block_id": "b000151",
+        "label": "licenses/Sync.LICENSE",
+        "target": "../../licenses/Sync.LICENSE",
+        "kind": "relative",
         "line": 258
       },
       {
-        "block_id": "b000169",
+        "block_id": "b000151",
+        "label": "docs/License.md",
+        "target": "../License.md",
+        "kind": "relative",
+        "line": 259
+      },
+      {
+        "block_id": "b000159",
+        "label": "Apple CommonCrypto   CommonDigest",
+        "target": "https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/CC_SHA512_Update.3cc.html",
+        "kind": "external",
+        "line": 268
+      },
+      {
+        "block_id": "b000173",
         "label": "worker objects and queued connections",
         "target": "https://doc.qt.io/qt-6/qthread.html",
         "kind": "external",
-        "line": 273
+        "line": 283
       }
     ],
     "tables": [

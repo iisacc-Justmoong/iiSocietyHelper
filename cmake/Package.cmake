@@ -10,5 +10,5 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperCon
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperConfigVersion.cmake" DESTINATION "${iiSocietyHelper_PACKAGE_DIR}")
 install(DIRECTORY docs/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper/docs FILES_MATCHING PATTERN "*.md")
-install(FILES README.md DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper)
+install(FILES README.md LICENSE NOTICE DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper)
 install(DIRECTORY licenses/ DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper/licenses)

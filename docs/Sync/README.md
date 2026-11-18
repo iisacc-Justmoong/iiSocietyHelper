@@ -249,9 +249,19 @@ The real loopback TLS test allows up to five seconds for the initial client uplo
 
 ## License
 
-SPDX-License-Identifier: MIT
+SPDX-License-Identifier: Apache-2.0
 
-The self-written code and documentation of iiSocietyHelper::Sync are under the MIT License. The full terms follow [preserved Sync license](../../licenses/Sync.LICENSE). Licenses for Qt and other external components are maintained separately.
+iiSocietyHelper::Sync is part of this iiSDK module and is licensed under the
+[Apache License, Version 2.0](../../LICENSE) (SPDX `Apache-2.0`).
+The copyright notice is `Copyright (c) 2026 iisacc`. Attribution is in
+[NOTICE](../../NOTICE). The installed copy
+[licenses/Sync.LICENSE](../../licenses/Sync.LICENSE) is the same Apache-2.0 text.
+The Korean statement of the same policy is [docs/License.md](../License.md).
+
+iisacc products under Product are licensed under the GNU Affero General
+Public License, version 3 or later (AGPL-3.0-or-later).
+
+Qt and other external components keep their original licenses.
 
 Regression checks verify if 0.4.0 multi-manifest ACKs precede the first byte, if byte transmission from incorrect ACKs occurs 140 times, if actual TLS propagation of creation/modification/host changes without manual calls happens 0 times, and if it ends within the 1.8 second inspection limit. Period and inspection limits are not completion times guaranteed by the network or OS.
 

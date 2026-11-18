@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiSocietyHelper VERSION 0.12.0 LANGUAGES CXX)
+set(iiSocietyHelper_SPDX_LICENSE "Apache-2.0")
+set(iiSocietyHelperNative_SPDX_LICENSE "Apache-2.0")
 if(EMSCRIPTEN)
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 endif()

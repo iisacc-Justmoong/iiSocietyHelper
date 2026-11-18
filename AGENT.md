@@ -8,6 +8,14 @@
 - 빌드와 테스트 산출물은 `build/` 아래에 둔다. 실사용 컨테이너·설치 앱·진행 중인 작업을 테스트 fixture로 사용하지 않는다.
 - `install.sh`는 설치 절차를 제공한다. 검증 중의 설치 소비자는 `build/` 아래에 별도 설치한 SDK를 사용한다.
 
+## 라이선스
+
+이 저장소의 iiSocietyHelper는 iiSDK 모듈이며 Apache License 2.0이다. 자사 코드, 문서, 도구, 테스트가 포함된다. 저작권 표시는 `Copyright (c) 2026 iisacc`이고 고지는 루트 `NOTICE`에 있다. 사람용 한국어 설명은 [docs/License.md](docs/License.md)이다.
+
+`SDK` 아래의 모든 iiSDK 모듈은 Apache-2.0이다. `Product` 아래의 iisacc 제품은 GNU Affero General Public License 버전 3 또는 그 이후 버전(AGPL-3.0-or-later)이다.
+
+제3자와 벤더 코드는 원래 라이선스를 유지한다. 문서 재편 중에도 그 라이선스와 외부 원본은 보존한다.
+
 <!-- workspace-docs:agent:start -->
 ## 문서 구조와 에이전트 탐색
 

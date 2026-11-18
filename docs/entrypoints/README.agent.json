@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "69873ff929f2d385c40b4378506db0982baddf429e6a78ff565c4a84567d80a1",
-    "bytes": 59883,
-    "line_count": 642,
+    "sha256": "c756481f8836e63e485784234f6bfeba4a0621d869b9d38112925ae553bc9135",
+    "bytes": 60312,
+    "line_count": 653,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -858,7 +858,7 @@
       "kind": "paragraph",
       "start_line": 321,
       "end_line": 321,
-      "raw": "Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing MIT iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/Files/FileSystem.cpp`, and the public API is at `src/Core/iiSocietyHelper.h`.\n"
+      "raw": "Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing Apache-2.0 iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/Files/FileSystem.cpp`, and the public API is at `src/Core/iiSocietyHelper.h`.\n"
     },
     {
       "id": "b000110",
@@ -1839,7 +1839,7 @@
       "kind": "paragraph",
       "start_line": 554,
       "end_line": 554,
-      "raw": "SPDX-License-Identifier: MIT\n"
+      "raw": "SPDX-License-Identifier: Apache-2.0\n"
     },
     {
       "id": "b000234",
@@ -1852,243 +1852,240 @@
       "id": "b000235",
       "kind": "paragraph",
       "start_line": 556,
-      "end_line": 556,
-      "raw": "The self-written code and documentation of iiSocietyHelper are under the MIT License. The full terms follow [LICENSE](LICENSE). The licenses for external components such as Qt and Apple SDK remain unchanged.\n"
+      "end_line": 560,
+      "raw": "iiSocietyHelper is an iiSDK module and is licensed under the\n[Apache License, Version 2.0](LICENSE) (SPDX `Apache-2.0`).\nThe copyright notice is `Copyright (c) 2026 iisacc`. Attribution for this\ndistribution is in [NOTICE](NOTICE). The Korean statement of the same policy\nis [docs/License.md](docs/License.md).\n"
     },
     {
       "id": "b000236",
-      "kind": "blank",
-      "start_line": 557,
-      "end_line": 557,
-      "raw": "\n"
-    },
-    {
-      "id": "b000237",
-      "kind": "html",
-      "start_line": 558,
-      "end_line": 558,
-      "raw": "<a id=\"android-공통-파일-시스템-05\"></a>\n"
-    },
-    {
-      "id": "b000238",
-      "kind": "blank",
-      "start_line": 559,
-      "end_line": 559,
-      "raw": "\n"
-    },
-    {
-      "id": "b000239",
-      "kind": "heading",
-      "start_line": 560,
-      "end_line": 560,
-      "raw": "## Android common file system ( 0.5 )\n",
-      "level": 2,
-      "title": "Android common file system ( 0.5 )"
-    },
-    {
-      "id": "b000240",
       "kind": "blank",
       "start_line": 561,
       "end_line": 561,
       "raw": "\n"
     },
     {
-      "id": "b000241",
+      "id": "b000237",
       "kind": "paragraph",
       "start_line": 562,
-      "end_line": 562,
-      "raw": "Android consumer apps call `iiSocietyContainer_configure_android_client(target)` and sign with the same certificate as Society. The internal Society of the ContentProvider app responds to requests even when the app is closed. `fileSystem.open()` selects an existing Society UUID and does not create a separate container. `path()` and `url()` return content URIs from the Android consumer app. Reading and writing are performed via `QFile`, and folders are prepared and enumerated via `ensureDirectory()` and `entries(sectionKey, relativePath)`. Items `entries` are `name`, `path`, `isDirectory`, and `size`. Engines requiring native paths copy the URI to their own cache for use. The absolute path behavior for desktop and Society owned apps is maintained.\n"
-    },
-    {
-      "id": "b000242",
-      "kind": "blank",
-      "start_line": 563,
-      "end_line": 563,
-      "raw": "\n"
-    },
-    {
-      "id": "b000243",
-      "kind": "paragraph",
-      "start_line": 564,
       "end_line": 564,
-      "raw": "The internal provider verifies the signature authority and the signature of the calling UID, and validates the UUID ·area·relative path of all requests. For public Android file apps, only the Files content continues to appear. This file system IPC does not remove the background execution limit for Android app observation. A separate `tests/android/` Qt app checks the creation, reading, writing, enumeration, and rejection of parent paths for 8 areas from the actual app UID via the Helper, and logs the results as `SOCIETY_ANDROID_PEER` JSON in logcat.\n"
+      "raw": "Every iiSDK module under SDK is Apache-2.0. iisacc products under Product\nare licensed under the GNU Affero General Public License, version 3 or later\n(AGPL-3.0-or-later).\n"
     },
     {
-      "id": "b000244",
+      "id": "b000238",
       "kind": "blank",
       "start_line": 565,
       "end_line": 565,
       "raw": "\n"
     },
     {
-      "id": "b000245",
-      "kind": "heading",
+      "id": "b000239",
+      "kind": "paragraph",
       "start_line": 566,
-      "end_line": 566,
-      "raw": "## Source layout\n",
+      "end_line": 567,
+      "raw": "Third-party and vendored code, libraries, fonts, tools, and model weights\nkeep their original licenses. Qt and the Apple SDK keep theirs.\n"
+    },
+    {
+      "id": "b000240",
+      "kind": "blank",
+      "start_line": 568,
+      "end_line": 568,
+      "raw": "\n"
+    },
+    {
+      "id": "b000241",
+      "kind": "html",
+      "start_line": 569,
+      "end_line": 569,
+      "raw": "<a id=\"android-공통-파일-시스템-05\"></a>\n"
+    },
+    {
+      "id": "b000242",
+      "kind": "blank",
+      "start_line": 570,
+      "end_line": 570,
+      "raw": "\n"
+    },
+    {
+      "id": "b000243",
+      "kind": "heading",
+      "start_line": 571,
+      "end_line": 571,
+      "raw": "## Android common file system ( 0.5 )\n",
       "level": 2,
-      "title": "Source layout"
+      "title": "Android common file system ( 0.5 )"
+    },
+    {
+      "id": "b000244",
+      "kind": "blank",
+      "start_line": 572,
+      "end_line": 572,
+      "raw": "\n"
+    },
+    {
+      "id": "b000245",
+      "kind": "paragraph",
+      "start_line": 573,
+      "end_line": 573,
+      "raw": "Android consumer apps call `iiSocietyContainer_configure_android_client(target)` and sign with the same certificate as Society. The internal Society of the ContentProvider app responds to requests even when the app is closed. `fileSystem.open()` selects an existing Society UUID and does not create a separate container. `path()` and `url()` return content URIs from the Android consumer app. Reading and writing are performed via `QFile`, and folders are prepared and enumerated via `ensureDirectory()` and `entries(sectionKey, relativePath)`. Items `entries` are `name`, `path`, `isDirectory`, and `size`. Engines requiring native paths copy the URI to their own cache for use. The absolute path behavior for desktop and Society owned apps is maintained.\n"
     },
     {
       "id": "b000246",
       "kind": "blank",
-      "start_line": 567,
-      "end_line": 567,
+      "start_line": 574,
+      "end_line": 574,
       "raw": "\n"
     },
     {
       "id": "b000247",
       "kind": "paragraph",
-      "start_line": 568,
-      "end_line": 568,
-      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
+      "start_line": 575,
+      "end_line": 575,
+      "raw": "The internal provider verifies the signature authority and the signature of the calling UID, and validates the UUID ·area·relative path of all requests. For public Android file apps, only the Files content continues to appear. This file system IPC does not remove the background execution limit for Android app observation. A separate `tests/android/` Qt app checks the creation, reading, writing, enumeration, and rejection of parent paths for 8 areas from the actual app UID via the Helper, and logs the results as `SOCIETY_ANDROID_PEER` JSON in logcat.\n"
     },
     {
       "id": "b000248",
       "kind": "blank",
-      "start_line": 569,
-      "end_line": 569,
+      "start_line": 576,
+      "end_line": 576,
       "raw": "\n"
     },
     {
       "id": "b000249",
-      "kind": "paragraph",
-      "start_line": 570,
-      "end_line": 570,
-      "raw": "Account snapshots also include `societyContainerDrive`. Accounts without a drive preserve this field as null and do not omit it, and this is verified in object transfer and restoration tests.\n"
+      "kind": "heading",
+      "start_line": 577,
+      "end_line": 577,
+      "raw": "## Source layout\n",
+      "level": 2,
+      "title": "Source layout"
     },
     {
       "id": "b000250",
       "kind": "blank",
-      "start_line": 571,
-      "end_line": 571,
+      "start_line": 578,
+      "end_line": 578,
       "raw": "\n"
     },
     {
       "id": "b000251",
-      "kind": "heading",
-      "start_line": 572,
-      "end_line": 572,
-      "raw": "### Fresh generation models (0.7.2)\n",
-      "level": 3,
-      "title": "Fresh generation models (0.7.2)"
+      "kind": "paragraph",
+      "start_line": 579,
+      "end_line": 579,
+      "raw": "Implementation files and their headers live together under `src/`. Existing feature and platform subdirectories retain their responsibilities. Build configuration, tests, documentation, resources, and maintenance scripts remain at the project root. Configure and build using the repository-local `build/` directory.\n"
     },
     {
       "id": "b000252",
       "kind": "blank",
-      "start_line": 573,
-      "end_line": 573,
+      "start_line": 580,
+      "end_line": 580,
       "raw": "\n"
     },
     {
       "id": "b000253",
       "kind": "paragraph",
-      "start_line": 574,
-      "end_line": 574,
-      "raw": "Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.\n"
+      "start_line": 581,
+      "end_line": 581,
+      "raw": "Account snapshots also include `societyContainerDrive`. Accounts without a drive preserve this field as null and do not omit it, and this is verified in object transfer and restoration tests.\n"
     },
     {
       "id": "b000254",
       "kind": "blank",
-      "start_line": 575,
-      "end_line": 575,
+      "start_line": 582,
+      "end_line": 582,
       "raw": "\n"
     },
     {
       "id": "b000255",
-      "kind": "paragraph",
-      "start_line": 576,
-      "end_line": 576,
-      "raw": "The 0.8.3 package pins iiSharedCanvas 0.31.0 for matching application and storage-owner headers and runtime. Existing detached read/write behavior is covered by the filesystem and installed consumer tests.\n"
+      "kind": "heading",
+      "start_line": 583,
+      "end_line": 583,
+      "raw": "### Fresh generation models (0.7.2)\n",
+      "level": 3,
+      "title": "Fresh generation models (0.7.2)"
     },
     {
       "id": "b000256",
       "kind": "blank",
-      "start_line": 577,
-      "end_line": 577,
+      "start_line": 584,
+      "end_line": 584,
       "raw": "\n"
     },
     {
       "id": "b000257",
       "kind": "paragraph",
-      "start_line": 578,
-      "end_line": 582,
-      "raw": "The 0.8.3 package aligns by-value canvas storage with iiSharedCanvas 0.31.0.\nNative IISC 1.21 mask stacks retain independent operands and appearance when\nsaved, read or rendered as a preview; application and storage-owner binaries\nmust be rebuilt together. Existing filesystem and installed-consumer checks\ncontinue to verify native save/reopen and stale-version rejection.\n"
+      "start_line": 585,
+      "end_line": 585,
+      "raw": "Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.\n"
     },
     {
       "id": "b000258",
       "kind": "blank",
-      "start_line": 583,
-      "end_line": 583,
+      "start_line": 586,
+      "end_line": 586,
       "raw": "\n"
     },
     {
       "id": "b000259",
-      "kind": "heading",
-      "start_line": 584,
-      "end_line": 584,
-      "raw": "### Container monitor subscription\n",
-      "level": 3,
-      "title": "Container monitor subscription"
+      "kind": "paragraph",
+      "start_line": 587,
+      "end_line": 587,
+      "raw": "The 0.8.3 package pins iiSharedCanvas 0.31.0 for matching application and storage-owner headers and runtime. Existing detached read/write behavior is covered by the filesystem and installed consumer tests.\n"
     },
     {
       "id": "b000260",
       "kind": "blank",
-      "start_line": 585,
-      "end_line": 585,
+      "start_line": 588,
+      "end_line": 588,
       "raw": "\n"
     },
     {
       "id": "b000261",
       "kind": "paragraph",
-      "start_line": 586,
-      "end_line": 592,
-      "raw": "`FileSystem` automatically subscribes to the Qt-free `iiSocietyHelper::Monitoring` service\nfor its pinned container. `containerState()` / the QML `containerState` property\ncontains the daemon identity, container UUID, revision, availability, heartbeat\nliveness, completeness, nine section inventories and changed section keys.\n`containerStateChanged()` is delivered on the FileSystem QObject's thread.\nOpening the same container preserves the subscription; switching containers\nclears its state and discards queued events from the previous subscription.\n"
+      "start_line": 589,
+      "end_line": 593,
+      "raw": "The 0.8.3 package aligns by-value canvas storage with iiSharedCanvas 0.31.0.\nNative IISC 1.21 mask stacks retain independent operands and appearance when\nsaved, read or rendered as a preview; application and storage-owner binaries\nmust be rebuilt together. Existing filesystem and installed-consumer checks\ncontinue to verify native save/reopen and stale-version rejection.\n"
     },
     {
       "id": "b000262",
       "kind": "blank",
-      "start_line": 593,
-      "end_line": 593,
+      "start_line": 594,
+      "end_line": 594,
       "raw": "\n"
     },
     {
       "id": "b000263",
-      "kind": "paragraph",
-      "start_line": 594,
-      "end_line": 603,
-      "raw": "A changed revision refreshes the existing read-only `Container` mirror and\nemits `storageChanged()`. Complete inventories of a local authority replace\nthe mirror's periodic metadata refresh while the daemon is live. Replicas retain\nthe fallback for preview-only/private download changes; partial inventories also\nretain it. Missing/stale/offline daemon state restores the\nexisting fallback refresh. A daemon heartbeat older than five seconds reports\n`daemonRunning=false`; availability and liveness have separate meanings.\nThe native daemon never copies model weights, reads document payloads or\nperforms network synchronization. Mobile platforms remain subject to their\nexisting background execution limits.\n"
+      "kind": "heading",
+      "start_line": 595,
+      "end_line": 595,
+      "raw": "### Container monitor subscription\n",
+      "level": 3,
+      "title": "Container monitor subscription"
     },
     {
       "id": "b000264",
+      "kind": "blank",
+      "start_line": 596,
+      "end_line": 596,
+      "raw": "\n"
+    },
+    {
+      "id": "b000265",
+      "kind": "paragraph",
+      "start_line": 597,
+      "end_line": 603,
+      "raw": "`FileSystem` automatically subscribes to the Qt-free `iiSocietyHelper::Monitoring` service\nfor its pinned container. `containerState()` / the QML `containerState` property\ncontains the daemon identity, container UUID, revision, availability, heartbeat\nliveness, completeness, nine section inventories and changed section keys.\n`containerStateChanged()` is delivered on the FileSystem QObject's thread.\nOpening the same container preserves the subscription; switching containers\nclears its state and discards queued events from the previous subscription.\n"
+    },
+    {
+      "id": "b000266",
       "kind": "blank",
       "start_line": 604,
       "end_line": 604,
       "raw": "\n"
     },
     {
-      "id": "b000265",
-      "kind": "fenced_code",
-      "start_line": 605,
-      "end_line": 608,
-      "raw": "```cpp\nQObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,\n                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });\n```\n",
-      "language": "cpp",
-      "code": "QObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,\n                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });\n",
-      "closed": true
-    },
-    {
-      "id": "b000266",
-      "kind": "blank",
-      "start_line": 609,
-      "end_line": 609,
-      "raw": "\n"
-    },
-    {
       "id": "b000267",
       "kind": "paragraph",
-      "start_line": 610,
+      "start_line": 605,
       "end_line": 614,
-      "raw": "Monitoring is built and installed by this SDK; there is no separate monitoring\npackage to install first. Its native\nprocess and independent-consumer tests cover publication and late subscribers;\n`iiSocietyHelper.filesystem` covers two GUI consumers, queued delivery, same-drive\nreopening, selection changes and graceful daemon shutdown.\n"
+      "raw": "A changed revision refreshes the existing read-only `Container` mirror and\nemits `storageChanged()`. Complete inventories of a local authority replace\nthe mirror's periodic metadata refresh while the daemon is live. Replicas retain\nthe fallback for preview-only/private download changes; partial inventories also\nretain it. Missing/stale/offline daemon state restores the\nexisting fallback refresh. A daemon heartbeat older than five seconds reports\n`daemonRunning=false`; availability and liveness have separate meanings.\nThe native daemon never copies model weights, reads document payloads or\nperforms network synchronization. Mobile platforms remain subject to their\nexisting background execution limits.\n"
     },
     {
       "id": "b000268",
@@ -2099,120 +2096,151 @@
     },
     {
       "id": "b000269",
-      "kind": "paragraph",
+      "kind": "fenced_code",
       "start_line": 616,
-      "end_line": 618,
-      "raw": "The filesystem suite allows 120 seconds for durable writes on external storage,\nincluding the mask-stack storage/preview regression. This is a test deadline;\nproduction storage transaction and conflict behavior remain unchanged.\n"
+      "end_line": 619,
+      "raw": "```cpp\nQObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,\n                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });\n```\n",
+      "language": "cpp",
+      "code": "QObject::connect(helper.fileSystem(), &iiSocietyHelper::FileSystem::containerStateChanged,\n                 &app, [&] { const auto state = helper.fileSystem()->containerState(); });\n",
+      "closed": true
     },
     {
       "id": "b000270",
       "kind": "blank",
-      "start_line": 619,
+      "start_line": 620,
       "end_line": 620,
-      "raw": "\n\n"
+      "raw": "\n"
     },
     {
       "id": "b000271",
-      "kind": "heading",
+      "kind": "paragraph",
       "start_line": 621,
-      "end_line": 621,
-      "raw": "### Native image export in 0.10.1\n",
-      "level": 3,
-      "title": "Native image export in 0.10.1"
+      "end_line": 625,
+      "raw": "Monitoring is built and installed by this SDK; there is no separate monitoring\npackage to install first. Its native\nprocess and independent-consumer tests cover publication and late subscribers;\n`iiSocietyHelper.filesystem` covers two GUI consumers, queued delivery, same-drive\nreopening, selection changes and graceful daemon shutdown.\n"
     },
     {
       "id": "b000272",
       "kind": "blank",
-      "start_line": 622,
-      "end_line": 622,
+      "start_line": 626,
+      "end_line": 626,
       "raw": "\n"
     },
     {
       "id": "b000273",
       "kind": "paragraph",
-      "start_line": 623,
-      "end_line": 627,
-      "raw": "The stateless media-export adapter now reads native IISC without authoring the\nsource and exports its complete frame-zero document view to PNG. Original raster\nand MP4 export still copy their bytes. Native read-only snapshots, source\npreservation, alpha/PNG text, atomic output and selected-drive isolation are\ncovered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.md).\n"
+      "start_line": 627,
+      "end_line": 629,
+      "raw": "The filesystem suite allows 120 seconds for durable writes on external storage,\nincluding the mask-stack storage/preview regression. This is a test deadline;\nproduction storage transaction and conflict behavior remain unchanged.\n"
     },
     {
       "id": "b000274",
       "kind": "blank",
-      "start_line": 628,
-      "end_line": 628,
-      "raw": "\n"
+      "start_line": 630,
+      "end_line": 631,
+      "raw": "\n\n"
     },
     {
       "id": "b000275",
       "kind": "heading",
-      "start_line": 629,
-      "end_line": 629,
-      "raw": "## Native publication metadata (0.11.0)\n",
-      "level": 2,
-      "title": "Native publication metadata (0.11.0)"
+      "start_line": 632,
+      "end_line": 632,
+      "raw": "### Native image export in 0.10.1\n",
+      "level": 3,
+      "title": "Native image export in 0.10.1"
     },
     {
       "id": "b000276",
       "kind": "blank",
-      "start_line": 630,
-      "end_line": 630,
+      "start_line": 633,
+      "end_line": 633,
       "raw": "\n"
     },
     {
       "id": "b000277",
       "kind": "paragraph",
-      "start_line": 631,
-      "end_line": 631,
-      "raw": "The 0.11 package and its by-value canvas storage boundary rebuilt against iiSharedCanvas 0.32.0 / ABI 0.32 and used Helper ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts. The independent status API in 0.12 uses a new Helper ABI; consumers must rebuild.\n"
+      "start_line": 634,
+      "end_line": 638,
+      "raw": "The stateless media-export adapter now reads native IISC without authoring the\nsource and exports its complete frame-zero document view to PNG. Original raster\nand MP4 export still copy their bytes. Native read-only snapshots, source\npreservation, alpha/PNG text, atomic output and selected-drive isolation are\ncovered by source and installed-consumer tests. See [HostDrive](docs/HostDrive.md).\n"
     },
     {
       "id": "b000278",
       "kind": "blank",
-      "start_line": 632,
-      "end_line": 632,
+      "start_line": 639,
+      "end_line": 639,
       "raw": "\n"
     },
     {
       "id": "b000279",
-      "kind": "paragraph",
-      "start_line": 633,
-      "end_line": 633,
-      "raw": "Related implementation contracts: [Sync journal startup and WAL snapshots](docs/SyncStartup.md).\n"
+      "kind": "heading",
+      "start_line": 640,
+      "end_line": 640,
+      "raw": "## Native publication metadata (0.11.0)\n",
+      "level": 2,
+      "title": "Native publication metadata (0.11.0)"
     },
     {
       "id": "b000280",
       "kind": "blank",
-      "start_line": 634,
-      "end_line": 634,
+      "start_line": 641,
+      "end_line": 641,
       "raw": "\n"
     },
     {
       "id": "b000281",
-      "kind": "html",
-      "start_line": 635,
-      "end_line": 635,
-      "raw": "<!-- workspace-docs:readme:start -->\n"
+      "kind": "paragraph",
+      "start_line": 642,
+      "end_line": 642,
+      "raw": "The 0.11 package and its by-value canvas storage boundary rebuilt against iiSharedCanvas 0.32.0 / ABI 0.32 and used Helper ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts. The independent status API in 0.12 uses a new Helper ABI; consumers must rebuild.\n"
     },
     {
       "id": "b000282",
+      "kind": "blank",
+      "start_line": 643,
+      "end_line": 643,
+      "raw": "\n"
+    },
+    {
+      "id": "b000283",
+      "kind": "paragraph",
+      "start_line": 644,
+      "end_line": 644,
+      "raw": "Related implementation contracts: [Sync journal startup and WAL snapshots](docs/SyncStartup.md).\n"
+    },
+    {
+      "id": "b000284",
+      "kind": "blank",
+      "start_line": 645,
+      "end_line": 645,
+      "raw": "\n"
+    },
+    {
+      "id": "b000285",
+      "kind": "html",
+      "start_line": 646,
+      "end_line": 646,
+      "raw": "<!-- workspace-docs:readme:start -->\n"
+    },
+    {
+      "id": "b000286",
       "kind": "heading",
-      "start_line": 636,
-      "end_line": 636,
+      "start_line": 647,
+      "end_line": 647,
       "raw": "## Documentation entry points\n",
       "level": 2,
       "title": "Documentation entry points"
     },
     {
-      "id": "b000283",
+      "id": "b000287",
       "kind": "blank",
-      "start_line": 637,
-      "end_line": 637,
+      "start_line": 648,
+      "end_line": 648,
       "raw": "\n"
     },
     {
-      "id": "b000284",
+      "id": "b000288",
       "kind": "list",
-      "start_line": 638,
-      "end_line": 641,
+      "start_line": 649,
+      "end_line": 652,
       "raw": "- Human overview: this English `README.md`.\n- Agent instructions: [AGENT.md](AGENT.md).\n- Human documentation: [documentation index](docs/README.md).\n- Structured agent documentation: [agent index](docs/agent-index.json).\n",
       "items": [
         {
@@ -2238,10 +2266,10 @@
       ]
     },
     {
-      "id": "b000285",
+      "id": "b000289",
       "kind": "html",
-      "start_line": 642,
-      "end_line": 642,
+      "start_line": 653,
+      "end_line": 653,
       "raw": "<!-- workspace-docs:readme:end -->\n"
     }
   ],
@@ -2351,60 +2379,60 @@
       "start_line": 552
     },
     {
-      "block_id": "b000239",
+      "block_id": "b000243",
       "parent_id": "b000001",
       "level": 2,
       "title": "Android common file system ( 0.5 )",
       "anchor": "android-common-file-system--05-",
-      "start_line": 560
+      "start_line": 571
     },
     {
-      "block_id": "b000245",
+      "block_id": "b000249",
       "parent_id": "b000001",
       "level": 2,
       "title": "Source layout",
       "anchor": "source-layout",
-      "start_line": 566
+      "start_line": 577
     },
     {
-      "block_id": "b000251",
-      "parent_id": "b000245",
+      "block_id": "b000255",
+      "parent_id": "b000249",
       "level": 3,
       "title": "Fresh generation models (0.7.2)",
       "anchor": "fresh-generation-models-072",
-      "start_line": 572
+      "start_line": 583
     },
     {
-      "block_id": "b000259",
-      "parent_id": "b000245",
+      "block_id": "b000263",
+      "parent_id": "b000249",
       "level": 3,
       "title": "Container monitor subscription",
       "anchor": "container-monitor-subscription",
-      "start_line": 584
-    },
-    {
-      "block_id": "b000271",
-      "parent_id": "b000245",
-      "level": 3,
-      "title": "Native image export in 0.10.1",
-      "anchor": "native-image-export-in-0101",
-      "start_line": 621
+      "start_line": 595
     },
     {
       "block_id": "b000275",
+      "parent_id": "b000249",
+      "level": 3,
+      "title": "Native image export in 0.10.1",
+      "anchor": "native-image-export-in-0101",
+      "start_line": 632
+    },
+    {
+      "block_id": "b000279",
       "parent_id": "b000001",
       "level": 2,
       "title": "Native publication metadata (0.11.0)",
       "anchor": "native-publication-metadata-0110",
-      "start_line": 629
+      "start_line": 640
     },
     {
-      "block_id": "b000282",
+      "block_id": "b000286",
       "parent_id": "b000001",
       "level": 2,
       "title": "Documentation entry points",
       "anchor": "documentation-entry-points",
-      "start_line": 636
+      "start_line": 647
     }
   ],
   "indexes": {
@@ -2592,36 +2620,36 @@
         "context": "paragraph"
       },
       {
-        "block_id": "b000249",
-        "line": 570,
+        "block_id": "b000253",
+        "line": 581,
         "text": "Account snapshots also include `societyContainerDrive`. Accounts without a drive preserve this field as null and do not omit it, and this is verified in object transfer and restoration tests.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000253",
-        "line": 574,
+        "block_id": "b000257",
+        "line": 585,
         "text": "Native consumers use `helper.fileSystem()->models()` to obtain typed `iiSocietyContainer::StoredModel` snapshots from the selected drive, and check `errorString()` for failed reads. `open()`/`refresh()` revalidates the selection; models are never cached in Helper. The iiSocietyContainer 0.14.1 contract reconciles owner-side imports/deletions while preserving nonresident replica models. This API does not require a running Society window or presence session, and does not enqueue downloads. Android content-provider-only storage currently reports an explicit unsupported native inventory error. The filesystem test covers live additions, Deleted moves and failed selections.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000257",
-        "line": 581,
+        "block_id": "b000261",
+        "line": 592,
         "text": "must be rebuilt together. Existing filesystem and installed-consumer checks",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000263",
-        "line": 601,
+        "block_id": "b000267",
+        "line": 612,
         "text": "The native daemon never copies model weights, reads document payloads or",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000277",
-        "line": 631,
+        "block_id": "b000281",
+        "line": 642,
         "text": "The 0.11 package and its by-value canvas storage boundary rebuilt against iiSharedCanvas 0.32.0 / ABI 0.32 and used Helper ABI 0.11. Native `.iisc` 1.22 preserves title, description, ordered captions, alternative text, cover and typed publication settings inside the same canvas file. `saveCanvas()` and `readCanvas()` preserve the common metadata without a second publishing format. The filesystem and installed consumer checks cover an 80 KiB description, captions and boolean settings alongside native pixels and version conflicts. The independent status API in 0.12 uses a new Helper ABI; consumers must rebuild.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -2815,45 +2843,59 @@
       },
       {
         "block_id": "b000235",
-        "label": "LICENSE",
+        "label": "Apache License, Version 2.0",
         "target": "LICENSE",
         "kind": "relative",
-        "line": 556
+        "line": 557
       },
       {
-        "block_id": "b000273",
+        "block_id": "b000235",
+        "label": "NOTICE",
+        "target": "NOTICE",
+        "kind": "relative",
+        "line": 559
+      },
+      {
+        "block_id": "b000235",
+        "label": "docs/License.md",
+        "target": "docs/License.md",
+        "kind": "relative",
+        "line": 560
+      },
+      {
+        "block_id": "b000277",
         "label": "HostDrive",
         "target": "docs/HostDrive.md",
         "kind": "relative",
-        "line": 627
+        "line": 638
       },
       {
-        "block_id": "b000279",
+        "block_id": "b000283",
         "label": "Sync journal startup and WAL snapshots",
         "target": "docs/SyncStartup.md",
         "kind": "relative",
-        "line": 633
+        "line": 644
       },
       {
-        "block_id": "b000284",
+        "block_id": "b000288",
         "label": "AGENT.md",
         "target": "AGENT.md",
         "kind": "relative",
-        "line": 639
+        "line": 650
       },
       {
-        "block_id": "b000284",
+        "block_id": "b000288",
         "label": "documentation index",
         "target": "docs/README.md",
         "kind": "relative",
-        "line": 640
+        "line": 651
       },
       {
-        "block_id": "b000284",
+        "block_id": "b000288",
         "label": "agent index",
         "target": "docs/agent-index.json",
         "kind": "relative",
-        "line": 641
+        "line": 652
       }
     ],
     "tables": [
