@@ -8,10 +8,13 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSignalSpy>
+#include "SignalRecorder.h"
+#include "QtEventWait.h"
+#include <QCoreApplication>
+#include <QDebug>
+#include <QEvent>
 #include <semaphore>
 #include <QTemporaryDir>
-#include <QTest>
 #include <QThread>
 #include <SharedStorage.h>
 #include <QScopeGuard>
@@ -23,87 +26,88 @@ using namespace iiSocietyHelper;
 
 class ObservationTests : public QObject
 {
-    Q_OBJECT
-private slots:
+public:
     void asynchronousLifecycleKeepsOwnerResponsive() {
         QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/async-presence-XXXXXX");
-        QVERIFY(directory.isValid());
+        CTEST_CHECK(directory.isValid());
         auto startEntered=std::make_shared<std::atomic_bool>(false), stopEntered=std::make_shared<std::atomic_bool>(false);
         auto startGate=std::make_shared<std::binary_semaphore>(0), stopGate=std::make_shared<std::binary_semaphore>(0);
         bool startReleased=false, stopReleased=false;
-        const auto release=qScopeGuard([&]{if(!startReleased)startGate->release();if(!stopReleased)stopGate->release();});
         Helper helper(FileSystem::Initialization::Deferred);
-        QSignalSpy started(&helper, &Helper::startFinished), stopped(&helper, &Helper::stopFinished);
+        // Release worker gates before Helper destruction, including on failure.
+        const auto release=qScopeGuard([&]{if(!startReleased)startGate->release();if(!stopReleased)stopGate->release();});
+        helper_ctest::SignalRecorder started(&helper, &Helper::startFinished); helper_ctest::SignalRecorder stopped(&helper, &Helper::stopFinished);
         HelperLifecycleHooks hooks;
         hooks.beforeStartIo=[startEntered,startGate]{*startEntered=true;startGate->acquire();};
         hooks.beforeStopIo=[stopEntered,stopGate]{*stopEntered=true;stopGate->acquire();};
         QElapsedTimer elapsed; elapsed.start();
-        QVERIFY(helper.startAsync({"com.iisacc.async", "Async", "1"}, {directory.path(),100,5000}, hooks));
-        QVERIFY(elapsed.elapsed()<250); QTRY_VERIFY(startEntered->load());
-        bool heartbeat=false; QTimer::singleShot(0,&helper,[&]{heartbeat=true;}); QTRY_VERIFY(heartbeat);
-        QVERIFY(helper.isStarting()); QVERIFY(!helper.isRunning());
-        startReleased=true;startGate->release();QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,10000);
-        QVERIFY(started.first().first().toBool());QVERIFY(helper.isRunning());
-        const auto record=directory.filePath(helper.self().instanceId+".json");QVERIFY(QFileInfo::exists(record));
-        elapsed.restart();helper.stopAsync();QVERIFY(elapsed.elapsed()<250);QTRY_VERIFY(stopEntered->load());
-        heartbeat=false;QTimer::singleShot(0,&helper,[&]{heartbeat=true;});QTRY_VERIFY(heartbeat);
-        QVERIFY(helper.isStopping());QVERIFY(QFileInfo::exists(record));
-        stopReleased=true;stopGate->release();QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),1,10000);
-        QVERIFY(!helper.isRunning());QVERIFY(!helper.isStopping());QVERIFY(!QFileInfo::exists(record));
+        CTEST_CHECK(helper.startAsync({"com.iisacc.async", "Async", "1"}, {directory.path(),100,5000}, hooks));
+        CTEST_CHECK(elapsed.elapsed()<250); CTEST_WAIT_DEFAULT(startEntered->load());
+        bool heartbeat=false; QTimer::singleShot(0,&helper,[&]{heartbeat=true;}); CTEST_WAIT_DEFAULT(heartbeat);
+        CTEST_CHECK(helper.isStarting()); CTEST_CHECK(!helper.isRunning());
+        startReleased=true;startGate->release();CTEST_WAIT_COMPARE_TIMEOUT(started.size(),1,10000);
+        CTEST_CHECK(started.first().first().toBool());CTEST_CHECK(helper.isRunning());
+        const auto record=directory.filePath(helper.self().instanceId+".json");CTEST_CHECK(QFileInfo::exists(record));
+        elapsed.restart();helper.stopAsync();CTEST_CHECK(elapsed.elapsed()<250);CTEST_WAIT_DEFAULT(stopEntered->load());
+        heartbeat=false;QTimer::singleShot(0,&helper,[&]{heartbeat=true;});CTEST_WAIT_DEFAULT(heartbeat);
+        CTEST_CHECK(helper.isStopping());CTEST_CHECK(QFileInfo::exists(record));
+        stopReleased=true;stopGate->release();CTEST_WAIT_COMPARE_TIMEOUT(stopped.size(),1,10000);
+        CTEST_CHECK(!helper.isRunning());CTEST_CHECK(!helper.isStopping());CTEST_CHECK(!QFileInfo::exists(record));
     }
     void asynchronousStartCanBeStoppedBeforeIoCompletes() {
         QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/async-cancel-XXXXXX");
-        QVERIFY(directory.isValid());auto entered=std::make_shared<std::atomic_bool>(false);
+        CTEST_CHECK(directory.isValid());auto entered=std::make_shared<std::atomic_bool>(false);
         auto gate=std::make_shared<std::binary_semaphore>(0);bool released=false;
+        Helper helper(FileSystem::Initialization::Deferred);
         const auto release=qScopeGuard([&]{if(!released)gate->release();});
-        Helper helper(FileSystem::Initialization::Deferred);QSignalSpy stopped(&helper,&Helper::stopFinished);
+        helper_ctest::SignalRecorder stopped(&helper,&Helper::stopFinished);
         HelperLifecycleHooks hooks;hooks.beforeStartIo=[entered,gate]{*entered=true;gate->acquire();};
-        QVERIFY(helper.startAsync({"com.iisacc.async", "Async", "1"},{directory.path(),100,5000},hooks));
-        QTRY_VERIFY(entered->load());helper.stopAsync();QVERIFY(helper.isStopping());
-        released=true;gate->release();QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),1,10000);
-        QVERIFY(!helper.isRunning());QVERIFY(!helper.isStarting());QVERIFY(!helper.isStopping());
-        QVERIFY(QDir(directory.path()).entryList({"*.json"},QDir::Files).isEmpty());
+        CTEST_CHECK(helper.startAsync({"com.iisacc.async", "Async", "1"},{directory.path(),100,5000},hooks));
+        CTEST_WAIT_DEFAULT(entered->load());helper.stopAsync();CTEST_CHECK(helper.isStopping());
+        released=true;gate->release();CTEST_WAIT_COMPARE_TIMEOUT(stopped.size(),1,10000);
+        CTEST_CHECK(!helper.isRunning());CTEST_CHECK(!helper.isStarting());CTEST_CHECK(!helper.isStopping());
+        CTEST_CHECK(QDir(directory.path()).entryList({"*.json"},QDir::Files).isEmpty());
     }
     void asynchronousStopPreservesSynchronousDeliveryAndAllowsRestart() {
         QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/async-restart-XXXXXX");
-        QVERIFY(directory.isValid());Helper helper(FileSystem::Initialization::Deferred);
+        CTEST_CHECK(directory.isValid());Helper helper(FileSystem::Initialization::Deferred);
         const ObservationOptions options{directory.path(),100,5000};
-        QVERIFY(helper.start({"com.iisacc.async", "Async", "1"},options));
-        QVERIFY(!helper.sendData("test.saved",{{"value",42}}).isEmpty());
-        QSignalSpy stopped(&helper,&Helper::stopFinished), started(&helper,&Helper::startFinished);
-        QVERIFY(helper.stopAsync());QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),1,10000);
-        DeliveryStore delivery;QString error;QVERIFY2(delivery.open(directory.path(),&error),qPrintable(error));
-        QVERIFY(delivery.pendingCount()>=3);delivery.close();
-        QVERIFY(helper.startAsync({"com.iisacc.async", "Async", "2"},options));
-        QTRY_COMPARE_WITH_TIMEOUT(started.size(),1,10000);QVERIFY(started.first().first().toBool());QVERIFY(helper.isRunning());
-        QVERIFY(helper.stopAsync());QTRY_COMPARE_WITH_TIMEOUT(stopped.size(),2,10000);QVERIFY(!helper.isRunning());
+        CTEST_CHECK(helper.start({"com.iisacc.async", "Async", "1"},options));
+        CTEST_CHECK(!helper.sendData("test.saved",{{"value",42}}).isEmpty());
+        helper_ctest::SignalRecorder stopped(&helper,&Helper::stopFinished); helper_ctest::SignalRecorder started(&helper,&Helper::startFinished);
+        CTEST_CHECK(helper.stopAsync());CTEST_WAIT_COMPARE_TIMEOUT(stopped.size(),1,10000);
+        DeliveryStore delivery;QString error;CTEST_CHECK_MESSAGE(delivery.open(directory.path(),&error),qPrintable(error));
+        CTEST_CHECK(delivery.pendingCount()>=3);delivery.close();
+        CTEST_CHECK(helper.startAsync({"com.iisacc.async", "Async", "2"},options));
+        CTEST_WAIT_COMPARE_TIMEOUT(started.size(),1,10000);CTEST_CHECK(started.first().first().toBool());CTEST_CHECK(helper.isRunning());
+        CTEST_CHECK(helper.stopAsync());CTEST_WAIT_COMPARE_TIMEOUT(stopped.size(),2,10000);CTEST_CHECK(!helper.isRunning());
     }
     void helperCanDeferStorageDiscovery() {
         QTemporaryDir directory(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY))
             + QStringLiteral("/helper-deferred-XXXXXX.societycontainer"));
-        QVERIFY(directory.isValid());
-        QVERIFY(iiSocietyContainer::SocietyDrive::create(directory.path()));
+        CTEST_CHECK(directory.isValid());
+        CTEST_CHECK(iiSocietyContainer::SocietyDrive::create(directory.path()));
         const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
         const auto restore = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH")
                                                                : qputenv("SOCIETY_CONTAINER_PATH", previous); });
         qputenv("SOCIETY_CONTAINER_PATH", directory.path().toUtf8());
         Helper helper(FileSystem::Initialization::Deferred);
-        QVERIFY(!helper.fileSystem()->isAvailable());
-        QVERIFY(helper.fileSystem()->containerId().isEmpty());
+        CTEST_CHECK(!helper.fileSystem()->isAvailable());
+        CTEST_CHECK(helper.fileSystem()->containerId().isEmpty());
         const auto presence = directory.filePath(".society-runtime/deferred-test-presence");
-        QVERIFY(helper.start({"com.iisacc.deferred", "Deferred", "1"}, {presence, 100, 5000}));
-        QVERIFY(!helper.fileSystem()->isAvailable());
-        QVERIFY(helper.fileSystem()->open(directory.path()));
-        QVERIFY(helper.fileSystem()->isAvailable());
+        CTEST_CHECK(helper.start({"com.iisacc.deferred", "Deferred", "1"}, {presence, 100, 5000}));
+        CTEST_CHECK(!helper.fileSystem()->isAvailable());
+        CTEST_CHECK(helper.fileSystem()->open(directory.path()));
+        CTEST_CHECK(helper.fileSystem()->isAvailable());
         helper.stop();
     }
     void transientUnreadableRecordDoesNotWithdrawAnObservedPeer()
     {
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/presence-record-XXXXXX")));
         Helper observer;
-        QVERIFY(observer.start({"com.iisacc.record.observer", "Observer", "1"}, {directory.path(), 50, 5000}));
-        QSignalSpy appeared(&observer, &Helper::peerAppeared);
-        QSignalSpy departed(&observer, &Helper::peerDisappeared);
+        CTEST_CHECK(observer.start({"com.iisacc.record.observer", "Observer", "1"}, {directory.path(), 50, 5000}));
+        helper_ctest::SignalRecorder appeared(&observer, &Helper::peerAppeared);
+        helper_ctest::SignalRecorder departed(&observer, &Helper::peerDisappeared);
         const auto instance = QUuid::createUuid().toString(QUuid::WithoutBraces);
         const auto path = std::filesystem::path(directory.filePath(instance + ".json").toStdU16String());
         QJsonObject record{{"protocol", 1}, {"instanceId", instance},
@@ -114,58 +118,58 @@ private slots:
             record["heartbeat"] = QString::number(sequence);
             iiFileProvider::native::File::write(path, QJsonDocument(record).toJson(QJsonDocument::Compact).toStdString());
         };
-        publish(1); QTest::qWait(200);
-        publish(2); QTRY_COMPARE(observer.peers().size(), 1);
-        QCOMPARE(appeared.size(), 1);
+        publish(1); helper_ctest::processFor(200);
+        publish(2); CTEST_WAIT_COMPARE(observer.peers().size(), 1);
+        CTEST_COMPARE(appeared.size(), 1);
         iiFileProvider::native::File::write(path, std::string_view("{}"));
-        QTest::qWait(250);
-        QCOMPARE(observer.peers().size(), 1);
-        QCOMPARE(departed.size(), 0);
-        publish(3); QTest::qWait(200);
-        QCOMPARE(observer.peers().size(), 1);
-        QCOMPARE(appeared.size(), 1);
-        QVERIFY(iiFileProvider::native::File::remove(path));
-        QTRY_VERIFY(observer.peers().isEmpty());
-        QCOMPARE(departed.size(), 1);
-        QCOMPARE(qvariant_cast<DepartureReason>(departed.first()[1]), DepartureReason::Withdrawn);
+        helper_ctest::processFor(250);
+        CTEST_COMPARE(observer.peers().size(), 1);
+        CTEST_COMPARE(departed.size(), 0);
+        publish(3); helper_ctest::processFor(200);
+        CTEST_COMPARE(observer.peers().size(), 1);
+        CTEST_COMPARE(appeared.size(), 1);
+        CTEST_CHECK(iiFileProvider::native::File::remove(path));
+        CTEST_WAIT_DEFAULT(observer.peers().isEmpty());
+        CTEST_COMPARE(departed.size(), 1);
+        CTEST_COMPARE(qvariant_cast<DepartureReason>(departed.first()[1]), DepartureReason::Withdrawn);
     }
 
     void presenceSurvivesAnOpenProviderReadSnapshot()
     {
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/presence-snapshot-XXXXXX")));
-        QVERIFY(directory.isValid());
+        CTEST_CHECK(directory.isValid());
         Helper helper;
-        QSignalSpy errors(&helper, &Helper::errorOccurred);
-        QVERIFY(helper.start({"com.iisacc.snapshot", "Snapshot", "1"}, {directory.path(), 20, 5000}));
+        helper_ctest::SignalRecorder errors(&helper, &Helper::errorOccurred);
+        CTEST_CHECK(helper.start({"com.iisacc.snapshot", "Snapshot", "1"}, {directory.path(), 20, 5000}));
         const auto path = std::filesystem::path(directory.filePath(helper.self().instanceId + ".json").toStdU16String());
         {
             iiFileProvider::native::ReadFile snapshot(path);
             const auto before = QJsonDocument::fromJson(QByteArray::fromStdString(snapshot.read(8192))).object();
-            QTest::qWait(500);
-            QVERIFY(helper.isRunning());
-            QCOMPARE(errors.size(), 0);
+            helper_ctest::processFor(500);
+            CTEST_CHECK(helper.isRunning());
+            CTEST_COMPARE(errors.size(), 0);
             const auto after = QJsonDocument::fromJson(QByteArray::fromStdString(
                 iiFileProvider::native::File::read(path, 8192))).object();
-            QVERIFY(after.value("heartbeat").toString().toULongLong() > before.value("heartbeat").toString().toULongLong());
+            CTEST_CHECK(after.value("heartbeat").toString().toULongLong() > before.value("heartbeat").toString().toULongLong());
         }
         helper.stop();
-        QVERIFY(!QFileInfo::exists(QString::fromStdU16String(path.u16string())));
+        CTEST_CHECK(!QFileInfo::exists(QString::fromStdU16String(path.u16string())));
     }
 
     void presenceResponsiveness()
     {
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/responsiveness-XXXXXX")));
-        QVERIFY(directory.isValid());
+        CTEST_CHECK(directory.isValid());
         Helper a, b;
         const ObservationOptions options{directory.path(), 100, 5000};
-        QVERIFY(a.start({"com.iisacc.input.probe", "Input probe", "1"}, options));
-        QVERIFY(b.start({"com.iisacc.peer.probe", "Peer probe", "1"}, options));
+        CTEST_CHECK(a.start({"com.iisacc.input.probe", "Input probe", "1"}, options));
+        CTEST_CHECK(b.start({"com.iisacc.peer.probe", "Peer probe", "1"}, options));
         bool wrongThread = false;
         connect(&a, &Helper::peerAppeared, this, [&] { wrongThread |= QThread::currentThread() != thread(); });
-        QTRY_COMPARE(a.peers().size(), 1);
-        QTRY_COMPARE(b.peers().size(), 1);
-        QSignalSpy departedA(&a, &Helper::peerDisappeared);
-        QSignalSpy departedB(&b, &Helper::peerDisappeared);
+        CTEST_WAIT_COMPARE(a.peers().size(), 1);
+        CTEST_WAIT_COMPARE(b.peers().size(), 1);
+        helper_ctest::SignalRecorder departedA(&a, &Helper::peerDisappeared);
+        helper_ctest::SignalRecorder departedB(&b, &Helper::peerDisappeared);
         QElapsedTimer clock;
         clock.start();
         qint64 previous = 0, maximumGap = 0;
@@ -179,13 +183,13 @@ private slots:
             previous = now;
         });
         input.start();
-        QTest::qWait(3000);
+        helper_ctest::processFor(3000);
         input.stop();
-        QVERIFY(!wrongThread);
-        QVERIFY(gaps.size() >= 10);
-        QTRY_COMPARE(a.peers().size(), 1);
-        QCOMPARE(departedA.size(), 0);
-        QCOMPARE(departedB.size(), 0);
+        CTEST_CHECK(!wrongThread);
+        CTEST_CHECK(gaps.size() >= 10);
+        CTEST_WAIT_COMPARE(a.peers().size(), 1);
+        CTEST_COMPARE(departedA.size(), 0);
+        CTEST_COMPARE(departedB.size(), 0);
         std::sort(gaps.begin(), gaps.end());
         qInfo().nospace() << "PRESENCE_RESPONSIVENESS {\"ticks\":" << gaps.size()
             << ",\"p95Ms\":" << gaps[gaps.size() * 95 / 100] / 1000000.0
@@ -197,59 +201,59 @@ private slots:
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/epochs-XXXXXX")));
         Helper helper;
         const ObservationOptions options{directory.path(), 20, 5000};
-        QVERIFY(helper.start({"com.iisacc.epochs", "Epochs", "1"}, options));
+        CTEST_CHECK(helper.start({"com.iisacc.epochs", "Epochs", "1"}, options));
         const auto old = helper.self().instanceId;
         for (int i = 0; i < 20; ++i)
             helper.setActivity(i % 2 ? Activity::Foreground : Activity::Background);
         helper.stop();
-        QVERIFY(!QFileInfo::exists(directory.filePath(old + ".json")));
-        QVERIFY(helper.start({"com.iisacc.epochs", "Epochs", "2"}, options));
-        QVERIFY(helper.self().instanceId != old);
-        QTest::qWait(200);
-        QVERIFY(!QFileInfo::exists(directory.filePath(old + ".json")));
+        CTEST_CHECK(!QFileInfo::exists(directory.filePath(old + ".json")));
+        CTEST_CHECK(helper.start({"com.iisacc.epochs", "Epochs", "2"}, options));
+        CTEST_CHECK(helper.self().instanceId != old);
+        helper_ctest::processFor(200);
+        CTEST_CHECK(!QFileInfo::exists(directory.filePath(old + ".json")));
         helper.stop();
-        QVERIFY(QDir(directory.path()).entryList({"*.json"}, QDir::Files).isEmpty());
+        CTEST_CHECK(QDir(directory.path()).entryList({"*.json"}, QDir::Files).isEmpty());
         DeliveryStore outbox;
-        QVERIFY(outbox.open(directory.path()));
+        CTEST_CHECK(outbox.open(directory.path()));
         // Two starts, two stops and every one of the twenty activity transitions.
-        QCOMPARE(outbox.pendingCount(), 24);
+        CTEST_COMPARE(outbox.pendingCount(), 24);
     }
 
     void mutualDiscoveryAndDistinctInstances()
     {
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/presence-XXXXXX")));
-        QVERIFY(directory.isValid());
+        CTEST_CHECK(directory.isValid());
         // Keep the production expiry window: shared-volume flushes can exceed 400 ms.
         const ObservationOptions options{directory.path(), 100, 5000};
         Helper society, dreamscapes, secondDreamscapes;
-        QSignalSpy appeared(&society, &Helper::peerAppeared);
-        QSignalSpy updated(&society, &Helper::peerUpdated);
-        QSignalSpy departed(&society, &Helper::peerDisappeared);
-        QVERIFY(society.start({"com.iisacc.society", "Society", "1"}, options));
-        QVERIFY(dreamscapes.start({"com.iisacc.dreamscapes", "Dreamscapes", "2"}, options));
-        QVERIFY(secondDreamscapes.start({"com.iisacc.dreamscapes", "Dreamscapes", "2"}, options));
-        QTRY_COMPARE(society.peers().size(), 2);
-        QTRY_COMPARE(dreamscapes.peers().size(), 2);
-        QTRY_COMPARE(secondDreamscapes.peers().size(), 2);
-        QVERIFY(dreamscapes.self().instanceId != secondDreamscapes.self().instanceId);
+        helper_ctest::SignalRecorder appeared(&society, &Helper::peerAppeared);
+        helper_ctest::SignalRecorder updated(&society, &Helper::peerUpdated);
+        helper_ctest::SignalRecorder departed(&society, &Helper::peerDisappeared);
+        CTEST_CHECK(society.start({"com.iisacc.society", "Society", "1"}, options));
+        CTEST_CHECK(dreamscapes.start({"com.iisacc.dreamscapes", "Dreamscapes", "2"}, options));
+        CTEST_CHECK(secondDreamscapes.start({"com.iisacc.dreamscapes", "Dreamscapes", "2"}, options));
+        CTEST_WAIT_COMPARE(society.peers().size(), 2);
+        CTEST_WAIT_COMPARE(dreamscapes.peers().size(), 2);
+        CTEST_WAIT_COMPARE(secondDreamscapes.peers().size(), 2);
+        CTEST_CHECK(dreamscapes.self().instanceId != secondDreamscapes.self().instanceId);
         for (const auto &peer : society.peers()) {
-            QCOMPARE(peer.application.id, "com.iisacc.dreamscapes");
-            QVERIFY(peer.instanceId != society.self().instanceId);
-            QCOMPARE(peer.processId, QCoreApplication::applicationPid());
+            CTEST_COMPARE(peer.application.id, "com.iisacc.dreamscapes");
+            CTEST_CHECK(peer.instanceId != society.self().instanceId);
+            CTEST_COMPARE(peer.processId, QCoreApplication::applicationPid());
         }
-        QTest::qWait(200);
-        QCOMPARE(appeared.size(), 2);
-        QCOMPARE(updated.size(), 0); // A heartbeat alone is not a metadata change.
+        helper_ctest::processFor(200);
+        CTEST_COMPARE(appeared.size(), 2);
+        CTEST_COMPARE(updated.size(), 0); // A heartbeat alone is not a metadata change.
         dreamscapes.setActivity(Activity::Background);
-        QTRY_COMPARE(updated.size(), 1);
-        QCOMPARE(qvariant_cast<Peer>(updated[0][0]).activity, Activity::Background);
+        CTEST_WAIT_COMPARE(updated.size(), 1);
+        CTEST_COMPARE(qvariant_cast<Peer>(updated[0][0]).activity, Activity::Background);
         dreamscapes.stop();
-        QTRY_COMPARE(society.peers().size(), 1);
-        QCOMPARE(departed.size(), 1);
-        QCOMPARE(qvariant_cast<DepartureReason>(departed[0][1]), DepartureReason::Withdrawn);
+        CTEST_WAIT_COMPARE(society.peers().size(), 1);
+        CTEST_COMPARE(departed.size(), 1);
+        CTEST_COMPARE(qvariant_cast<DepartureReason>(departed[0][1]), DepartureReason::Withdrawn);
         society.stop();
         secondDreamscapes.stop();
-        QVERIFY(QDir(directory.path()).entryList({"*.json"}, QDir::Files).isEmpty());
+        CTEST_CHECK(QDir(directory.path()).entryList({"*.json"}, QDir::Files).isEmpty());
     }
 
     void staleAndMalformedRecordsNeverBecomePeers()
@@ -257,48 +261,48 @@ private slots:
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/stale-XXXXXX")));
         const ObservationOptions options{directory.path(), 50, 400};
         Helper old;
-        QVERIFY(old.start({"com.iisacc.old", "Old", "1"}, options));
+        CTEST_CHECK(old.start({"com.iisacc.old", "Old", "1"}, options));
         const QString oldPath = QDir(directory.path()).filePath(old.self().instanceId + ".json");
         QFile record(oldPath);
-        QVERIFY(record.open(QIODevice::ReadOnly));
+        CTEST_CHECK(record.open(QIODevice::ReadOnly));
         const auto bytes = record.readAll();
         record.close();
         old.stop();
-        QVERIFY(record.open(QIODevice::WriteOnly));
-        QCOMPARE(record.write(bytes), bytes.size());
+        CTEST_CHECK(record.open(QIODevice::WriteOnly));
+        CTEST_COMPARE(record.write(bytes), bytes.size());
         record.close();
         QFile garbage(QDir(directory.path()).filePath("garbage.json"));
-        QVERIFY(garbage.open(QIODevice::WriteOnly));
+        CTEST_CHECK(garbage.open(QIODevice::WriteOnly));
         garbage.write("{broken");
         garbage.close();
         Helper observer;
-        QSignalSpy appeared(&observer, &Helper::peerAppeared);
-        QVERIFY(observer.start({"com.iisacc.observer", "Observer", "1"}, options));
-        QTest::qWait(700);
-        QVERIFY(observer.peers().isEmpty());
-        QCOMPARE(appeared.size(), 0);
-        QVERIFY(QFile::exists(oldPath)); // A peer never deletes another peer's record.
+        helper_ctest::SignalRecorder appeared(&observer, &Helper::peerAppeared);
+        CTEST_CHECK(observer.start({"com.iisacc.observer", "Observer", "1"}, options));
+        helper_ctest::processFor(700);
+        CTEST_CHECK(observer.peers().isEmpty());
+        CTEST_COMPARE(appeared.size(), 0);
+        CTEST_CHECK(QFile::exists(oldPath)); // A peer never deletes another peer's record.
     }
 
     void invalidConfigurationIsReported()
     {
         Helper helper;
         QString error;
-        QVERIFY(!helper.start({"", "Name", "1"}, {}, &error));
-        QVERIFY(!error.isEmpty());
-        QVERIFY(!helper.isRunning());
-        QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {"relative/path", 50, 400}, &error));
+        CTEST_CHECK(!helper.start({"", "Name", "1"}, {}, &error));
+        CTEST_CHECK(!error.isEmpty());
+        CTEST_CHECK(!helper.isRunning());
+        CTEST_CHECK(!helper.start({"com.iisacc.test", "Test", "1"}, {"relative/path", 50, 400}, &error));
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/invalid-XXXXXX")));
-        QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 0, 400}, &error));
-        QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 100, 150}, &error));
-        QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 50, 400}, &error));
-        QVERIFY(error.isEmpty());
+        CTEST_CHECK(!helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 0, 400}, &error));
+        CTEST_CHECK(!helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 100, 150}, &error));
+        CTEST_CHECK(helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 50, 400}, &error));
+        CTEST_CHECK(error.isEmpty());
         const auto instance = helper.self().instanceId;
-        QVERIFY(!helper.start({"com.iisacc.test", "Test", "1"}, {}, &error));
-        QCOMPARE(helper.self().instanceId, instance);
+        CTEST_CHECK(!helper.start({"com.iisacc.test", "Test", "1"}, {}, &error));
+        CTEST_COMPARE(helper.self().instanceId, instance);
         helper.stop();
-        QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 50, 400}));
-        QVERIFY(helper.self().instanceId != instance);
+        CTEST_CHECK(helper.start({"com.iisacc.test", "Test", "1"}, {directory.path(), 50, 400}));
+        CTEST_CHECK(helper.self().instanceId != instance);
     }
 
     void redirectedDirectoryStopsObservation()
@@ -306,28 +310,28 @@ private slots:
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/redirect-XXXXXX")));
         const QString root = directory.path() + "/registry";
         Helper helper;
-        QSignalSpy errors(&helper, &Helper::errorOccurred);
-        QSignalSpy stopped(&helper, &Helper::stopFinished);
-        QVERIFY(helper.start({"com.iisacc.test", "Test", "1"}, {root, 50, 400}));
+        helper_ctest::SignalRecorder errors(&helper, &Helper::errorOccurred);
+        helper_ctest::SignalRecorder stopped(&helper, &Helper::stopFinished);
+        CTEST_CHECK(helper.start({"com.iisacc.test", "Test", "1"}, {root, 50, 400}));
 #ifdef Q_OS_WIN
         // The native storage backend pins this directory without delete sharing.
-        QVERIFY(!QDir().rename(root, root + "-moved"));
-        QTest::qWait(200);
-        QVERIFY(helper.isRunning());
-        QVERIFY(errors.isEmpty());
+        CTEST_CHECK(!QDir().rename(root, root + "-moved"));
+        helper_ctest::processFor(200);
+        CTEST_CHECK(helper.isRunning());
+        CTEST_CHECK(errors.isEmpty());
         helper.stop();
-        QVERIFY(QDir().rename(root, root + "-moved"));
+        CTEST_CHECK(QDir().rename(root, root + "-moved"));
 #else
-        QVERIFY(QDir().rename(root, root + "-moved"));
-        QVERIFY(QDir().mkpath(root + "-target"));
+        CTEST_CHECK(QDir().rename(root, root + "-moved"));
+        CTEST_CHECK(QDir().mkpath(root + "-target"));
 #ifdef Q_OS_UNIX
-        QVERIFY(QFile::link(root + "-target", root));
+        CTEST_CHECK(QFile::link(root + "-target", root));
 #endif
-        QTRY_VERIFY(!helper.isRunning());
-        QVERIFY(!errors.isEmpty());
-        QVERIFY(!helper.errorString().isEmpty());
-        QVERIFY(QDir(root + "-target").entryList(QDir::Files).isEmpty());
-        QTRY_COMPARE_WITH_TIMEOUT(stopped.size(), 1, 10000);
+        CTEST_WAIT_DEFAULT(!helper.isRunning());
+        CTEST_CHECK(!errors.isEmpty());
+        CTEST_CHECK(!helper.errorString().isEmpty());
+        CTEST_CHECK(QDir(root + "-target").entryList(QDir::Files).isEmpty());
+        CTEST_WAIT_COMPARE_TIMEOUT(stopped.size(), 1, 10000);
 #endif
     }
 
@@ -335,24 +339,26 @@ private slots:
     {
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/isolation-XXXXXX")));
         Helper a, b;
-        QVERIFY(a.start({"com.iisacc.society", "Society", "1"}, {directory.path() + "/a", 50, 400}));
-        QVERIFY(b.start({"com.iisacc.dreamscapes", "Dreamscapes", "1"}, {directory.path() + "/b", 50, 400}));
-        QTest::qWait(600);
-        QVERIFY(a.peers().isEmpty());
-        QVERIFY(b.peers().isEmpty());
+        CTEST_CHECK(a.start({"com.iisacc.society", "Society", "1"}, {directory.path() + "/a", 50, 400}));
+        CTEST_CHECK(b.start({"com.iisacc.dreamscapes", "Dreamscapes", "1"}, {directory.path() + "/b", 50, 400}));
+        helper_ctest::processFor(600);
+        CTEST_CHECK(a.peers().isEmpty());
+        CTEST_CHECK(b.peers().isEmpty());
+        const auto previousHelperDirectory = qgetenv("SOCIETY_HELPER_DIRECTORY");
+        const auto restoreHelperDirectory = qScopeGuard([&] { previousHelperDirectory.isNull() ? qunsetenv("SOCIETY_HELPER_DIRECTORY") : qputenv("SOCIETY_HELPER_DIRECTORY", previousHelperDirectory); });
         qputenv("SOCIETY_HELPER_DIRECTORY", directory.path().toUtf8());
-        QVERIFY(Helper::defaultDirectory().isEmpty());
+        CTEST_CHECK(Helper::defaultDirectory().isEmpty());
         qunsetenv("SOCIETY_HELPER_DIRECTORY");
         const auto package = directory.path() + "/selected.societycontainer";
-        QVERIFY(QDir().mkdir(package));
-        QVERIFY(iiSocietyContainer::SocietyDrive::create(package));
+        CTEST_CHECK(QDir().mkdir(package));
+        CTEST_CHECK(iiSocietyContainer::SocietyDrive::create(package));
         const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
         const auto cleanup = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", previous); });
         qputenv("SOCIETY_CONTAINER_PATH", package.toUtf8());
         const auto inside = package + "/.society-runtime/isolated";
         qputenv("SOCIETY_HELPER_DIRECTORY", inside.toUtf8());
-        QCOMPARE(Helper::defaultDirectory(), inside);
-        QVERIFY(!QFileInfo::exists(inside));
+        CTEST_COMPARE(Helper::defaultDirectory(), inside);
+        CTEST_CHECK(!QFileInfo::exists(inside));
         qunsetenv("SOCIETY_HELPER_DIRECTORY");
     }
 
@@ -361,19 +367,41 @@ private slots:
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/resume-XXXXXX")));
         Helper a, b;
         const ObservationOptions options{directory.path(), 100, 5000};
-        QVERIFY(a.start({"com.iisacc.a", "A", "1"}, options));
-        QVERIFY(b.start({"com.iisacc.b", "B", "1"}, options));
-        QTRY_COMPARE(a.peers().size(), 1);
-        QSignalSpy departed(&a, &Helper::peerDisappeared);
-        QSignalSpy appeared(&a, &Helper::peerAppeared);
+        CTEST_CHECK(a.start({"com.iisacc.a", "A", "1"}, options));
+        CTEST_CHECK(b.start({"com.iisacc.b", "B", "1"}, options));
+        CTEST_WAIT_COMPARE(a.peers().size(), 1);
+        helper_ctest::SignalRecorder departed(&a, &Helper::peerDisappeared);
+        helper_ctest::SignalRecorder appeared(&a, &Helper::peerAppeared);
         // Simulate a suspended app event loop; wall-clock timestamps are irrelevant.
         QThread::msleep(5500);
-        QTRY_COMPARE(departed.size(), 1);
-        QCOMPARE(qvariant_cast<DepartureReason>(departed.first()[1]), DepartureReason::TimedOut);
-        QTRY_COMPARE(appeared.size(), 1);
-        QCOMPARE(a.peers().first().instanceId, b.self().instanceId);
+        CTEST_WAIT_COMPARE(departed.size(), 1);
+        CTEST_COMPARE(qvariant_cast<DepartureReason>(departed.first()[1]), DepartureReason::TimedOut);
+        CTEST_WAIT_COMPARE(appeared.size(), 1);
+        CTEST_COMPARE(a.peers().first().instanceId, b.self().instanceId);
     }
 };
 
-QTEST_GUILESS_MAIN(ObservationTests)
-#include "observation.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    helper_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    ObservationTests tests;
+    struct FlushDeferredDeletes {
+        ~FlushDeferredDeletes() { QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete); }
+    };
+    runner.run("asynchronousLifecycleKeepsOwnerResponsive", [&] { FlushDeferredDeletes cleanup; tests.asynchronousLifecycleKeepsOwnerResponsive(); });
+    runner.run("asynchronousStartCanBeStoppedBeforeIoCompletes", [&] { FlushDeferredDeletes cleanup; tests.asynchronousStartCanBeStoppedBeforeIoCompletes(); });
+    runner.run("asynchronousStopPreservesSynchronousDeliveryAndAllowsRestart", [&] { FlushDeferredDeletes cleanup; tests.asynchronousStopPreservesSynchronousDeliveryAndAllowsRestart(); });
+    runner.run("helperCanDeferStorageDiscovery", [&] { FlushDeferredDeletes cleanup; tests.helperCanDeferStorageDiscovery(); });
+    runner.run("transientUnreadableRecordDoesNotWithdrawAnObservedPeer", [&] { FlushDeferredDeletes cleanup; tests.transientUnreadableRecordDoesNotWithdrawAnObservedPeer(); });
+    runner.run("presenceSurvivesAnOpenProviderReadSnapshot", [&] { FlushDeferredDeletes cleanup; tests.presenceSurvivesAnOpenProviderReadSnapshot(); });
+    runner.run("presenceResponsiveness", [&] { FlushDeferredDeletes cleanup; tests.presenceResponsiveness(); });
+    runner.run("stoppedWorkCannotRepublishIntoTheNextSession", [&] { FlushDeferredDeletes cleanup; tests.stoppedWorkCannotRepublishIntoTheNextSession(); });
+    runner.run("mutualDiscoveryAndDistinctInstances", [&] { FlushDeferredDeletes cleanup; tests.mutualDiscoveryAndDistinctInstances(); });
+    runner.run("staleAndMalformedRecordsNeverBecomePeers", [&] { FlushDeferredDeletes cleanup; tests.staleAndMalformedRecordsNeverBecomePeers(); });
+    runner.run("invalidConfigurationIsReported", [&] { FlushDeferredDeletes cleanup; tests.invalidConfigurationIsReported(); });
+    runner.run("redirectedDirectoryStopsObservation", [&] { FlushDeferredDeletes cleanup; tests.redirectedDirectoryStopsObservation(); });
+    runner.run("independentDirectoriesDoNotMix", [&] { FlushDeferredDeletes cleanup; tests.independentDirectoriesDoNotMix(); });
+    runner.run("resumedObserverRequiresFreshEvidence", [&] { FlushDeferredDeletes cleanup; tests.resumedObserverRequiresFreshEvidence(); });
+    return runner.result();
+}

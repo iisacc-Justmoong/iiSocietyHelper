@@ -1,9 +1,9 @@
 # 소비 앱과 Canvas ABI 일치
 
-Helper와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 기본 요구 버전은
-0.32.0이며, 기존 Society 0.31.4 구성은 `IISOCIETYHELPER_CANVAS_VERSION=0.31.4`와
-그 버전의 `iiSharedCanvas_DIR`를 함께 지정한다. 임의의 버전 간 객체 변환이나
-서로 다른 Canvas 라이브러리의 동시 링크는 수행하지 않는다.
+Helper Core와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 새 빌드의
+기본 버전은 `0.35.39 EXACT`이다. 기존 빌드에서 기본값으로 전환하려면 CMake에
+`-U IISOCIETYHELPER_CANVAS_VERSION`을 전달하고 `iiSharedCanvas_DIR`을 0.35.39 패키지로 지정한다.
+별도 프로필의 버전은 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.
 
 설치한 CMake 패키지는 실제 빌드에서 선택한 버전을 `EXACT` 의존성으로 기록한다.
 기존 소비자의 SDK를 덮어쓰지 않아야 할 때는 별도 설치 prefix를 지정한다.

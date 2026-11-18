@@ -1,9 +1,14 @@
 #include <iiSocietyHelper/GroupSessionStore.h>
 #include <QCoreApplication>
 #include <QDir>
+#include <QEvent>
 #include <QStandardPaths>
 #include <QUuid>
-#include <QTest>
+#include "../CTestSupport.h"
+#include "../QtEventWait.h"
+#include "../TestWorkspace.h"
+#include <atomic>
+#include <memory>
 #include <QThread>
 #include <QTemporaryDir>
 #include <QFileInfo>
@@ -13,34 +18,35 @@
 
 iisacc::accounts::SessionStore *societyAppleStateKeyStore(QObject *parent);
 
-class AppleStateTests : public QObject {
-    Q_OBJECT
-private slots:
+class AppleStateTests {
+public:
     void adHocProcessesShareTheSelectedContainerStateLocation() {
         // This executable deliberately has the linker's ad-hoc signature and
         // no sandbox entitlement. It must never address a protected App Group.
         SecCodeRef code = nullptr;
-        QCOMPARE(SecCodeCopySelf(kSecCSDefaultFlags, &code), errSecSuccess);
+        CTEST_COMPARE(SecCodeCopySelf(kSecCSDefaultFlags, &code), errSecSuccess);
         CFDictionaryRef information = nullptr;
         const auto status = SecCodeCopySigningInformation(code, kSecCSSigningInformation, &information);
         CFRelease(code);
-        QCOMPARE(status, errSecSuccess);
+        CTEST_COMPARE(status, errSecSuccess);
         const bool hasTeam = CFDictionaryContainsKey(information, kSecCodeInfoTeamIdentifier);
         CFRelease(information);
-        QVERIFY(!hasTeam);
-        QTemporaryDir fixture(QCoreApplication::applicationDirPath() + "/apple-state-XXXXXX.societycontainer");
-        QVERIFY(fixture.isValid());
-        QVERIFY(iiSocietyContainer::SocietyDrive::create(fixture.path()));
+        CTEST_CHECK(!hasTeam);
+        QTemporaryDir fixture(society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + "/apple-state-XXXXXX.societycontainer");
+        CTEST_CHECK(fixture.isValid());
+        CTEST_CHECK(iiSocietyContainer::SocietyDrive::create(fixture.path()));
         const auto previous = qgetenv("SOCIETY_CONTAINER_PATH");
         const auto cleanup = qScopeGuard([&] { previous.isNull() ? qunsetenv("SOCIETY_CONTAINER_PATH") : qputenv("SOCIETY_CONTAINER_PATH", previous); });
         qputenv("SOCIETY_CONTAINER_PATH", fixture.path().toUtf8());
         const auto expected = fixture.filePath(".society-runtime/state");
-        QCOMPARE(GroupSessionStore::defaultDirectory(), expected);
+        CTEST_COMPARE(GroupSessionStore::defaultDirectory(), expected);
+        const auto priorName = QCoreApplication::applicationName();
+        const auto restoreName = qScopeGuard([&] { QCoreApplication::setApplicationName(priorName); });
         QCoreApplication::setApplicationName("SocietyDaemon");
-        QCOMPARE(GroupSessionStore::defaultDirectory(), expected);
+        CTEST_COMPARE(GroupSessionStore::defaultDirectory(), expected);
         QCoreApplication::setApplicationName("Society");
-        QCOMPARE(GroupSessionStore::defaultDirectory(), expected);
-        QVERIFY(!QFileInfo::exists(expected)); // Path lookup creates no runtime state.
+        CTEST_COMPARE(GroupSessionStore::defaultDirectory(), expected);
+        CTEST_CHECK(!QFileInfo::exists(expected)); // Path lookup creates no runtime state.
     }
     void nativeKeychainRoundTrip() {
         // Only a disposable, noncredential item is touched. The encrypted file
@@ -49,27 +55,53 @@ private slots:
         const auto key = "native-storage-probe-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
         const QByteArray fixture("Synthetic Society storage verification");
         using Store = iisacc::accounts::SessionStore;
-        Store::Result result; bool done = false;
-        keys->write(key, fixture, [&](auto value) { QCOMPARE(QThread::currentThread(), thread()); result = value; done = true; });
-        QVERIFY(!done);
-        QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
-        QCOMPARE(result.error, Store::Error::None);
-        done = false;
-        keys->read(key, [&](auto value) { QCOMPARE(QThread::currentThread(), thread()); result = value; done = true; });
-        QVERIFY(!done);
-        QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
-        const bool matched = result.error == Store::Error::None && result.data == fixture;
-        done = false;
-        keys->remove(key, [&](auto value) { result = value; done = true; });
-        QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
-        QCOMPARE(result.error, Store::Error::None);
-        QVERIFY(matched);
-        done = false;
-        keys->read(key, [&](auto value) { QCOMPARE(QThread::currentThread(), thread()); result = value; done = true; });
-        QVERIFY(!done);
-        QTRY_VERIFY_WITH_TIMEOUT(done, 10000);
-        QCOMPARE(result.error, Store::Error::Missing);
+        struct CallbackState {
+            std::atomic_bool done{false};
+            std::atomic_bool callbackOnOwner{true};
+            Store::Result result;
+        };
+        const auto state = std::make_shared<CallbackState>();
+        const auto* owner = QThread::currentThread();
+        const auto receive = [state, owner](auto value) {
+            if (QThread::currentThread() != owner) state->callbackOnOwner.store(false);
+            state->result = std::move(value);
+            state->done.store(true, std::memory_order_release);
+        };
+        const auto finished = [&] { return state->done.load(std::memory_order_acquire); };
+        keys->write(key, fixture, receive);
+        CTEST_CHECK(!finished());
+        CTEST_WAIT_VERIFY(finished(), 10000);
+        CTEST_CHECK(state->callbackOnOwner.load());
+        CTEST_COMPARE(state->result.error, Store::Error::None);
+        state->done.store(false);
+        keys->read(key, receive);
+        CTEST_CHECK(!finished());
+        CTEST_WAIT_VERIFY(finished(), 10000);
+        CTEST_CHECK(state->callbackOnOwner.load());
+        const bool matched = state->result.error == Store::Error::None && state->result.data == fixture;
+        state->done.store(false);
+        keys->remove(key, receive);
+        CTEST_WAIT_VERIFY(finished(), 10000);
+        CTEST_CHECK(state->callbackOnOwner.load());
+        CTEST_COMPARE(state->result.error, Store::Error::None);
+        CTEST_CHECK(matched);
+        state->done.store(false);
+        keys->read(key, receive);
+        CTEST_CHECK(!finished());
+        CTEST_WAIT_VERIFY(finished(), 10000);
+        CTEST_CHECK(state->callbackOnOwner.load());
+        CTEST_COMPARE(state->result.error, Store::Error::Missing);
     }
 };
-QTEST_GUILESS_MAIN(AppleStateTests)
-#include "apple_state.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    helper_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    AppleStateTests tests;
+    struct FlushDeferredDeletes {
+        ~FlushDeferredDeletes() { QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete); }
+    };
+    runner.run("adHocProcessesShareTheSelectedContainerStateLocation", [&] { FlushDeferredDeletes cleanup; tests.adHocProcessesShareTheSelectedContainerStateLocation(); });
+    runner.run("nativeKeychainRoundTrip", [&] { FlushDeferredDeletes cleanup; tests.nativeKeychainRoundTrip(); });
+    return runner.result();
+}

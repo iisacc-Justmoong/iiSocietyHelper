@@ -9,10 +9,12 @@
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQmlExpression>
-#include <QSignalSpy>
+#include "QtSignalCounter.h"
 #include <QTemporaryDir>
-#include <QTest>
+#include "CTestSupport.h"
+#include <QCoreApplication>
 #include <QThread>
+#include <iostream>
 
 using iiSocietyHelper::Helper;
 using iisacc::accounts::AccountManager;
@@ -30,83 +32,87 @@ QVariantMap profile(const QString &userId = "@example_author")
 }
 }
 
-class AccountReferenceTests final : public QObject {
-    Q_OBJECT
-private slots:
+class AccountReferenceTests final {
+public:
     void borrowingAndDetachingPreserveOwnership()
     {
         QObject owner;
         AccountManager manager(&owner);
         Helper helper;
-        QSignalSpy managers(&helper, &Helper::accountManagerChanged);
-        QSignalSpy accounts(&helper, &Helper::accountChanged);
-        QVERIFY(!helper.accountManager());
-        QVERIFY(!helper.account());
-        QVERIFY(helper.setAccountManager(nullptr));
-        QCOMPARE(managers.size(), 0);
-        QVERIFY(helper.setAccountManager(&manager));
-        QCOMPARE(helper.accountManager(), &manager);
-        QCOMPARE(helper.account(), manager.account());
-        QCOMPARE(manager.parent(), &owner);
-        QCOMPARE(managers.size(), 1);
-        QCOMPARE(accounts.size(), 1);
-        QVERIFY(!helper.account()->isPresent());
-        QVERIFY(!helper.isRunning());
-        QVERIFY(helper.setAccountManager(&manager));
-        QCOMPARE(managers.size(), 1);
-        QCOMPARE(accounts.size(), 1);
-        QVERIFY(helper.setAccountManager(nullptr));
-        QVERIFY(!helper.account());
-        QVERIFY(!helper.accountManager());
-        QCOMPARE(managers.size(), 2);
-        QCOMPARE(accounts.size(), 2);
-        QVERIFY(manager.readAccount(profile()));
-        QCOMPARE(accounts.size(), 2);
+        helper_ctest::SignalCounter managers(&helper, &Helper::accountManagerChanged);
+        helper_ctest::SignalCounter accounts(&helper, &Helper::accountChanged);
+        CTEST_CHECK(!helper.accountManager());
+        CTEST_CHECK(!helper.account());
+        CTEST_CHECK(helper.setAccountManager(nullptr));
+        CTEST_COMPARE(managers.size(), 0);
+        CTEST_CHECK(helper.setAccountManager(&manager));
+        CTEST_COMPARE(helper.accountManager(), &manager);
+        CTEST_COMPARE(helper.account(), manager.account());
+        CTEST_COMPARE(manager.parent(), &owner);
+        CTEST_COMPARE(managers.size(), 1);
+        CTEST_COMPARE(accounts.size(), 1);
+        CTEST_CHECK(!helper.account()->isPresent());
+        CTEST_CHECK(!helper.isRunning());
+        CTEST_CHECK(helper.setAccountManager(&manager));
+        CTEST_COMPARE(managers.size(), 1);
+        CTEST_COMPARE(accounts.size(), 1);
+        CTEST_CHECK(helper.setAccountManager(nullptr));
+        CTEST_CHECK(!helper.account());
+        CTEST_CHECK(!helper.accountManager());
+        CTEST_COMPARE(managers.size(), 2);
+        CTEST_COMPARE(accounts.size(), 2);
+        CTEST_CHECK(manager.readAccount(profile()));
+        CTEST_COMPARE(accounts.size(), 2);
     }
 
     void completeModelAndChangesUseTheSameObjects()
     {
         AccountManager manager;
         Helper helper;
-        QVERIFY(helper.setAccountManager(&manager));
+        CTEST_CHECK(helper.setAccountManager(&manager));
         auto *account = manager.account();
         auto *author = account->authorDetails();
-        QSignalSpy changes(&helper, &Helper::accountChanged);
-        connect(&helper, &Helper::accountChanged, &helper, [&] {
-            QCOMPARE(helper.account(), account);
-            QCOMPARE(helper.account()->authorDetails(), author);
-            QCOMPARE(helper.account()->toVariantMap(), manager.account()->toVariantMap());
+        helper_ctest::SignalCounter changes(&helper, &Helper::accountChanged);
+        bool consistentNotifications = true;
+        QObject notificationContext;
+        QObject::connect(&helper, &Helper::accountChanged, &notificationContext, [&] {
+            consistentNotifications = consistentNotifications && helper.account() == account;
+            if (helper.account()) {
+                consistentNotifications = consistentNotifications && helper.account()->authorDetails() == author;
+                consistentNotifications = consistentNotifications && helper.account()->toVariantMap() == manager.account()->toVariantMap();
+            }
         });
-        QVERIFY(manager.readAccount(profile()));
-        QCOMPARE(helper.account()->userId(), "@example_author");
-        QCOMPARE(helper.account()->toVariantMap().size(), 11);
-        QVERIFY(helper.account()->toVariantMap().contains("societyContainerDrive"));
-        QVERIFY(helper.account()->toVariantMap().value("societyContainerDrive").isNull());
-        QCOMPARE(helper.account()->authorDetails()->toVariantMap().size(), 20);
-        QCOMPARE(helper.account()->authorDetails()->links().first().url, QUrl("https://example.org/"));
-        QCOMPARE(helper.account()->authorDetails()->identifiers().first().value, "author-001");
-        QVERIFY(helper.account()->passwordEnabled());
-        QVERIFY(helper.account()->emailMarketingConsent());
-        QVERIFY(helper.account()->termsAcceptedAt().isValid());
-        QCOMPARE(changes.size(), 1);
-        QVERIFY(manager.readAccount(profile()));
-        QCOMPARE(changes.size(), 1);
+        CTEST_CHECK(manager.readAccount(profile()));
+        CTEST_COMPARE(helper.account()->userId(), "@example_author");
+        CTEST_COMPARE(helper.account()->toVariantMap().size(), 11);
+        CTEST_CHECK(helper.account()->toVariantMap().contains("societyContainerDrive"));
+        CTEST_CHECK(helper.account()->toVariantMap().value("societyContainerDrive").isNull());
+        CTEST_COMPARE(helper.account()->authorDetails()->toVariantMap().size(), 20);
+        CTEST_COMPARE(helper.account()->authorDetails()->links().first().url, QUrl("https://example.org/"));
+        CTEST_COMPARE(helper.account()->authorDetails()->identifiers().first().value, "author-001");
+        CTEST_CHECK(helper.account()->passwordEnabled());
+        CTEST_CHECK(helper.account()->emailMarketingConsent());
+        CTEST_CHECK(helper.account()->termsAcceptedAt().isValid());
+        CTEST_COMPARE(changes.size(), 1);
+        CTEST_CHECK(manager.readAccount(profile()));
+        CTEST_COMPARE(changes.size(), 1);
         auto changed = profile();
         auto details = changed["authorDetails"].toMap();
         details["organization"] = "Updated Studio";
         changed["authorDetails"] = details;
-        QVERIFY(manager.readAccount(changed));
-        QCOMPARE(changes.size(), 2);
-        QCOMPARE(author->organization(), "Updated Studio");
+        CTEST_CHECK(manager.readAccount(changed));
+        CTEST_COMPARE(changes.size(), 2);
+        CTEST_COMPARE(author->organization(), "Updated Studio");
         manager.clear();
-        QCOMPARE(changes.size(), 3);
-        QVERIFY(!helper.account()->isPresent());
-        QVERIFY(helper.account()->authorDetails()->links().isEmpty());
-        QVERIFY(manager.readAccount(profile()));
-        QVERIFY(!manager.readJson("invalid"));
-        QCOMPARE(helper.accountManager()->state(), AccountManager::State::Failed);
-        QVERIFY(helper.account()->toVariantMap().isEmpty());
-        QVERIFY(helper.account()->authorDetails()->organization().isEmpty());
+        CTEST_COMPARE(changes.size(), 3);
+        CTEST_CHECK(!helper.account()->isPresent());
+        CTEST_CHECK(helper.account()->authorDetails()->links().isEmpty());
+        CTEST_CHECK(manager.readAccount(profile()));
+        CTEST_CHECK(!manager.readJson("invalid"));
+        CTEST_COMPARE(helper.accountManager()->state(), AccountManager::State::Failed);
+        CTEST_CHECK(helper.account()->toVariantMap().isEmpty());
+        CTEST_CHECK(helper.account()->authorDetails()->organization().isEmpty());
+        CTEST_CHECK(consistentNotifications);
     }
 
     void replacementDisconnectsOldManagerAndDestructionClearsBothReferences()
@@ -114,103 +120,110 @@ private slots:
         auto first = std::make_unique<AccountManager>();
         auto second = std::make_unique<AccountManager>();
         Helper helper;
-        QVERIFY(helper.setAccountManager(first.get()));
-        QVERIFY(helper.setAccountManager(second.get()));
-        QSignalSpy managers(&helper, &Helper::accountManagerChanged);
-        QSignalSpy accounts(&helper, &Helper::accountChanged);
-        QVERIFY(first->readAccount(profile()));
+        CTEST_CHECK(helper.setAccountManager(first.get()));
+        CTEST_CHECK(helper.setAccountManager(second.get()));
+        helper_ctest::SignalCounter managers(&helper, &Helper::accountManagerChanged);
+        helper_ctest::SignalCounter accounts(&helper, &Helper::accountChanged);
+        CTEST_CHECK(first->readAccount(profile()));
         first.reset();
-        QCOMPARE(accounts.size(), 0);
-        QCOMPARE(managers.size(), 0);
-        QCOMPARE(helper.accountManager(), second.get());
-        QVERIFY(second->readAccount(profile("@second_author")));
-        QCOMPARE(accounts.size(), 1);
-        connect(&helper, &Helper::accountManagerChanged, &helper, [&] {
-            QVERIFY(!helper.accountManager());
-            QVERIFY(!helper.account());
+        CTEST_COMPARE(accounts.size(), 0);
+        CTEST_COMPARE(managers.size(), 0);
+        CTEST_COMPARE(helper.accountManager(), second.get());
+        CTEST_CHECK(second->readAccount(profile("@second_author")));
+        CTEST_COMPARE(accounts.size(), 1);
+        bool detachedWhenNotified = false;
+        QObject notificationContext;
+        QObject::connect(&helper, &Helper::accountManagerChanged, &notificationContext, [&] {
+            detachedWhenNotified = !helper.accountManager() && !helper.account();
         });
         second.reset();
-        QCOMPARE(accounts.size(), 2);
-        QCOMPARE(managers.size(), 1);
-        QVERIFY(!helper.account());
-        QVERIFY(!helper.accountManager());
+        CTEST_CHECK(detachedWhenNotified);
+        CTEST_COMPARE(accounts.size(), 2);
+        CTEST_COMPARE(managers.size(), 1);
+        CTEST_CHECK(!helper.account());
+        CTEST_CHECK(!helper.accountManager());
     }
 
     void helpersShareTheManagerWithoutOwningOrResettingIt()
     {
         AccountManager manager;
-        QVERIFY(manager.readAccount(profile()));
+        CTEST_CHECK(manager.readAccount(profile()));
         Helper second;
         {
             Helper first;
-            QVERIFY(first.setAccountManager(&manager));
-            QVERIFY(second.setAccountManager(&manager));
-            QCOMPARE(first.account(), second.account());
+            CTEST_CHECK(first.setAccountManager(&manager));
+            CTEST_CHECK(second.setAccountManager(&manager));
+            CTEST_COMPARE(first.account(), second.account());
             first.stop();
-            QVERIFY(first.account()->isPresent());
+            CTEST_CHECK(first.account()->isPresent());
         }
-        QVERIFY(manager.account()->isPresent());
-        QCOMPARE(second.account(), manager.account());
-        QCOMPARE(manager.state(), AccountManager::State::Ready);
-        QVERIFY(manager.readAccount(profile("@still_present")));
-        QCOMPARE(second.account()->userId(), "@still_present");
+        CTEST_CHECK(manager.account()->isPresent());
+        CTEST_COMPARE(second.account(), manager.account());
+        CTEST_COMPARE(manager.state(), AccountManager::State::Ready);
+        CTEST_CHECK(manager.readAccount(profile("@still_present")));
+        CTEST_COMPARE(second.account()->userId(), "@still_present");
     }
 
     void foreignThreadManagerIsRejectedWithoutChangingTheBinding()
     {
         AccountManager local;
         Helper helper;
-        QVERIFY(helper.setAccountManager(&local));
-        QSignalSpy changes(&helper, &Helper::accountChanged);
+        CTEST_CHECK(helper.setAccountManager(&local));
+        helper_ctest::SignalCounter changes(&helper, &Helper::accountChanged);
         QThread worker;
         auto *foreign = new AccountManager;
         foreign->moveToThread(&worker);
-        connect(&worker, &QThread::finished, foreign, &QObject::deleteLater);
+        QObject::connect(&worker, &QThread::finished, foreign, &QObject::deleteLater);
         worker.start();
         const bool accepted = helper.setAccountManager(foreign);
         worker.quit();
-        QVERIFY(worker.wait(5000));
-        QVERIFY(!accepted);
-        QCOMPARE(helper.accountManager(), &local);
-        QCOMPARE(changes.size(), 0);
+        CTEST_CHECK(worker.wait(5000));
+        CTEST_CHECK(!accepted);
+        CTEST_COMPARE(helper.accountManager(), &local);
+        CTEST_COMPARE(changes.size(), 0);
     }
 
     void replacingManagerFromNotificationSuppressesStaleAccountNotification()
     {
         AccountManager first, second;
         Helper helper;
-        QSignalSpy accounts(&helper, &Helper::accountChanged);
-        connect(&helper, &Helper::accountManagerChanged, &helper, [&] {
-            if (helper.accountManager() == &first) QVERIFY(helper.setAccountManager(&second));
+        helper_ctest::SignalCounter accounts(&helper, &Helper::accountChanged);
+        bool replaced = false;
+        bool consistentNotifications = true;
+        QObject notificationContext;
+        QObject::connect(&helper, &Helper::accountManagerChanged, &notificationContext, [&] {
+            if (helper.accountManager() == &first) replaced = helper.setAccountManager(&second);
         });
-        connect(&helper, &Helper::accountChanged, &helper, [&] {
-            QCOMPARE(helper.accountManager(), &second);
-            QCOMPARE(helper.account(), second.account());
+        QObject::connect(&helper, &Helper::accountChanged, &notificationContext, [&] {
+            consistentNotifications = consistentNotifications && helper.accountManager() == &second;
+            consistentNotifications = consistentNotifications && helper.account() == second.account();
         });
-        QVERIFY(!helper.setAccountManager(&first));
-        QCOMPARE(accounts.size(), 1);
-        QCOMPARE(helper.accountManager(), &second);
+        CTEST_CHECK(!helper.setAccountManager(&first));
+        CTEST_CHECK(replaced);
+        CTEST_CHECK(consistentNotifications);
+        CTEST_COMPARE(accounts.size(), 1);
+        CTEST_COMPARE(helper.accountManager(), &second);
     }
 
     void destroyingObjectsFromBindingNotificationIsSafe()
     {
         AccountManager manager;
         QPointer<Helper> helper = new Helper;
-        connect(helper, &Helper::accountManagerChanged, &manager, [&] { delete helper.data(); });
-        QVERIFY(!helper->setAccountManager(&manager));
-        QVERIFY(!helper);
-        QVERIFY(manager.readAccount(profile()));
+        QObject::connect(helper, &Helper::accountManagerChanged, &manager, [&] { delete helper.data(); });
+        CTEST_CHECK(!helper->setAccountManager(&manager));
+        CTEST_CHECK(!helper);
+        CTEST_CHECK(manager.readAccount(profile()));
 
         Helper surviving;
         auto temporary = std::make_unique<AccountManager>();
-        QSignalSpy accounts(&surviving, &Helper::accountChanged);
-        connect(&surviving, &Helper::accountManagerChanged, &surviving, [&] {
+        helper_ctest::SignalCounter accounts(&surviving, &Helper::accountChanged);
+        QObject::connect(&surviving, &Helper::accountManagerChanged, &surviving, [&] {
             if (surviving.accountManager()) temporary.reset();
         });
-        QVERIFY(!surviving.setAccountManager(temporary.get()));
-        QVERIFY(!surviving.accountManager());
-        QVERIFY(!surviving.account());
-        QCOMPARE(accounts.size(), 1);
+        CTEST_CHECK(!surviving.setAccountManager(temporary.get()));
+        CTEST_CHECK(!surviving.accountManager());
+        CTEST_CHECK(!surviving.account());
+        CTEST_COMPARE(accounts.size(), 1);
     }
 
     void qmlReadsTypedReferencesAndTracksProfileAndDestruction()
@@ -221,51 +234,72 @@ private slots:
         QQmlExpression user(engine.rootContext(), nullptr,
             "societyHelper.account ? societyHelper.account.userId : ''");
         user.setNotifyOnValueChanged(true);
-        QCOMPARE(user.evaluate().toString(), "");
-        QVERIFY2(!user.hasError(), qPrintable(user.error().toString()));
-        QSignalSpy changes(&user, &QQmlExpression::valueChanged);
+        CTEST_COMPARE(user.evaluate().toString(), "");
+        CTEST_CHECK_MESSAGE(!user.hasError(), qPrintable(user.error().toString()));
+        helper_ctest::SignalCounter changes(&user, &QQmlExpression::valueChanged);
         auto manager = std::make_unique<AccountManager>();
-        QVERIFY(helper.setAccountManager(manager.get()));
-        QCOMPARE(user.evaluate().toString(), "");
-        QVERIFY(manager->readAccount(profile()));
-        QCOMPARE(user.evaluate().toString(), "@example_author");
+        CTEST_CHECK(helper.setAccountManager(manager.get()));
+        CTEST_COMPARE(user.evaluate().toString(), "");
+        CTEST_CHECK(manager->readAccount(profile()));
+        CTEST_COMPARE(user.evaluate().toString(), "@example_author");
         QQmlExpression details(engine.rootContext(), nullptr,
             "societyHelper.accountManager.account === societyHelper.account && "
             "societyHelper.account.authorDetails.organization === 'Example Studio' && "
             "societyHelper.account.authorDetails.links[0].relation === 'portfolio'");
-        QVERIFY2(details.evaluate().toBool(), qPrintable(details.error().toString()));
-        QVERIFY(manager->readAccount(profile("@updated_author")));
-        QCOMPARE(user.evaluate().toString(), "@updated_author");
+        CTEST_CHECK_MESSAGE(details.evaluate().toBool(), qPrintable(details.error().toString()));
+        CTEST_CHECK(manager->readAccount(profile("@updated_author")));
+        CTEST_COMPARE(user.evaluate().toString(), "@updated_author");
         manager.reset();
-        QCOMPARE(user.evaluate().toString(), "");
-        QVERIFY(!user.hasError());
-        QVERIFY(changes.size() >= 4);
+        CTEST_COMPARE(user.evaluate().toString(), "");
+        CTEST_CHECK(!user.hasError());
+        CTEST_CHECK(changes.size() >= 4);
     }
 
     void observationDoesNotPublishTheReferencedAccount()
     {
+        std::cout << "account observation: create fixture\n" << std::flush;
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/account-presence-XXXXXX")));
-        QVERIFY(directory.isValid());
+        CTEST_CHECK(directory.isValid());
         AccountManager manager;
         Helper helper;
-        QVERIFY(manager.readAccount(profile()));
-        QVERIFY(helper.setAccountManager(&manager));
-        QSignalSpy queued(&helper, &Helper::dataQueued);
-        QVERIFY(helper.start({"com.iisacc.account.reference", "Account reference", "0.6.0"}, {directory.path(), 50, 400}));
-        QCOMPARE(queued.size(), 1);
-        QVERIFY(manager.readAccount(profile("@updated_author")));
+        CTEST_CHECK(manager.readAccount(profile()));
+        CTEST_CHECK(helper.setAccountManager(&manager));
+        helper_ctest::SignalCounter queued(&helper, &Helper::dataQueued);
+        CTEST_CHECK(helper.start({"com.iisacc.account.reference", "Account reference", "0.6.0"}, {directory.path(), 50, 400}));
+        std::cout << "account observation: started\n" << std::flush;
+        CTEST_COMPARE(queued.size(), 1);
+        CTEST_CHECK(manager.readAccount(profile("@updated_author")));
         manager.clear();
-        QCOMPARE(queued.size(), 1);
+        CTEST_COMPARE(queued.size(), 1);
         QFile record(directory.filePath(helper.self().instanceId + ".json"));
-        QVERIFY(record.open(QIODevice::ReadOnly));
+        CTEST_CHECK(record.open(QIODevice::ReadOnly));
         const auto object = QJsonDocument::fromJson(record.readAll()).object();
         const auto expected = QStringList{"activity", "applicationId", "heartbeat", "instanceId", "name",
             "processId", "protocol", "startedAt", "version"};
-        QCOMPARE(object.keys(), expected);
+        CTEST_COMPARE(object.keys(), expected);
+        std::cout << "account observation: stopping\n" << std::flush;
         helper.stop();
-        QCOMPARE(helper.accountManager(), &manager);
+        std::cout << "account observation: stopped\n" << std::flush;
+        CTEST_COMPARE(helper.accountManager(), &manager);
     }
 };
 
-QTEST_GUILESS_MAIN(AccountReferenceTests)
-#include "account.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    helper_ctest::CTestRunner runner;
+    AccountReferenceTests tests;
+    runner.run("borrowingAndDetachingPreserveOwnership", [&] { tests.borrowingAndDetachingPreserveOwnership(); });
+    runner.run("completeModelAndChangesUseTheSameObjects", [&] { tests.completeModelAndChangesUseTheSameObjects(); });
+    runner.run("replacementDisconnectsOldManagerAndDestructionClearsBothReferences", [&] { tests.replacementDisconnectsOldManagerAndDestructionClearsBothReferences(); });
+    runner.run("helpersShareTheManagerWithoutOwningOrResettingIt", [&] { tests.helpersShareTheManagerWithoutOwningOrResettingIt(); });
+    runner.run("foreignThreadManagerIsRejectedWithoutChangingTheBinding", [&] { tests.foreignThreadManagerIsRejectedWithoutChangingTheBinding(); });
+    runner.run("replacingManagerFromNotificationSuppressesStaleAccountNotification", [&] { tests.replacingManagerFromNotificationSuppressesStaleAccountNotification(); });
+    runner.run("destroyingObjectsFromBindingNotificationIsSafe", [&] { tests.destroyingObjectsFromBindingNotificationIsSafe(); });
+    runner.run("qmlReadsTypedReferencesAndTracksProfileAndDestruction", [&] { tests.qmlReadsTypedReferencesAndTracksProfileAndDestruction(); });
+    runner.run("observationDoesNotPublishTheReferencedAccount", [&] {
+        tests.observationDoesNotPublishTheReferencedAccount();
+        std::cout << "account observation: fixture released\n" << std::flush;
+    });
+    return runner.result();
+}

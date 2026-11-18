@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/BuildComponents.md",
-    "sha256": "c6089e330482fad252324594f136857758c61056debea95d612d0026fa1f84e2",
-    "bytes": 1784,
+    "sha256": "05aae4f54cc4a82bf8387ab722b5f4274625022d898f01011c3698eefea70385",
+    "bytes": 1791,
     "line_count": 30,
     "encoding": "utf-8",
     "language": "en"
@@ -57,7 +57,7 @@
       "kind": "paragraph",
       "start_line": 7,
       "end_line": 10,
-      "raw": "The current Helper event-loop, account, network and delivery adapters still use\nQt Core, Network and Sql; media codecs still use Qt Gui. These are explicit\nremaining dependencies. The native container monitor and its FileTree storage\ndependency can be built and consumed without Qt.\n"
+      "raw": "Helper's event-loop, account, network and delivery adapters still use Qt Core;\nthe network and synchronization storage use Qt Network and Sql respectively.\nMedia codecs still use Qt Gui. The native container monitor and its FileTree\nstorage dependency can be built and consumed without Qt.\n"
     },
     {
       "id": "b000006",

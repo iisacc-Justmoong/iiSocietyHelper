@@ -18,3 +18,5 @@ Changed boundaries:
 - `src/Client/Client.cpp`
 - `src/Storage/GroupSessionStore.cpp`
 - `src/Storage/GroupSessionStore.h`
+
+로컬 전달 저장소는 iiFileProvider Native의 SQLite 연결, 바인딩된 문과 트랜잭션을 사용한다. 기존 WAL 및 스키마, 초기화 잠금, 파일 권한, 메시지 BLOB과 소유 스레드 이전 계약을 유지한다. 동기화 저널은 별도로 Qt Sql을 사용한다.

@@ -1,16 +1,38 @@
 #include "../src/Discovery/PresenceWorker_p.h"
 #include "../src/Files/CallbackGate_p.h"
+#include "CTestSupport.h"
+#include <QCoreApplication>
 #include <QElapsedTimer>
-#include <QTest>
+#include <QEventLoop>
 #include <QTimer>
 #include <QScopeGuard>
 #include <atomic>
 #include <future>
 #include <semaphore>
 
-class PresenceWorkerTests : public QObject {
-    Q_OBJECT
-private slots:
+namespace {
+void processFor(int milliseconds)
+{
+    QEventLoop loop;
+    QTimer::singleShot(milliseconds, &loop, &QEventLoop::quit);
+    loop.exec();
+}
+
+template <typename Predicate>
+bool waitUntil(Predicate predicate, int timeoutMilliseconds)
+{
+    QElapsedTimer timer;
+    timer.start();
+    while (!predicate()) {
+        if (timer.elapsed() >= timeoutMilliseconds) return false;
+        processFor(10);
+    }
+    return true;
+}
+}
+
+class PresenceWorkerTests final {
+public:
     void slowIoDoesNotBlockTheApplicationLoop() {
         iiSocietyHelper::detail::PresenceWorker worker;
         std::promise<void> started, release;
@@ -21,14 +43,14 @@ private slots:
         int ticks = 0;
         QTimer input;
         input.setInterval(5);
-        connect(&input, &QTimer::timeout, this, [&] { ++ticks; });
+        QObject::connect(&input, &QTimer::timeout, &input, [&] { ++ticks; });
         input.start();
-        QTest::qWait(100);
+        processFor(100);
         const bool applicationResponded = ticks >= 3 && !finished;
         release.set_value();
         worker.clearAndWait();
-        QVERIFY(applicationResponded);
-        QVERIFY(finished);
+        CTEST_CHECK(applicationResponded);
+        CTEST_CHECK(finished);
     }
     void pendingUpdatesAreBoundedAndKeepTheLatest() {
         iiSocietyHelper::detail::PresenceWorker worker;
@@ -42,16 +64,16 @@ private slots:
         release.set_value();
         const auto completed = complete.get_future().wait_for(std::chrono::seconds(5));
         worker.clearAndWait();
-        QCOMPARE(completed, std::future_status::ready);
-        QCOMPARE(operations.load(), 2);
-        QCOMPARE(value.load(), 99);
+        CTEST_COMPARE(completed, std::future_status::ready);
+        CTEST_COMPARE(operations.load(), 2);
+        CTEST_COMPARE(value.load(), 99);
     }
     void drainPreservesAQueuedCommit() {
         iiSocietyHelper::detail::PresenceWorker worker;
         std::atomic_int committed = 0;
         worker.post([&] { ++committed; });
         worker.drain();
-        QCOMPARE(committed.load(), 1);
+        CTEST_COMPARE(committed.load(), 1);
     }
     void closingDuringBlockedIoDoesNotWaitOrCallDestroyedOwner() {
         auto owner = std::make_unique<QObject>();
@@ -74,11 +96,11 @@ private slots:
         worker.reset(); owner.reset();
         const auto elapsed = timer.elapsed();
         release.set_value();
-        QCOMPARE(finished.get_future().wait_for(std::chrono::seconds(5)), std::future_status::ready);
+        CTEST_COMPARE(finished.get_future().wait_for(std::chrono::seconds(5)), std::future_status::ready);
         QCoreApplication::processEvents();
-        QVERIFY(elapsed < 1000);
-        QVERIFY(!called.load());
-        QVERIFY(!pendingRan->load());
+        CTEST_CHECK(elapsed < 1000);
+        CTEST_CHECK(!called.load());
+        CTEST_CHECK(!pendingRan->load());
     }
     void queuedCallbackIsDiscardedWhenGateCloses() {
         QObject owner;
@@ -87,7 +109,7 @@ private slots:
         callbacks->post([&] { called = true; });
         callbacks->close();
         QCoreApplication::processEvents();
-        QVERIFY(!called);
+        CTEST_CHECK(!called);
     }
     // This irreversible barrier is deliberately last in this test process.
     void detachedWorkQuiescesBeforeStaticDestruction() {
@@ -98,20 +120,32 @@ private slots:
         auto finished=std::make_shared<std::atomic_bool>(false);
         bool released=false;const auto release=qScopeGuard([&]{if(!released)gate->release();});
         worker->post([gate,entered,finished]{*entered=true;gate->acquire();*finished=true;});
-        QTRY_VERIFY(entered->load());worker.reset();
+        CTEST_CHECK(waitUntil([&] { return entered->load(); }, 5000));worker.reset();
         auto quiesced=std::async(std::launch::async, [] { iiSocietyHelper::detail::PresenceWorker::quiesceDetachedWork(); });
-        bool heartbeat=false;QTimer::singleShot(0,this,[&]{heartbeat=true;});QTest::qWait(30);
+        QObject heartbeatContext;
+        bool heartbeat=false;QTimer::singleShot(0,&heartbeatContext,[&]{heartbeat=true;});processFor(30);
         const bool waited=quiesced.wait_for(std::chrono::milliseconds(50))==std::future_status::timeout;
         released=true;gate->release();
         const bool completed=quiesced.wait_for(std::chrono::seconds(5))==std::future_status::ready;
-        QVERIFY(heartbeat);QVERIFY(waited);QVERIFY(completed);
-        QVERIFY(finished->load());
+        CTEST_CHECK(heartbeat);CTEST_CHECK(waited);CTEST_CHECK(completed);
+        CTEST_CHECK(finished->load());
         std::atomic_bool ran=false;
         { iiSocietyHelper::detail::PresenceWorker late(iiSocietyHelper::detail::PresenceWorker::Shutdown::detachActive);
           late.post([&]{ran=true;}); }
-        QTest::qWait(20);QVERIFY(!ran.load());
+        processFor(20);CTEST_CHECK(!ran.load());
     }
 };
 
-QTEST_GUILESS_MAIN(PresenceWorkerTests)
-#include "presence_worker.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    helper_ctest::CTestRunner runner;
+    PresenceWorkerTests tests;
+    runner.run("slowIoDoesNotBlockTheApplicationLoop", [&] { tests.slowIoDoesNotBlockTheApplicationLoop(); });
+    runner.run("pendingUpdatesAreBoundedAndKeepTheLatest", [&] { tests.pendingUpdatesAreBoundedAndKeepTheLatest(); });
+    runner.run("drainPreservesAQueuedCommit", [&] { tests.drainPreservesAQueuedCommit(); });
+    runner.run("closingDuringBlockedIoDoesNotWaitOrCallDestroyedOwner", [&] { tests.closingDuringBlockedIoDoesNotWaitOrCallDestroyedOwner(); });
+    runner.run("queuedCallbackIsDiscardedWhenGateCloses", [&] { tests.queuedCallbackIsDiscardedWhenGateCloses(); });
+    runner.run("detachedWorkQuiescesBeforeStaticDestruction", [&] { tests.detachedWorkQuiescesBeforeStaticDestruction(); });
+    return runner.result();
+}

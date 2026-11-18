@@ -35,20 +35,22 @@ if(helper_dependencies MATCHES "iiSDKCore::Runtime")
 endif()
 
 find_package(iiSocietyHelper 0.12.0 CONFIG REQUIRED COMPONENTS Monitoring OPTIONAL_COMPONENTS GenerationHost)
-find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test Qml)
+find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Qml)
 set(CMAKE_AUTOMOC ON)
 if(NOT iiSocietyHelper_HAS_APPLICATION_STORAGE)
     message(FATAL_ERROR "The installed Helper must provide shared application storage")
 endif()
 add_executable(iiSocietyHelper_installed_application_storage ../application_storage.cpp)
-target_link_libraries(iiSocietyHelper_installed_application_storage PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Gui)
+target_link_libraries(iiSocietyHelper_installed_application_storage PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Gui)
 target_compile_definitions(iiSocietyHelper_installed_application_storage PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_application_storage iiSocietyHelper_installed_application_storage)
-set_tests_properties(iiSocietyHelper.installed_application_storage PROPERTIES TIMEOUT 240)
+iisociety_fixture_test(iiSocietyHelper.installed_application_storage_offline iiSocietyHelper_installed_application_storage --offline)
+set_tests_properties(iiSocietyHelper.installed_application_storage iiSocietyHelper.installed_application_storage_offline PROPERTIES TIMEOUT 240)
 add_executable(iiSocietyHelper_installed_snapshot ../sync/snapshot.cpp ../../example/ManualStatusExecutor.cpp)
-target_link_libraries(iiSocietyHelper_installed_snapshot PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+target_link_libraries(iiSocietyHelper_installed_snapshot PRIVATE iiSocietyHelper::iiSocietyHelper)
 target_compile_definitions(iiSocietyHelper_installed_snapshot PRIVATE SYNC_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_snapshot iiSocietyHelper_installed_snapshot)
+iisociety_fixture_test(iiSocietyHelper.installed_snapshot_offline iiSocietyHelper_installed_snapshot requestDeadlineTracksOutstandingWork)
 set_tests_properties(iiSocietyHelper.installed_snapshot PROPERTIES TIMEOUT 120)
 add_executable(iiSocietyHelper_installed_status_example ../../example/sync_status.cpp ../../example/ManualStatusExecutor.cpp)
 target_link_libraries(iiSocietyHelper_installed_status_example PRIVATE iiSocietyHelper::iiSocietyHelper)
@@ -61,11 +63,12 @@ target_link_libraries(iiSocietyHelper_consumer PRIVATE iiSocietyHelper::iiSociet
 set_target_properties(iiSocietyHelper_consumer PROPERTIES CXX_EXTENSIONS OFF)
 iisociety_fixture_test(iiSocietyHelper.installed_consumer iiSocietyHelper_consumer)
 add_executable(iiSocietyHelper_installed_observation ../observation.cpp)
-target_link_libraries(iiSocietyHelper_installed_observation PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+target_link_libraries(iiSocietyHelper_installed_observation PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::Native)
 target_compile_definitions(iiSocietyHelper_installed_observation PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_observation iiSocietyHelper_installed_observation)
+iisociety_fixture_test(iiSocietyHelper.installed_observation_offline iiSocietyHelper_installed_observation asynchronousLifecycleKeepsOwnerResponsive)
 add_executable(iiSocietyHelper_installed_delivery ../delivery.cpp)
-target_link_libraries(iiSocietyHelper_installed_delivery PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+target_link_libraries(iiSocietyHelper_installed_delivery PRIVATE iiSocietyHelper::iiSocietyHelper)
 target_compile_definitions(iiSocietyHelper_installed_delivery PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_delivery iiSocietyHelper_installed_delivery)
 
@@ -73,7 +76,7 @@ iisociety_fixture_test(iiSocietyHelper.installed_delivery iiSocietyHelper_instal
 add_executable(iiSocietyHelper_installed_object_peer ../object_peer.cpp ../ObjectTestTypes.h)
 target_link_libraries(iiSocietyHelper_installed_object_peer PRIVATE iiSocietyHelper::iiSocietyHelper)
 add_executable(iiSocietyHelper_installed_objects ../objects.cpp ../ObjectTestTypes.h)
-target_link_libraries(iiSocietyHelper_installed_objects PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Qml)
+target_link_libraries(iiSocietyHelper_installed_objects PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Qml)
 target_compile_definitions(iiSocietyHelper_installed_objects PRIVATE
     HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources"
     HELPER_OBJECT_PEER="$<TARGET_FILE:iiSocietyHelper_installed_object_peer>")
@@ -82,7 +85,7 @@ iisociety_fixture_test(iiSocietyHelper.installed_objects iiSocietyHelper_install
 set_tests_properties(iiSocietyHelper.installed_objects PROPERTIES TIMEOUT 30)
 
 add_executable(iiSocietyHelper_installed_account ../account.cpp)
-target_link_libraries(iiSocietyHelper_installed_account PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Qml)
+target_link_libraries(iiSocietyHelper_installed_account PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Qml)
 target_compile_definitions(iiSocietyHelper_installed_account PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_account iiSocietyHelper_installed_account)
 set_tests_properties(iiSocietyHelper.installed_account PROPERTIES TIMEOUT 30)
@@ -92,13 +95,14 @@ target_link_libraries(iiSocietyHelper_installed_filesystem_peer PRIVATE iiSociet
 add_executable(iiSocietyHelper_installed_filesystem ../filesystem.cpp)
 find_program(helper_installed_diagnostic ii-society-helper
     PATHS "${iiSocietyHelper_DIR}/../../../bin" NO_DEFAULT_PATH REQUIRED)
-target_link_libraries(iiSocietyHelper_installed_filesystem PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyHelper::Monitoring iiFileProvider::iiFileProvider Qt6::Test Qt6::Qml)
+target_link_libraries(iiSocietyHelper_installed_filesystem PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyHelper::Monitoring iiFileProvider::iiFileProvider iiFileProvider::Native Qt6::Qml)
 target_compile_definitions(iiSocietyHelper_installed_filesystem PRIVATE
     HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources"
     HELPER_FILESYSTEM_PEER="$<TARGET_FILE:iiSocietyHelper_installed_filesystem_peer>"
     HELPER_DIAGNOSTIC_EXECUTABLE="${helper_installed_diagnostic}")
 add_dependencies(iiSocietyHelper_installed_filesystem iiSocietyHelper_installed_filesystem_peer)
 iisociety_fixture_test(iiSocietyHelper.installed_filesystem iiSocietyHelper_installed_filesystem)
+iisociety_fixture_test(iiSocietyHelper.installed_filesystem_offline iiSocietyHelper_installed_filesystem deferredStorageDoesNotDiscoverTheDefaultDrive)
 set_tests_properties(iiSocietyHelper.installed_filesystem PROPERTIES TIMEOUT 300)
 
 # Both public surfaces compile and run with the one installed SDK target.
@@ -107,11 +111,13 @@ target_link_libraries(iiSocietyHelper_installed_merged_api PRIVATE iiSocietyHelp
 target_compile_definitions(iiSocietyHelper_installed_merged_api PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_merged_api iiSocietyHelper_installed_merged_api)
 
-add_executable(iiSocietyHelper_installed_client ../client/client.cpp)
-target_link_libraries(iiSocietyHelper_installed_client PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+add_executable(iiSocietyHelper_installed_client ../client/client.cpp ../../src/Client/LocalFrame.cpp)
+target_link_libraries(iiSocietyHelper_installed_client PRIVATE iiSocietyHelper::iiSocietyHelper)
 target_compile_definitions(iiSocietyHelper_installed_client PRIVATE
     SOCIETY_ACCOUNT_FIXTURE="${CMAKE_CURRENT_LIST_DIR}/../client/account.json"
     CLIENT_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
+iisociety_fixture_test(iiSocietyHelper.installed_client_offline iiSocietyHelper_installed_client stateRemovalReportsLegacyFailure)
+set_tests_properties(iiSocietyHelper.installed_client_offline PROPERTIES TIMEOUT 30 ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
 iisociety_fixture_test(iiSocietyHelper.installed_host_drive iiSocietyHelper_installed_client
     downloadsAndUploadsWithoutASocietyApplicationProcess)
 set_tests_properties(iiSocietyHelper.installed_host_drive PROPERTIES TIMEOUT 300
@@ -124,13 +130,17 @@ set_tests_properties(iiSocietyHelper.installed_local_drive PROPERTIES TIMEOUT 45
 find_package(iiSocietyContainer 0.16.1 CONFIG REQUIRED COMPONENTS Maintenance)
 add_executable(iiSocietyHelper_installed_sync ../sync/replica.cpp)
 target_link_libraries(iiSocietyHelper_installed_sync PRIVATE iiSocietyHelper::iiSocietyHelper
-    iiSocietyContainer::Maintenance iiFileProvider::Temporary Qt6::Test)
+    iiSocietyContainer::Maintenance iiFileProvider::Temporary)
 target_compile_definitions(iiSocietyHelper_installed_sync PRIVATE SYNC_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
 iisociety_fixture_test(iiSocietyHelper.installed_sync iiSocietyHelper_installed_sync)
-set_tests_properties(iiSocietyHelper.installed_sync PROPERTIES TIMEOUT 90)
+set_tests_properties(iiSocietyHelper.installed_sync PROPERTIES TIMEOUT 90 SKIP_RETURN_CODE 77)
 if(TARGET iiSocietyHelper::GenerationHost)
     add_executable(iiSocietyHelper_installed_generation ../generation/generation.cpp)
-    target_link_libraries(iiSocietyHelper_installed_generation PRIVATE iiSocietyHelper::GenerationHost Qt6::Test Qt6::Gui)
+    target_link_libraries(iiSocietyHelper_installed_generation PRIVATE iiSocietyHelper::GenerationHost Qt6::Gui)
+    if(APPLE)
+        target_link_options(iiSocietyHelper_installed_generation BEFORE PRIVATE
+            "LINKER:-rpath,$<TARGET_FILE_DIR:iiSharedCanvas::Core>")
+    endif()
     target_compile_definitions(iiSocietyHelper_installed_generation PRIVATE GENERATION_TEST_DIRECTORY="${CMAKE_CURRENT_LIST_DIR}/../../resources")
     iisociety_fixture_test(iiSocietyHelper.installed_generation iiSocietyHelper_installed_generation)
     set_tests_properties(iiSocietyHelper.installed_generation PROPERTIES TIMEOUT 45)

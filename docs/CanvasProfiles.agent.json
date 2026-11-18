@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/CanvasProfiles.md",
-    "sha256": "3af9dd93d625cbd17caf708f5dd781c36762e0e3f8b57de4d407b3c4419b063d",
-    "bytes": 1267,
+    "sha256": "5ff920703bb865f11160c38efbe1f7fd1fd7b15278eeeb807f28168833df1a92",
+    "bytes": 1315,
     "line_count": 19,
     "encoding": "utf-8",
     "language": "ko"
@@ -43,7 +43,7 @@
       "kind": "paragraph",
       "start_line": 3,
       "end_line": 6,
-      "raw": "Helper와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 기본 요구 버전은\n0.32.0이며, 기존 Society 0.31.4 구성은 `IISOCIETYHELPER_CANVAS_VERSION=0.31.4`와\n그 버전의 `iiSharedCanvas_DIR`를 함께 지정한다. 임의의 버전 간 객체 변환이나\n서로 다른 Canvas 라이브러리의 동시 링크는 수행하지 않는다.\n"
+      "raw": "Helper Core와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 새 빌드의\n기본 버전은 `0.35.39 EXACT`이다. 기존 빌드에서 기본값으로 전환하려면 CMake에\n`-U IISOCIETYHELPER_CANVAS_VERSION`을 전달하고 `iiSharedCanvas_DIR`을 0.35.39 패키지로 지정한다.\n별도 프로필의 버전은 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.\n"
     },
     {
       "id": "b000004",
@@ -103,14 +103,14 @@
       {
         "block_id": "b000003",
         "line": 3,
-        "text": "Helper와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 기본 요구 버전은",
+        "text": "Helper Core와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 새 빌드의",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000003",
         "line": 6,
-        "text": "서로 다른 Canvas 라이브러리의 동시 링크는 수행하지 않는다.",
+        "text": "별도 프로필의 버전은 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       }

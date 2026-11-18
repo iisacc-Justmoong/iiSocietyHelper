@@ -8,6 +8,19 @@ LEGACY = ("iiSocietyGeneration", "iiSocietyMonitor", "iiSocietySync")
 
 
 class UnifiedPackageTests(unittest.TestCase):
+    def test_canvas_core_profile_defaults_to_the_exact_sdk_version(self):
+        source = (ROOT / "CMakeLists.txt").read_text()
+        self.assertRegex(source, r'set\(IISOCIETYHELPER_CANVAS_VERSION\s+"0\.35\.39"\s+CACHE\s+STRING\b')
+        self.assertRegex(
+            source,
+            r"find_package\(iiSharedCanvas\s+\$\{IISOCIETYHELPER_CANVAS_VERSION\}\s+EXACT\s+CONFIG\s+REQUIRED\s+COMPONENTS\s+Core\b",
+        )
+        package = (ROOT / "cmake/iiSocietyHelperConfig.cmake.in").read_text()
+        self.assertRegex(
+            package,
+            r"find_dependency\(iiSharedCanvas\s+@IISOCIETYHELPER_CANVAS_VERSION@\s+EXACT\s+CONFIG\s+COMPONENTS\s+Core\)",
+        )
+
     def test_no_legacy_package_or_target_dependency(self):
         files = [ROOT / "CMakeLists.txt", *sorted((ROOT / "cmake").glob("*.cmake*"))]
         for path in files:

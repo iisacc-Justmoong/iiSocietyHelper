@@ -1,3 +1,7 @@
+#include "CTestSupport.h"
+#include "QtEventWait.h"
+#include "SignalRecorder.h"
+#include <QCoreApplication>
 #include "TestWorkspace.h"
 #include "iiSocietyHelper.h"
 
@@ -7,9 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
-#include <QSignalSpy>
 #include <QTemporaryDir>
-#include <QTest>
 #ifdef Q_OS_UNIX
 #include <signal.h>
 #endif
@@ -74,62 +76,69 @@ public:
 };
 
 class ProcessObservationTests : public QObject {
-    Q_OBJECT
-private slots:
+public:
     void threeProcessesDiscoverCrashAndRestart() {
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/processes-XXXXXX")));
         Participant a, b, c;
-        QVERIFY(a.start(directory.path(), "com.iisacc.society"));
-        QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes"));
-        QVERIFY(c.start(directory.path(), "com.iisacc.dreamscapes"));
-        QTRY_VERIFY2(!a.instance().isEmpty() && !b.instance().isEmpty() && !c.instance().isEmpty(),
+        CTEST_CHECK(a.start(directory.path(), "com.iisacc.society"));
+        CTEST_CHECK(b.start(directory.path(), "com.iisacc.dreamscapes"));
+        CTEST_CHECK(c.start(directory.path(), "com.iisacc.dreamscapes"));
+        CTEST_WAIT_MESSAGE_DEFAULT(!a.instance().isEmpty() && !b.instance().isEmpty() && !c.instance().isEmpty(),
                      (a.diagnostics() + b.diagnostics() + c.diagnostics()).constData());
         const auto aid = a.instance(), bid = b.instance(), cid = c.instance();
-        QTRY_VERIFY2(a.peers() == QSet<QString>({bid, cid}),
+        CTEST_WAIT_MESSAGE_DEFAULT(a.peers() == QSet<QString>({bid, cid}),
             (a.diagnostics() + b.diagnostics() + c.diagnostics()).constData());
-        QTRY_COMPARE(b.peers(), QSet<QString>({aid, cid}));
-        QTRY_COMPARE(c.peers(), QSet<QString>({aid, bid}));
+        CTEST_WAIT_COMPARE(b.peers(), QSet<QString>({aid, cid}));
+        CTEST_WAIT_COMPARE(c.peers(), QSet<QString>({aid, bid}));
         b.process.kill();
-        QVERIFY(b.process.waitForFinished(3000));
-        QVERIFY(QFile::exists(QDir(directory.path()).filePath(bid + ".json")));
-        QTRY_VERIFY2_WITH_TIMEOUT(a.departed(bid, "timed-out"), a.diagnostics().constData(), 10000);
-        QTRY_VERIFY2_WITH_TIMEOUT(c.departed(bid, "timed-out"), c.diagnostics().constData(), 10000);
-        QTRY_COMPARE(a.peers(), QSet<QString>({cid}));
-        QVERIFY(b.start(directory.path(), "com.iisacc.dreamscapes", 10000));
-        QTRY_VERIFY2(!b.instance().isEmpty(), b.diagnostics().constData());
+        CTEST_CHECK(b.process.waitForFinished(3000));
+        CTEST_CHECK(QFile::exists(QDir(directory.path()).filePath(bid + ".json")));
+        CTEST_WAIT_MESSAGE_TIMEOUT(a.departed(bid, "timed-out"), a.diagnostics().constData(), 10000);
+        CTEST_WAIT_MESSAGE_TIMEOUT(c.departed(bid, "timed-out"), c.diagnostics().constData(), 10000);
+        CTEST_WAIT_COMPARE(a.peers(), QSet<QString>({cid}));
+        CTEST_CHECK(b.start(directory.path(), "com.iisacc.dreamscapes", 10000));
+        CTEST_WAIT_MESSAGE_DEFAULT(!b.instance().isEmpty(), b.diagnostics().constData());
         const auto restarted = b.instance();
-        QVERIFY(restarted != bid);
-        QTRY_COMPARE(a.peers(), QSet<QString>({restarted, cid}));
-        QTRY_COMPARE(b.peers(), QSet<QString>({aid, cid}));
-        QTRY_VERIFY_WITH_TIMEOUT(a.departed(restarted, "withdrawn"), 15000);
-        QTRY_VERIFY_WITH_TIMEOUT(c.departed(restarted, "withdrawn"), 15000);
-        QTRY_COMPARE_WITH_TIMEOUT(b.process.state(), QProcess::NotRunning, 15000);
-        QCOMPARE(b.process.exitCode(), 0);
-        QVERIFY(!QFile::exists(QDir(directory.path()).filePath(restarted + ".json")));
+        CTEST_CHECK(restarted != bid);
+        CTEST_WAIT_COMPARE(a.peers(), QSet<QString>({restarted, cid}));
+        CTEST_WAIT_COMPARE(b.peers(), QSet<QString>({aid, cid}));
+        CTEST_WAIT_VERIFY(a.departed(restarted, "withdrawn"), 15000);
+        CTEST_WAIT_VERIFY(c.departed(restarted, "withdrawn"), 15000);
+        CTEST_WAIT_COMPARE_TIMEOUT(b.process.state(), QProcess::NotRunning, 15000);
+        CTEST_COMPARE(b.process.exitCode(), 0);
+        CTEST_CHECK(!QFile::exists(QDir(directory.path()).filePath(restarted + ".json")));
     }
 
     void suspendedPeerExpiresAndReturns() {
 #ifdef Q_OS_UNIX
         QTemporaryDir directory((society_test::root(QString::fromUtf8(HELPER_TEST_DIRECTORY)) + QStringLiteral("/suspend-XXXXXX")));
         Helper observer;
-        QVERIFY(observer.start({"com.iisacc.observer", "Observer", "1"}, {directory.path(), 100, 5000}));
-        QSignalSpy appeared(&observer, &Helper::peerAppeared);
-        QSignalSpy departed(&observer, &Helper::peerDisappeared);
+        CTEST_CHECK(observer.start({"com.iisacc.observer", "Observer", "1"}, {directory.path(), 100, 5000}));
+        helper_ctest::SignalRecorder appeared(&observer, &Helper::peerAppeared);
+        helper_ctest::SignalRecorder departed(&observer, &Helper::peerDisappeared);
         Participant peer;
-        QVERIFY(peer.start(directory.path(), "com.iisacc.mobile"));
-        QTRY_COMPARE(observer.peers().size(), 1);
+        CTEST_CHECK(peer.start(directory.path(), "com.iisacc.mobile"));
+        CTEST_WAIT_COMPARE(observer.peers().size(), 1);
         const auto id = observer.peers().first().instanceId;
-        QCOMPARE(::kill(pid_t(peer.process.processId()), SIGSTOP), 0);
-        QTRY_VERIFY_WITH_TIMEOUT(observer.peers().isEmpty(), 10000);
-        QCOMPARE(qvariant_cast<DepartureReason>(departed.last()[1]), DepartureReason::TimedOut);
-        QCOMPARE(::kill(pid_t(peer.process.processId()), SIGCONT), 0);
-        QTRY_COMPARE(observer.peers().size(), 1);
-        QCOMPARE(observer.peers().first().instanceId, id);
-        QCOMPARE(appeared.size(), 2);
+        CTEST_COMPARE(::kill(pid_t(peer.process.processId()), SIGSTOP), 0);
+        CTEST_WAIT_VERIFY(observer.peers().isEmpty(), 10000);
+        CTEST_COMPARE(qvariant_cast<DepartureReason>(departed.last()[1]), DepartureReason::TimedOut);
+        CTEST_COMPARE(::kill(pid_t(peer.process.processId()), SIGCONT), 0);
+        CTEST_WAIT_COMPARE(observer.peers().size(), 1);
+        CTEST_COMPARE(observer.peers().first().instanceId, id);
+        CTEST_COMPARE(appeared.size(), 2);
 #else
-        QSKIP("POSIX suspend/resume test; cross-process crash/restart runs on all desktop platforms.");
+        helper_ctest::skip("POSIX suspend/resume test; cross-process crash/restart runs on all desktop platforms.");
 #endif
     }
 };
-QTEST_GUILESS_MAIN(ProcessObservationTests)
-#include "process_observation.moc"
+int main(int argc, char** argv)
+{
+    QCoreApplication application(argc, argv);
+    if (argc > 2) { std::cerr << "Expected a case name" << std::endl; return 1; }
+    helper_ctest::CTestRunner runner(argc == 2 ? argv[1] : "");
+    ProcessObservationTests tests;
+    runner.run("threeProcessesDiscoverCrashAndRestart", [&] { tests.threeProcessesDiscoverCrashAndRestart(); });
+    runner.run("suspendedPeerExpiresAndReturns", [&] { tests.suspendedPeerExpiresAndReturns(); });
+    return runner.result();
+}

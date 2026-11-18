@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/FILE_PROVIDER.md",
-    "sha256": "469bf264f58975bdfe0aed5a4ca2dcff205ce6e1538e5993f7dfee130808a15e",
-    "bytes": 866,
-    "line_count": 20,
+    "sha256": "ec99b042db54b4d97333aa5d3747eace59c0a1795ef5e64923d05a4f08e921a6",
+    "bytes": 1163,
+    "line_count": 22,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -128,6 +128,20 @@
           "checked": null
         }
       ]
+    },
+    {
+      "kind": "blank",
+      "raw": "\n",
+      "id": "b000010",
+      "start_line": 21,
+      "end_line": 21
+    },
+    {
+      "kind": "paragraph",
+      "raw": "로컬 전달 저장소는 iiFileProvider Native의 SQLite 연결, 바인딩된 문과 트랜잭션을 사용한다. 기존 WAL 및 스키마, 초기화 잠금, 파일 권한, 메시지 BLOB과 소유 스레드 이전 계약을 유지한다. 동기화 저널은 별도로 Qt Sql을 사용한다.\n",
+      "id": "b000011",
+      "start_line": 22,
+      "end_line": 22
     }
   ],
   "outline": [

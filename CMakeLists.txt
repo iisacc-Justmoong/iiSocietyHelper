@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(iiSocietyHelper VERSION 0.12.0 LANGUAGES CXX)
+include(./cmake/ModuleImports.cmake)
 if(EMSCRIPTEN)
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
 endif()
@@ -76,6 +77,18 @@ file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/include/iiSocietyHelperNative/
 if(WIN32)
     target_link_libraries(iiSocietyHelperResidentNative PRIVATE bcrypt advapi32)
 endif()
+# The standalone resident client is available in both build profiles.
+install(TARGETS iiSocietyHelperResidentNative EXPORT iiSocietyHelperNativeTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES src/Client/ResidentNative.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelperNative)
+install(EXPORT iiSocietyHelperNativeTargets NAMESPACE iiSocietyHelperNative:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
+configure_package_config_file(cmake/iiSocietyHelperNativeConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
 set(_helper_root_headers
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Core/Export.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Account/AccountSession.h"
@@ -162,7 +175,7 @@ endif()
 if(NOT iiSocietyContainer_HAS_APPLICATION_STORAGE)
     message(FATAL_ERROR "Install iiSocietyContainer with application-owned shared logical storage before building Helper")
 endif()
-set(IISOCIETYHELPER_CANVAS_VERSION "0.32.0" CACHE STRING "Exact Canvas ABI shared by this Helper profile and its consumers")
+set(IISOCIETYHELPER_CANVAS_VERSION "0.35.39" CACHE STRING "Exact Canvas ABI shared by this Helper profile and its consumers")
 find_package(iiSharedCanvas ${IISOCIETYHELPER_CANVAS_VERSION} EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
 find_package(iiAccountManager 0.2.8 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiAccountManager")
 iisociety_check_provider_runtime_collision(iiWebServer::iiWebServer
@@ -281,20 +294,26 @@ endif()
 
 if(BUILD_TESTING)
     add_executable(iiSocietyHelper_application_storage_tests tests/application_storage.cpp)
-    target_link_libraries(iiSocietyHelper_application_storage_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+    target_link_libraries(iiSocietyHelper_application_storage_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
     target_compile_definitions(iiSocietyHelper_application_storage_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
     iisociety_fixture_test(iiSocietyHelper.application_storage iiSocietyHelper_application_storage_tests)
-    set_tests_properties(iiSocietyHelper.application_storage PROPERTIES TIMEOUT 240)
+    iisociety_fixture_test(iiSocietyHelper.application_storage_offline iiSocietyHelper_application_storage_tests --offline)
+    add_test(NAME iiSocietyHelper.application_storage_ctest_contract COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_application_storage.py")
+    set_tests_properties(iiSocietyHelper.application_storage iiSocietyHelper.application_storage_offline PROPERTIES TIMEOUT 240)
     add_executable(iiSocietyHelper_managed_storage_tests tests/managed_storage.cpp)
     target_link_libraries(iiSocietyHelper_managed_storage_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::iiFileProvider)
     target_compile_definitions(iiSocietyHelper_managed_storage_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
     iisociety_fixture_test(iiSocietyHelper.managed_storage iiSocietyHelper_managed_storage_tests)
     set_tests_properties(iiSocietyHelper.managed_storage PROPERTIES TIMEOUT 120)
-    find_package(Qt6 6.8.3 EXACT REQUIRED COMPONENTS Test)
+    add_test(NAME iiSocietyHelper.ctest_boundary COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_boundary.py")
     add_executable(iiSocietyHelper_presence_worker_tests tests/presence_worker.cpp)
     target_compile_features(iiSocietyHelper_presence_worker_tests PRIVATE cxx_std_23)
-    target_link_libraries(iiSocietyHelper_presence_worker_tests PRIVATE Qt6::Test Threads::Threads)
+    target_link_libraries(iiSocietyHelper_presence_worker_tests PRIVATE Qt6::Core Threads::Threads)
     iisociety_fixture_test(iiSocietyHelper.presence_worker iiSocietyHelper_presence_worker_tests)
+    add_test(NAME iiSocietyHelper.presence_worker_ctest_contract
+        COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_presence_worker.py")
     add_executable(iiSocietyHelper_merged_api_tests tests/merged_api.cpp)
     target_link_libraries(iiSocietyHelper_merged_api_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
     target_compile_definitions(iiSocietyHelper_merged_api_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
@@ -307,19 +326,32 @@ if(BUILD_TESTING)
             iisociety_fixture_test(iiSocietyHelper.resident_native iiSocietyHelper_resident_native_tests)
         endif()
         add_executable(iiSocietyHelper_resident_client_tests tests/client/resident_client.cpp src/Client/LocalFrame.cpp)
-        target_link_libraries(iiSocietyHelper_resident_client_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+        target_link_libraries(iiSocietyHelper_resident_client_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
         iisociety_fixture_test(iiSocietyHelper.resident_client iiSocietyHelper_resident_client_tests)
+        add_executable(iiSocietyHelperSignalRecorderTests tests/signal_recorder_tests.cpp)
+        target_link_libraries(iiSocietyHelperSignalRecorderTests PRIVATE Qt6::Core)
+        target_compile_features(iiSocietyHelperSignalRecorderTests PRIVATE cxx_std_23)
+        set_target_properties(iiSocietyHelperSignalRecorderTests PROPERTIES AUTOMOC ON)
+        add_test(NAME iiSocietyHelper.signal_recorder COMMAND iiSocietyHelperSignalRecorderTests)
+        add_test(NAME iiSocietyHelper.local_transport_ctest_contract COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_local_transport.py")
         add_test(NAME iiSocietyHelper.resident_python COMMAND ${_helper_test_runner}
             "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/client/test_resident_client.py")
         add_executable(iiSocietyHelper_local_frame_tests tests/client/local_frame.cpp src/Client/LocalFrame.cpp src/Client/LocalFrame.h)
-        target_link_libraries(iiSocietyHelper_local_frame_tests PRIVATE Qt6::Core Qt6::Test)
+        target_link_libraries(iiSocietyHelper_local_frame_tests PRIVATE Qt6::Core)
         iisociety_fixture_test(iiSocietyHelper.local_frame iiSocietyHelper_local_frame_tests)
+        add_test(NAME iiSocietyHelper.local_frame_ctest_contract
+            COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_local_frame.py")
         add_executable(iiSocietyHelper_session_tests tests/client/client.cpp src/Client/LocalFrame.cpp)
-        target_link_libraries(iiSocietyHelper_session_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+        target_link_libraries(iiSocietyHelper_session_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
         target_compile_definitions(iiSocietyHelper_session_tests PRIVATE
             SOCIETY_ACCOUNT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/tests/client/account.json"
             CLIENT_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
         iisociety_fixture_test(iiSocietyHelper.session iiSocietyHelper_session_tests)
+        iisociety_fixture_test(iiSocietyHelper.session.offline iiSocietyHelper_session_tests stateRemovalReportsLegacyFailure)
+        set_tests_properties(iiSocietyHelper.session.offline PROPERTIES TIMEOUT 30 ENVIRONMENT "SOCIETY_DISABLE_SESSION_RESTORE=1")
+        add_test(NAME iiSocietyHelper.session_ctest_contract
+            COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_session.py")
         add_test(NAME iiSocietyHelper.automatic_pairing_idle COMMAND iiSocietyHelper_session_tests automaticPairingIdleDoesNotPoll)
         set_tests_properties(iiSocietyHelper.automatic_pairing_idle PROPERTIES TIMEOUT 30)
         add_test(NAME iiSocietyHelper.automatic_pairing_retry COMMAND iiSocietyHelper_session_tests automaticPairingRetriesAtDeadline)
@@ -328,23 +360,44 @@ if(BUILD_TESTING)
         if(APPLE AND NOT IOS)
             # Exercise the private native Keychain adapter without exporting it.
             add_executable(iiSocietyHelper_apple_state_tests tests/client/apple_state.mm src/Storage/AppleStateLocation.mm)
-            target_link_libraries(iiSocietyHelper_apple_state_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Concurrent "-framework Security")
+            target_link_libraries(iiSocietyHelper_apple_state_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Concurrent "-framework Security")
+            target_compile_definitions(iiSocietyHelper_apple_state_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
             set_target_properties(iiSocietyHelper_apple_state_tests PROPERTIES OBJCXX_STANDARD 23)
             iisociety_fixture_test(iiSocietyHelper.apple_state iiSocietyHelper_apple_state_tests)
+            add_test(NAME iiSocietyHelper.apple_state_ctest_contract COMMAND "${Python3_EXECUTABLE}" -B
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_apple_state.py")
         endif()
     endif()
     add_executable(iiSocietyHelper_delivery_tests tests/delivery.cpp)
-    target_link_libraries(iiSocietyHelper_delivery_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+    target_link_libraries(iiSocietyHelper_delivery_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
     target_compile_definitions(iiSocietyHelper_delivery_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
     iisociety_fixture_test(iiSocietyHelper.delivery iiSocietyHelper_delivery_tests)
+    iisociety_fixture_test(iiSocietyHelper.delivery_legacy_interop iiSocietyHelper_delivery_tests legacySqliteAndNativeDeliveryRemainInteroperable)
+    iisociety_fixture_test(iiSocietyHelper.delivery_ready_lock iiSocietyHelper_delivery_tests initializedStoreDoesNotWaitForAnotherInitializationLease)
+    iisociety_fixture_test(iiSocietyHelper.delivery_new_lock iiSocietyHelper_delivery_tests firstSchemaCreationStillRequiresItsInitializationLease)
+    set_tests_properties(iiSocietyHelper.delivery_legacy_interop iiSocietyHelper.delivery_ready_lock iiSocietyHelper.delivery_new_lock PROPERTIES TIMEOUT 120)
+    add_test(NAME iiSocietyHelper.delivery_ctest_contract
+        COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_delivery.py")
     set_tests_properties(iiSocietyHelper.delivery PROPERTIES TIMEOUT 30)
+    add_executable(iiSocietyHelper_delivery_native_database_tests tests/delivery_native_database.cpp)
+    target_compile_features(iiSocietyHelper_delivery_native_database_tests PRIVATE cxx_std_23)
+    target_link_libraries(iiSocietyHelper_delivery_native_database_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::Native)
+    target_compile_definitions(iiSocietyHelper_delivery_native_database_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
+    iisociety_fixture_test(iiSocietyHelper.delivery_native_database iiSocietyHelper_delivery_native_database_tests)
+    set_tests_properties(iiSocietyHelper.delivery_native_database PROPERTIES TIMEOUT 120)
+    add_test(NAME iiSocietyHelper.native_delivery_boundary COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_delivery_boundary.py")
     add_executable(iiSocietyHelper_observation_tests tests/observation.cpp)
-    target_link_libraries(iiSocietyHelper_observation_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::Native Qt6::Test)
+    target_link_libraries(iiSocietyHelper_observation_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiFileProvider::Native)
     target_compile_definitions(iiSocietyHelper_observation_tests PRIVATE
         HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
-    iisociety_fixture_test(iiSocietyHelper.observation iiSocietyHelper_observation_tests
-        -o "${_helper_test_output_root}/observation-qt.txt,txt")
-    set_tests_properties(iiSocietyHelper.observation PROPERTIES TIMEOUT 90)
+    iisociety_fixture_test(iiSocietyHelper.observation iiSocietyHelper_observation_tests)
+    iisociety_fixture_test(iiSocietyHelper.observation.offline iiSocietyHelper_observation_tests asynchronousLifecycleKeepsOwnerResponsive)
+    iisociety_fixture_test(iiSocietyHelper.observation.delivery_thread iiSocietyHelper_observation_tests asynchronousStopPreservesSynchronousDeliveryAndAllowsRestart)
+    set_tests_properties(iiSocietyHelper.observation.delivery_thread PROPERTIES TIMEOUT 120)
+    set_tests_properties(iiSocietyHelper.observation iiSocietyHelper.observation.offline PROPERTIES TIMEOUT 90)
+    add_test(NAME iiSocietyHelper.observation_ctest_contract
+        COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_observation.py")
     if(APPLE AND NOT CMAKE_CROSSCOMPILING)
         execute_process(COMMAND xcrun --sdk macosx --show-sdk-path
             OUTPUT_VARIABLE helper_macos_sdk OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -366,40 +419,52 @@ if(BUILD_TESTING)
         add_executable(iiSocietyHelper_object_peer tests/object_peer.cpp tests/ObjectTestTypes.h)
         target_link_libraries(iiSocietyHelper_object_peer PRIVATE iiSocietyHelper::iiSocietyHelper)
         add_executable(iiSocietyHelper_object_tests tests/objects.cpp tests/ObjectTestTypes.h)
-        target_link_libraries(iiSocietyHelper_object_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Qml)
+        target_link_libraries(iiSocietyHelper_object_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Qml)
         target_compile_definitions(iiSocietyHelper_object_tests PRIVATE
             HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources"
             HELPER_OBJECT_PEER="$<TARGET_FILE:iiSocietyHelper_object_peer>")
         add_dependencies(iiSocietyHelper_object_tests iiSocietyHelper_object_peer)
         iisociety_fixture_test(iiSocietyHelper.objects iiSocietyHelper_object_tests)
+        add_test(NAME iiSocietyHelper.objects_ctest_contract COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_objects.py")
         set_tests_properties(iiSocietyHelper.objects PROPERTIES TIMEOUT 30)
         add_executable(iiSocietyHelper_account_tests tests/account.cpp)
-        target_link_libraries(iiSocietyHelper_account_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test Qt6::Qml)
+        target_link_libraries(iiSocietyHelper_account_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Qml)
+        add_executable(iiSocietyHelperQtSignalCounterTests tests/qt_signal_counter_tests.cpp)
+        target_compile_features(iiSocietyHelperQtSignalCounterTests PRIVATE cxx_std_23)
+        target_link_libraries(iiSocietyHelperQtSignalCounterTests PRIVATE Qt6::Core)
+        add_test(NAME iiSocietyHelper.qt_signal_counter COMMAND iiSocietyHelperQtSignalCounterTests)
+        add_test(NAME iiSocietyHelper.account_ctest_contract COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_account.py")
         target_compile_definitions(iiSocietyHelper_account_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
         iisociety_fixture_test(iiSocietyHelper.account iiSocietyHelper_account_tests)
         set_tests_properties(iiSocietyHelper.account PROPERTIES TIMEOUT 30)
         add_executable(iiSocietyHelper_filesystem_peer tests/filesystem_peer.cpp)
         target_link_libraries(iiSocietyHelper_filesystem_peer PRIVATE iiSocietyHelper::iiSocietyHelper)
         add_executable(iiSocietyHelper_filesystem_tests tests/filesystem.cpp)
-        target_link_libraries(iiSocietyHelper_filesystem_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyHelper::Monitoring iiFileProvider::iiFileProvider iiFileProvider::Native Qt6::Test Qt6::Qml)
+        target_link_libraries(iiSocietyHelper_filesystem_tests PRIVATE iiSocietyHelper::iiSocietyHelper iiSocietyHelper::Monitoring iiFileProvider::iiFileProvider iiFileProvider::Native Qt6::Qml)
         target_compile_definitions(iiSocietyHelper_filesystem_tests PRIVATE
             HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources"
             HELPER_FILESYSTEM_PEER="$<TARGET_FILE:iiSocietyHelper_filesystem_peer>"
             HELPER_DIAGNOSTIC_EXECUTABLE="$<TARGET_FILE:ii-society-helper>")
         add_dependencies(iiSocietyHelper_filesystem_tests iiSocietyHelper_filesystem_peer ii-society-helper)
         iisociety_fixture_test(iiSocietyHelper.filesystem iiSocietyHelper_filesystem_tests)
+        iisociety_fixture_test(iiSocietyHelper.filesystem.offline iiSocietyHelper_filesystem_tests deferredStorageDoesNotDiscoverTheDefaultDrive)
+        add_test(NAME iiSocietyHelper.filesystem_ctest_contract
+            COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_filesystem.py")
         # Includes durable original capture and cancellation/drain on teardown.
         # Keep the individual UI dispatch and selection deadlines unchanged.
-        set_tests_properties(iiSocietyHelper.filesystem PROPERTIES TIMEOUT 300)
+        set_tests_properties(iiSocietyHelper.filesystem iiSocietyHelper.filesystem.offline PROPERTIES TIMEOUT 300)
         add_executable(iiSocietyHelper_process_tests tests/process_observation.cpp)
-        target_link_libraries(iiSocietyHelper_process_tests PRIVATE iiSocietyHelper::iiSocietyHelper Qt6::Test)
+        target_link_libraries(iiSocietyHelper_process_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
         target_compile_definitions(iiSocietyHelper_process_tests PRIVATE
             HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources"
             HELPER_OBSERVER_EXECUTABLE="$<TARGET_FILE:ii-society-helper>")
         add_dependencies(iiSocietyHelper_process_tests ii-society-helper)
-        iisociety_fixture_test(iiSocietyHelper.process_observation iiSocietyHelper_process_tests
-            -o "${_helper_test_output_root}/process-observation-qt.txt,txt")
-        set_tests_properties(iiSocietyHelper.process_observation PROPERTIES TIMEOUT 90)
+        iisociety_fixture_test(iiSocietyHelper.process_observation iiSocietyHelper_process_tests)
+        set_tests_properties(iiSocietyHelper.process_observation PROPERTIES TIMEOUT 90 SKIP_RETURN_CODE 77)
+        add_test(NAME iiSocietyHelper.process_observation_ctest_contract COMMAND "${Python3_EXECUTABLE}" -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ctest_process_observation.py")
     endif()
     add_executable(iiSocietyHelper_hello_world tests/hello_world.cpp)
     target_link_libraries(iiSocietyHelper_hello_world PRIVATE iiSocietyHelper::iiSocietyHelper)
@@ -413,17 +478,6 @@ install(TARGETS iiSocietyHelper EXPORT iiSocietyHelperTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES src/Core/iiSocietyHelper.h src/Delivery/DeliveryStore.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(FILES src/Client/resident_client.py DESTINATION ${CMAKE_INSTALL_DATADIR}/iiSocietyHelper/python)
-install(TARGETS iiSocietyHelperResidentNative EXPORT iiSocietyHelperNativeTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES src/Client/ResidentNative.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelperNative)
-install(EXPORT iiSocietyHelperNativeTargets NAMESPACE iiSocietyHelperNative:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
-configure_package_config_file(cmake/iiSocietyHelperNativeConfig.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
-write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
 install(FILES ${_helper_root_headers} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper)
 install(DIRECTORY src/Sync src/Monitoring src/Generation DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelper FILES_MATCHING PATTERN "*.h"
     PATTERN "ConfinedFiles.h" EXCLUDE PATTERN "NamespaceJournal.h" EXCLUDE

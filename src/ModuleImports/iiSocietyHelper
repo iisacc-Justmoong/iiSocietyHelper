@@ -1,0 +1,54 @@
+#pragma once
+
+// C++ public entry for iiSocietyHelper; the linked components select the API.
+
+#if defined(IISDK_IMPORT_IISOCIETYHELPER_CORE)
+#include <iiSocietyHelper.h>
+#include <DeliveryStore.h>
+#include <iiSocietyHelper/Export.h>
+#include <iiSocietyHelper/AccountSession.h>
+#include <iiSocietyHelper/Client.h>
+#include <iiSocietyHelper/LocalClient.h>
+#include <iiSocietyHelper/ResidentClient.h>
+#include <iiSocietyHelper/LocalService.h>
+#include <iiSocietyHelper/AutomaticPairing.h>
+#include <iiSocietyHelper/DeviceInfo.h>
+#include <iiSocietyHelper/DiscoveryService.h>
+#include <iiSocietyHelper/NearbyDevices.h>
+#include <iiSocietyHelper/GroupSessionStore.h>
+#include <iiSocietyHelper/PairingCredentials.h>
+#include <iiSocietyHelper/StateCrypto.h>
+#include <iiSocietyHelper/FileDownload.h>
+#include <iiSocietyHelper/FileHost.h>
+#include <iiSocietyHelper/MediaExport.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISOCIETYHELPER_GENERATION)
+#include <iiSocietyHelper/Generation/Export.h>
+#include <iiSocietyHelper/Generation/Host.h>
+#include <iiSocietyHelper/Generation/Remote.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISOCIETYHELPER_MONITORING)
+#include <iiSocietyHelper/Monitoring/Export.h>
+#include <iiSocietyHelper/Monitoring/Monitor.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISOCIETYHELPER_NATIVE)
+#include <iiSocietyHelperNative/ResidentNative.h>
+#endif
+
+#if defined(IISDK_IMPORT_IISOCIETYHELPER_SYNC)
+#include <iiSocietyHelper/Sync/BleDiscovery.h>
+#include <iiSocietyHelper/Sync/WatchPaths.h>
+#include <iiSocietyHelper/Sync/NearbyBootstrap.h>
+#include <iiSocietyHelper/Sync/Synchronizer.h>
+#include <iiSocietyHelper/Sync/Status.h>
+#include <iiSocietyHelper/Sync/Sync.h>
+#include <iiSocietyHelper/Sync/ObjectProvider.h>
+#include <iiSocietyHelper/Sync/ConfinedFiles.h>
+#include <iiSocietyHelper/Sync/NamespaceJournal.h>
+#include <iiSocietyHelper/Sync/Controller.h>
+#include <iiSocietyHelper/Sync/Replica.h>
+#include <iiSocietyHelper/Sync/RemoteFiles.h>
+#endif
