@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "6d969e55a136bcdea4f25930b043c1a735bc9d53d5cb285be9d56db61b3be813",
-    "bytes": 59939,
+    "sha256": "1b6c3b032bad392627671a6a870757c39d5b698ce380d82d4f023af8d6e3ae41",
+    "bytes": 59969,
     "line_count": 642,
     "encoding": "utf-8",
     "language": "ko"
@@ -858,7 +858,7 @@
       "kind": "paragraph",
       "start_line": 321,
       "end_line": 321,
-      "raw": "Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing MIT iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/Files/FileSystem.cpp`, and the public API is at `src/Core/iiSocietyHelper.h`.\n"
+      "raw": "Dependency flows from Helper to Container to Qt Core. Discovery, UUID, area, and path checks are managed within the same Workspace, reusing Apache-2.0-licensed iiSocietyContainer, and no additional servers, drivers, or external libraries are introduced. General I/O uses existing [QFile](https://doc.qt.io/qt-6.8/qfile.html), [, QSaveFile, and](https://doc.qt.io/qt-6.8/qsavefile.html), while Qt license follows the installed version. Implementation is at the root `src/Files/FileSystem.cpp`, and the public API is at `src/Core/iiSocietyHelper.h`.\n"
     },
     {
       "id": "b000110",
@@ -1839,7 +1839,7 @@
       "kind": "paragraph",
       "start_line": 554,
       "end_line": 554,
-      "raw": "SPDX-License-Identifier: MIT\n"
+      "raw": "SPDX-License-Identifier: Apache-2.0\n"
     },
     {
       "id": "b000234",
@@ -1853,7 +1853,7 @@
       "kind": "paragraph",
       "start_line": 556,
       "end_line": 556,
-      "raw": "The self-written code and documentation of iiSocietyHelper are under the MIT License. The full terms follow [LICENSE](LICENSE). The licenses for external components such as Qt and Apple SDK remain unchanged.\n"
+      "raw": "The self-written code and documentation of iiSocietyHelper are under the Apache License 2.0. The full terms follow [LICENSE](LICENSE). The licenses for external components such as Qt and Apple SDK remain unchanged.\n"
     },
     {
       "id": "b000236",
