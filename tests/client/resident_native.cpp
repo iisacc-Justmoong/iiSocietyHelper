@@ -64,5 +64,28 @@ int main() {
     auto read=std::async(std::launch::async,[&] { entered.set_value(); return waiting.receiveJson(); });
     enteredFuture.get(); waiting.close();
     assert(read.wait_for(std::chrono::seconds(2))==std::future_status::ready); assert(!read.get());
-    waitingDaemon.join(); ::close(server); fs::remove(path); fs::remove(root);
+    waitingDaemon.join();
+
+    // A partial frame cannot keep a bounded read alive indefinitely. Closing
+    // that connection also prevents the tail from becoming a new header.
+    std::jthread partialDaemon([&] {
+        const int peer=::accept(server,nullptr,nullptr); assert(peer>=0);
+        const unsigned char partial[]{0,0,0,5,'{'};
+        assert(::send(peer,partial,sizeof(partial),0)==sizeof(partial));
+        char byte{}; assert(::recv(peer,&byte,1,0)==0); ::close(peer);
+    });
+    using namespace std::chrono_literals;
+    ResidentNative bounded;
+    const auto begin=std::chrono::steady_clock::now();
+    const iiSocietyHelper::ResidentWait wait{.deadline=begin+150ms};
+    assert(bounded.connect(root,wait));
+    const auto timeout=bounded.receiveJson(wait);
+    assert(!timeout && timeout.error().find("timed out")!=std::string::npos);
+    assert(std::chrono::steady_clock::now()-begin<2s);
+    partialDaemon.join();
+
+    // An already retired request must not open a fresh daemon connection.
+    const iiSocietyHelper::ResidentWait canceled{.canceled=[] {return true;}};
+    assert(!bounded.connect(root,canceled));
+    ::close(server); fs::remove(path); fs::remove(root);
 }

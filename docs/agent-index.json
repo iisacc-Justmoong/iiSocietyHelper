@@ -21,7 +21,7 @@
       "document_id": "urn:iisacc:document:6e0d8fa2d2288ac54aa36e60db96988d4439d2796a75fbdc849da6fe57aa9722",
       "source": "README.md",
       "agent_json": "docs/entrypoints/README.agent.json",
-      "source_sha256": "6d969e55a136bcdea4f25930b043c1a735bc9d53d5cb285be9d56db61b3be813",
+      "source_sha256": "7f468b5a6f189e616e17c47f4e75d44737d911d1c0edb3afc7096e3a0821d223",
       "role": "overview"
     },
     {
@@ -49,14 +49,14 @@
       "document_id": "urn:iisacc:document:b5f90c021dba0127d74664caff40e35ef531f16ba07a8a9c72954e943d355b8e",
       "source": "docs/CanvasProfiles.md",
       "agent_json": "docs/CanvasProfiles.agent.json",
-      "source_sha256": "5ff920703bb865f11160c38efbe1f7fd1fd7b15278eeeb807f28168833df1a92",
+      "source_sha256": "cc298e2df4a39d0080ff8e9f621e1f2686b294aea30dc799c15a25e6914e4a96",
       "role": "guide"
     },
     {
       "document_id": "urn:iisacc:document:b20907bbaa7ee130d80d896ece54ef5aa99f8dc9cfd6358bb7e3891fa9694b60",
       "source": "docs/Client.md",
       "agent_json": "docs/Client.agent.json",
-      "source_sha256": "e98265cb076ff23900da79daeef8fa506699430d4a60996e0aec18b9467a071c",
+      "source_sha256": "d345226e1aa3d82239fd65f9bbcec331ec028f8c6d88045b1bbec15758575a2a",
       "role": "guide"
     },
     {

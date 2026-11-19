@@ -30,6 +30,10 @@ function(_iisdk_iisocietyhelper_module_imports)
     if(_publish)
         install(FILES "${_root}/iiSocietyHelper" DESTINATION "${_includedir}/iisdk")
     endif()
+    if(TARGET iiSocietyHelperResidentNative)
+        # A component-only transport install still supplies the module import.
+        install(FILES "${_root}/iiSocietyHelper" DESTINATION "${_includedir}/iisdk" COMPONENT ResidentClient)
+    endif()
 endfunction()
 
 cmake_language(DEFER CALL _iisdk_iisocietyhelper_module_imports)

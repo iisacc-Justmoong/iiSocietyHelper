@@ -1,9 +1,13 @@
 #include "ResidentNative.h"
+#include <algorithm>
 #include <array>
 #include <atomic>
+#include <climits>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <utility>
 #if !defined(__EMSCRIPTEN__) && (defined(__unix__) || defined(__APPLE__))
 #define IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET 1
 #endif
@@ -20,6 +24,7 @@
 #elif defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
 #include <cerrno>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -29,7 +34,26 @@
 namespace iiSocietyHelper {
 namespace {
 constexpr std::size_t maxFrame=512*1024;
+constexpr std::size_t maxReply=1024*1024; // The Society backend's frame limit.
 std::atomic<unsigned long long> sequence{0};
+
+// Distinguish application cancellation, deadline expiry and connection errors.
+std::string interruption(const ResidentWait &wait) {
+    if (wait.canceled && wait.canceled()) return "The Society daemon request was canceled.";
+    if (std::chrono::steady_clock::now() >= wait.deadline) return "The Society daemon request timed out.";
+    return {};
+}
+
+// Sample the cancellation predicate while idle without renewing the budget
+// when the peer sends only part of a frame.
+int waitMilliseconds(const ResidentWait &wait) {
+    using namespace std::chrono;
+    if (wait.deadline == steady_clock::time_point::max()) return wait.canceled ? 50 : -1;
+    const auto now = steady_clock::now();
+    if (now >= wait.deadline) return 0;
+    const auto remaining = ceil<milliseconds>(wait.deadline - now).count();
+    return static_cast<int>(std::min<std::int64_t>(remaining, wait.canceled ? 50 : INT_MAX));
+}
 std::string id() {
 #if defined(_WIN32)
     const auto process=GetCurrentProcessId();
@@ -106,6 +130,53 @@ bool sameWindowsUser(HANDLE pipe) {
     return !a.empty() && !b.empty() && EqualSid(reinterpret_cast<const TOKEN_USER *>(a.data())->User.Sid,
                                                 reinterpret_cast<const TOKEN_USER *>(b.data())->User.Sid);
 }
+
+// Keep the overlapped pipe handle alive while a transfer reaps its result.
+// Serialize starting I/O with close so no transfer can start after cancellation.
+struct Pipe final {
+    explicit Pipe(HANDLE value) : handle(value) {}
+    ~Pipe() { CloseHandle(handle); }
+    HANDLE handle;
+    std::mutex admission;
+    bool closed = false;
+};
+
+// Each overlapped transfer owns its event until the system completes or
+// acknowledges cancellation. Never leave a pending transfer using a buffer.
+std::expected<DWORD,std::string> pipeTransfer(Pipe &pipe, char *readBuffer,
+    const char *writeBuffer, DWORD size, const ResidentWait &wait) {
+    OVERLAPPED operation{};
+    operation.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (!operation.hEvent) return std::unexpected("Cannot create a Society daemon pipe event.");
+    struct Event { HANDLE handle; ~Event() { CloseHandle(handle); } } event{operation.hEvent};
+    if (auto stopped = interruption(wait); !stopped.empty()) return std::unexpected(std::move(stopped));
+    const auto socket=pipe.handle;
+    DWORD bytes = 0;
+    {
+        std::lock_guard lock(pipe.admission);
+        if (pipe.closed) return std::unexpected("The Society daemon pipe disconnected.");
+        const auto ok = readBuffer ? ReadFile(socket, readBuffer, size, nullptr, &operation)
+                                   : WriteFile(socket, writeBuffer, size, nullptr, &operation);
+        if (ok && GetOverlappedResult(socket, &operation, &bytes, FALSE)) return bytes;
+        if (GetLastError() != ERROR_IO_PENDING) return std::unexpected("The Society daemon pipe disconnected.");
+    }
+    for (;;) {
+        auto stopped = interruption(wait);
+        if (stopped.empty()) {
+            const auto delay = waitMilliseconds(wait);
+            const auto status = WaitForSingleObject(operation.hEvent, delay < 0 ? INFINITE : static_cast<DWORD>(delay));
+            if (status == WAIT_TIMEOUT) continue;
+            if (status == WAIT_OBJECT_0) {
+                if (GetOverlappedResult(socket, &operation, &bytes, FALSE)) return bytes;
+                return std::unexpected("The Society daemon pipe disconnected.");
+            }
+            stopped = "Cannot wait for the Society daemon pipe.";
+        }
+        CancelIoEx(socket, &operation);
+        (void)GetOverlappedResult(socket, &operation, &bytes, TRUE);
+        return std::unexpected(std::move(stopped));
+    }
+}
 #elif defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
 bool trusted(const std::filesystem::path &dir,const std::filesystem::path &path) {
     struct stat a{},b{};
@@ -122,13 +193,26 @@ bool sameUnixUser(int socket) {
     (void)socket; return false;
 #endif
 }
+
+// The socket is nonblocking. Poll covers connect, reads and writes with the
+// same absolute deadline, including under backpressure.
+std::expected<void,std::string> waitSocket(int socket, short events, const ResidentWait &wait) {
+    for (;;) {
+        if (auto stopped = interruption(wait); !stopped.empty()) return std::unexpected(std::move(stopped));
+        pollfd item{socket, events, 0};
+        const int result = ::poll(&item, 1, waitMilliseconds(wait));
+        if (result > 0 && !(item.revents & POLLNVAL)) return {};
+        if (result == 0 || (result < 0 && errno == EINTR)) continue;
+        return std::unexpected("Cannot wait for the Society daemon socket.");
+    }
+}
 #endif
 }
 
 class ResidentNative::Impl {
 public:
 #if defined(_WIN32)
-    std::atomic<HANDLE> socket{nullptr};
+    std::atomic<std::shared_ptr<Pipe>> socket;
 #else
     std::atomic<int> socket{-1};
 #endif
@@ -145,35 +229,56 @@ public:
 ResidentNative::ResidentNative() : d(std::make_unique<Impl>()) {}
 ResidentNative::~ResidentNative() { close(); }
 std::expected<void,std::string> ResidentNative::connect(std::filesystem::path directory) {
-    close(); if (directory.empty()) directory=defaultDirectory();
+    return connect(std::move(directory), {});
+}
+std::expected<void,std::string> ResidentNative::connect(std::filesystem::path directory, const ResidentWait &wait) {
+    if (auto stopped = interruption(wait); !stopped.empty()) return std::unexpected(std::move(stopped));
+    close();
+    if (directory.empty()) directory=defaultDirectory();
     if (directory.empty() || !directory.is_absolute()) return std::unexpected("The Society broker directory must be absolute.");
 #if defined(_WIN32)
     const auto name=pipeName(directory); if (!name) return std::unexpected(name.error());
-    const auto handle=CreateFileW(name->c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,0,nullptr);
+    const auto handle=CreateFileW(name->c_str(),GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,nullptr);
     if (handle==INVALID_HANDLE_VALUE) return std::unexpected("The Society daemon pipe is unavailable.");
-    if (!sameWindowsUser(handle)) { CloseHandle(handle); return std::unexpected("The Society daemon peer is untrusted."); }
-    d->socket.store(handle); return {};
+    struct Handle { HANDLE value; ~Handle() { if (value!=INVALID_HANDLE_VALUE) CloseHandle(value); } } guard{handle};
+    if (!sameWindowsUser(handle)) return std::unexpected("The Society daemon peer is untrusted.");
+    auto pipe=std::make_shared<Pipe>(handle);
+    guard.value=INVALID_HANDLE_VALUE;
+    d->socket.store(std::move(pipe));
+    return {};
 #elif defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
     const auto path=directory/"backend.sock"; const auto native=path.string();
     if (!trusted(directory,path)) return std::unexpected("The Society daemon endpoint is unavailable or untrusted.");
     sockaddr_un address{}; address.sun_family=AF_UNIX;
     if (native.size()>=sizeof(address.sun_path)) return std::unexpected("The Society daemon socket path is too long.");
     std::memcpy(address.sun_path,native.c_str(),native.size()+1);
-    const int socket=::socket(AF_UNIX,SOCK_STREAM,0);
-    if (socket<0) return std::unexpected("Cannot create the Society daemon socket.");
-    (void)::fcntl(socket,F_SETFD,FD_CLOEXEC);
+    struct Socket { int fd; ~Socket() { if (fd >= 0) ::close(fd); } } opened{::socket(AF_UNIX,SOCK_STREAM,0)};
+    const int socket=opened.fd;
+    if (socket<0 || ::fcntl(socket,F_SETFD,FD_CLOEXEC)<0 || ::fcntl(socket,F_SETFL,O_NONBLOCK)<0)
+        return std::unexpected("Cannot create the Society daemon socket.");
 #ifdef SO_NOSIGPIPE
     int yes=1; (void)::setsockopt(socket,SOL_SOCKET,SO_NOSIGPIPE,&yes,sizeof(yes));
 #endif
-    if (::connect(socket,reinterpret_cast<sockaddr *>(&address),sizeof(address)) || !trusted(directory,path) || !sameUnixUser(socket)) {
-        ::close(socket); return std::unexpected("The Society daemon connection or peer verification failed.");
+    if (::connect(socket,reinterpret_cast<sockaddr *>(&address),sizeof(address))) {
+        if (errno!=EINPROGRESS && errno!=EINTR)
+            return std::unexpected("The Society daemon connection failed.");
+        if (auto ready=waitSocket(socket,POLLOUT,wait); !ready) return ready;
+        int status=0; socklen_t length=sizeof(status);
+        if (::getsockopt(socket,SOL_SOCKET,SO_ERROR,&status,&length) || status)
+            return std::unexpected("The Society daemon connection failed.");
     }
-    { std::lock_guard lock(d->socketMutex); d->socket.store(socket); } return {};
+    if (!trusted(directory,path) || !sameUnixUser(socket))
+        return std::unexpected("The Society daemon peer could not be verified.");
+    { std::lock_guard lock(d->socketMutex); d->socket.store(std::exchange(opened.fd,-1)); }
+    return {};
 #else
     return std::unexpected("The local Society daemon transport is unavailable on this platform.");
 #endif
 }
 std::expected<void,std::string> ResidentNative::sendJson(std::string_view object) {
+    return sendJson(object, {});
+}
+std::expected<void,std::string> ResidentNative::sendJson(std::string_view object, const ResidentWait &wait) {
     if (object.empty() || object.size()>maxFrame) return std::unexpected("The Society request frame is invalid or too large.");
     std::lock_guard lock(d->writeMutex);
 #if defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
@@ -184,11 +289,14 @@ std::expected<void,std::string> ResidentNative::sendJson(std::string_view object
     data[0]=char(n>>24); data[1]=char(n>>16); data[2]=char(n>>8); data[3]=char(n); data.append(object);
     std::size_t offset=0;
     while (offset<data.size()) {
+        if (auto stopped=interruption(wait); !stopped.empty()) { close(); return std::unexpected(std::move(stopped)); }
 #if defined(_WIN32)
-        const auto socket=d->socket.load(); DWORD sent=0;
-        if (!socket || !WriteFile(socket,data.data()+offset,DWORD(data.size()-offset),&sent,nullptr) || !sent) {
-            close(); return std::unexpected("The Society daemon connection failed while sending.");
-        }
+        const auto socket=d->socket.load();
+        if (!socket) return std::unexpected("The Society daemon is not connected.");
+        const auto transferred=pipeTransfer(*socket,nullptr,data.data()+offset,DWORD(data.size()-offset),wait);
+        if (!transferred) { close(); return std::unexpected(transferred.error()); }
+        const auto sent=*transferred;
+        if (!sent) { close(); return std::unexpected("The Society daemon connection failed while sending."); }
 #elif defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
         const auto socket=lease.fd;
 #ifdef MSG_NOSIGNAL
@@ -197,6 +305,10 @@ std::expected<void,std::string> ResidentNative::sendJson(std::string_view object
         const auto sent=::send(socket,data.data()+offset,data.size()-offset,0);
 #endif
         if (sent<0 && errno==EINTR) continue;
+        if (sent<0 && (errno==EAGAIN || errno==EWOULDBLOCK)) {
+            if (auto ready=waitSocket(socket,POLLOUT,wait); !ready) { close(); return ready; }
+            continue;
+        }
         if (sent<=0) { close(); return std::unexpected("The Society daemon connection failed while sending."); }
 #else
         return std::unexpected("The local Society daemon transport is unavailable.");
@@ -208,40 +320,49 @@ std::expected<void,std::string> ResidentNative::sendJson(std::string_view object
     return {};
 }
 std::expected<std::string,std::string> ResidentNative::receiveJson() {
+    return receiveJson({});
+}
+std::expected<std::string,std::string> ResidentNative::receiveJson(const ResidentWait &wait) {
     std::lock_guard lock(d->readMutex);
 #if defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
     struct SocketLease { int fd; ~SocketLease() { if (fd>=0) ::close(fd); } } lease{d->duplicateSocket()};
     if (lease.fd<0) return std::unexpected("The Society daemon is not connected.");
 #endif
-    auto read=[this
-#if defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
-               ,socket=lease.fd
-#endif
-               ](char *buffer,std::size_t size) -> bool {
+    auto read=[&](char *buffer,std::size_t size) -> std::expected<void,std::string> {
         std::size_t offset=0;
         while (offset<size) {
+            if (auto stopped=interruption(wait); !stopped.empty()) return std::unexpected(std::move(stopped));
 #if defined(_WIN32)
-            const auto socket=d->socket.load(); DWORD received=0;
-            if (!socket || !ReadFile(socket,buffer+offset,DWORD(size-offset),&received,nullptr) || !received) return false;
+            const auto socket=d->socket.load();
+            if (!socket) return std::unexpected("The Society daemon is not connected.");
+            const auto transferred=pipeTransfer(*socket,buffer+offset,nullptr,DWORD(size-offset),wait);
+            if (!transferred) return std::unexpected(transferred.error());
+            const auto received=*transferred;
 #elif defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
-            const auto received=::recv(socket,buffer+offset,size-offset,0);
+            const auto received=::recv(lease.fd,buffer+offset,size-offset,0);
             if (received<0 && errno==EINTR) continue;
-            if (received<=0) return false;
+            if (received<0 && (errno==EAGAIN || errno==EWOULDBLOCK)) {
+                if (auto ready=waitSocket(lease.fd,POLLIN,wait); !ready) return ready;
+                continue;
+            }
 #else
-            return false;
+            return std::unexpected("The local Society daemon transport is unavailable on this platform.");
 #endif
 #if defined(_WIN32) || defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
+            if (received<=0) return std::unexpected("The Society daemon disconnected.");
             offset+=std::size_t(received);
 #endif
         }
-        return true;
+        return {};
     };
     std::array<unsigned char,4> header{};
-    if (!read(reinterpret_cast<char *>(header.data()),header.size())) { close(); return std::unexpected("The Society daemon disconnected."); }
+    if (auto received=read(reinterpret_cast<char *>(header.data()),header.size()); !received) {
+        close(); return std::unexpected(received.error());
+    }
     const std::size_t size=(std::size_t(header[0])<<24)|(std::size_t(header[1])<<16)|(std::size_t(header[2])<<8)|header[3];
-    if (!size || size>maxFrame) { close(); return std::unexpected("The Society daemon returned an invalid frame."); }
+    if (!size || size>maxReply) { close(); return std::unexpected("The Society daemon returned an invalid frame."); }
     std::string body(size,'\0');
-    if (!read(body.data(),size)) { close(); return std::unexpected("The Society daemon returned an incomplete frame."); }
+    if (auto received=read(body.data(),size); !received) { close(); return std::unexpected(received.error()); }
     return body;
 }
 std::expected<void,std::string> ResidentNative::subscribe() {
@@ -266,7 +387,11 @@ std::expected<void,std::string> ResidentNative::cancel(std::string_view requestI
 }
 void ResidentNative::close() noexcept {
 #if defined(_WIN32)
-    const auto socket=d->socket.exchange(nullptr); if (socket) { CancelIoEx(socket,nullptr); CloseHandle(socket); }
+    if (const auto socket=d->socket.exchange({})) {
+        std::lock_guard lock(socket->admission);
+        socket->closed=true;
+        CancelIoEx(socket->handle,nullptr);
+    }
 #elif defined(IISOCIETYHELPER_HAS_UNIX_RESIDENT_SOCKET)
     std::lock_guard lock(d->socketMutex);
     const auto socket=d->socket.exchange(-1); if (socket>=0) { ::shutdown(socket,SHUT_RDWR); ::close(socket); }

@@ -58,10 +58,13 @@ if(BUILD_TESTING)
     endif()
 endif()
 find_package(Threads REQUIRED)
+# The standalone transport has its own package contract and can be consumed
+# alongside an existing full iiSocietyHelper installation.
+set(_helper_resident_version 0.12.1)
 add_library(iiSocietyHelperResidentNative SHARED src/Client/ResidentNative.cpp src/Client/ResidentNative.h)
 add_library(iiSocietyHelperNative::ResidentClient ALIAS iiSocietyHelperResidentNative)
 set_target_properties(iiSocietyHelperResidentNative PROPERTIES EXPORT_NAME ResidentClient
-    VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR} AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+    VERSION ${_helper_resident_version} SOVERSION ${PROJECT_VERSION_MAJOR} AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
 target_compile_features(iiSocietyHelperResidentNative PUBLIC cxx_std_23)
 target_compile_definitions(iiSocietyHelperResidentNative PRIVATE IISOCIETYHELPER_RESIDENT_BUILD)
 target_link_libraries(iiSocietyHelperResidentNative PRIVATE Threads::Threads)
@@ -79,16 +82,20 @@ if(WIN32)
 endif()
 # The standalone resident client is available in both build profiles.
 install(TARGETS iiSocietyHelperResidentNative EXPORT iiSocietyHelperNativeTargets
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-install(FILES src/Client/ResidentNative.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelperNative)
-install(EXPORT iiSocietyHelperNativeTargets NAMESPACE iiSocietyHelperNative:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT ResidentClient
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT ResidentClient
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT ResidentClient)
+install(FILES src/Client/ResidentNative.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/iiSocietyHelperNative COMPONENT ResidentClient)
+install(EXPORT iiSocietyHelperNativeTargets NAMESPACE iiSocietyHelperNative::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative COMPONENT ResidentClient)
 configure_package_config_file(cmake/iiSocietyHelperNativeConfig.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
 write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
+    VERSION ${_helper_resident_version} COMPATIBILITY SameMajorVersion)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative)
+    "${CMAKE_CURRENT_BINARY_DIR}/iiSocietyHelperNativeConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/iiSocietyHelperNative COMPONENT ResidentClient)
 set(_helper_root_headers
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Core/Export.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Account/AccountSession.h"
@@ -136,6 +143,13 @@ endforeach()
 if(BUILD_TESTING)
     add_test(NAME iiSocietyHelper.SourceLayout COMMAND ${CMAKE_COMMAND}
         "-DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/source_layout.cmake")
+    if(UNIX AND NOT CMAKE_CROSSCOMPILING)
+        add_executable(iiSocietyHelper_resident_native_tests tests/client/resident_native.cpp)
+        target_link_libraries(iiSocietyHelper_resident_native_tests PRIVATE iiSocietyHelperNative::ResidentClient Threads::Threads)
+        target_compile_definitions(iiSocietyHelper_resident_native_tests PRIVATE RESIDENT_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
+        iisociety_fixture_test(iiSocietyHelper.resident_native iiSocietyHelper_resident_native_tests)
+        set_tests_properties(iiSocietyHelper.resident_native PROPERTIES TIMEOUT 20)
+    endif()
 endif()
 option(IISOCIETYHELPER_BUILD_CORE "Build the account, IPC, storage, sync and remote-generation facade" ON)
 if(NOT IISOCIETYHELPER_BUILD_CORE)
@@ -175,8 +189,10 @@ endif()
 if(NOT iiSocietyContainer_HAS_APPLICATION_STORAGE)
     message(FATAL_ERROR "Install iiSocietyContainer with application-owned shared logical storage before building Helper")
 endif()
-set(IISOCIETYHELPER_CANVAS_VERSION "0.35.39" CACHE STRING "Exact Canvas ABI shared by this Helper profile and its consumers")
-find_package(iiSharedCanvas ${IISOCIETYHELPER_CANVAS_VERSION} EXACT CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
+set(IISOCIETYHELPER_CANVAS_VERSION "0.35.39" CACHE STRING "Minimum compatible Canvas version for Helper Core")
+find_package(iiSharedCanvas ${IISOCIETYHELPER_CANVAS_VERSION} CONFIG REQUIRED COMPONENTS Core HINTS "$ENV{HOME}/.local/SDK/iiSharedCanvas")
+# This build may use APIs present only in the patch that CMake actually selected.
+set(IISOCIETYHELPER_BUILT_CANVAS_VERSION "${iiSharedCanvas_VERSION}")
 find_package(iiAccountManager 0.2.8 CONFIG REQUIRED HINTS "$ENV{HOME}/.local/SDK/iiAccountManager")
 iisociety_check_provider_runtime_collision(iiWebServer::iiWebServer
     iiSocietyContainer::iiSocietyContainer iiSharedCanvas::Core)
@@ -319,12 +335,6 @@ if(BUILD_TESTING)
     target_compile_definitions(iiSocietyHelper_merged_api_tests PRIVATE HELPER_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
     iisociety_fixture_test(iiSocietyHelper.merged_api iiSocietyHelper_merged_api_tests)
     if(NOT CMAKE_CROSSCOMPILING)
-        if(UNIX)
-            add_executable(iiSocietyHelper_resident_native_tests tests/client/resident_native.cpp)
-            target_link_libraries(iiSocietyHelper_resident_native_tests PRIVATE iiSocietyHelperNative::ResidentClient Threads::Threads)
-            target_compile_definitions(iiSocietyHelper_resident_native_tests PRIVATE RESIDENT_TEST_DIRECTORY="${CMAKE_CURRENT_SOURCE_DIR}/resources")
-            iisociety_fixture_test(iiSocietyHelper.resident_native iiSocietyHelper_resident_native_tests)
-        endif()
         add_executable(iiSocietyHelper_resident_client_tests tests/client/resident_client.cpp src/Client/LocalFrame.cpp)
         target_link_libraries(iiSocietyHelper_resident_client_tests PRIVATE iiSocietyHelper::iiSocietyHelper)
         iisociety_fixture_test(iiSocietyHelper.resident_client iiSocietyHelper_resident_client_tests)

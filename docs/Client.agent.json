@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/Client.md",
-    "sha256": "e98265cb076ff23900da79daeef8fa506699430d4a60996e0aec18b9467a071c",
-    "bytes": 17172,
-    "line_count": 189,
+    "sha256": "d345226e1aa3d82239fd65f9bbcec331ec028f8c6d88045b1bbec15758575a2a",
+    "bytes": 17416,
+    "line_count": 192,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -586,49 +586,49 @@
       "id": "b100007",
       "kind": "paragraph",
       "start_line": 171,
-      "end_line": 180,
-      "raw": "Qt-free C++23 applications can instead link\n`iiSocietyHelperNative::ResidentClient` from the separate\n`iiSocietyHelperNative` CMake package. `ResidentNative` exposes explicit connect,\nsubscribe, generate, cancel and framed JSON send/receive operations without an\nSDK or GUI dependency. Receive blocks until a daemon message arrives and is\nintended for a caller-owned asynchronous task; it starts no polling thread.\nThe host application parses responses and owns its conversation history. A\nclosed connection cancels its accepted daemon requests, not the resident model.\nOn Unix, close interrupts a blocked receive; the caller joins outstanding calls\nbefore reconnecting or destroying the client.\n"
+      "end_line": 183,
+      "raw": "Qt-free C++23 applications can instead link\n`iiSocietyHelperNative::ResidentClient` from the separate\n`iiSocietyHelperNative` CMake package. `ResidentNative` exposes explicit connect,\nsubscribe, generate, cancel and framed JSON send/receive operations without an\nSDK or GUI dependency. Applications include `<iiSocietyHelper>`. The 0.12.1\ntransport adds `ResidentWait` to connect, send and receive. One absolute\nsteady-clock deadline covers a whole exchange, including a partially delivered\nframe. The optional cancellation predicate is checked on the caller's worker.\nA canceled or timed-out transfer closes that connection. The existing blocking\noperations remain available. The client accepts replies up to 1 MiB and sends\nrequests up to 512 KiB. Callers own typed reply handling and run exchanges on a\nworker. Close interrupts outstanding read operations, and callers join those\noperations before reconnecting or destroying the client.\n"
     },
     {
       "id": "b100008",
       "kind": "blank",
-      "start_line": 181,
-      "end_line": 181,
+      "start_line": 184,
+      "end_line": 184,
       "raw": "\n"
     },
     {
       "id": "b000075",
       "kind": "paragraph",
-      "start_line": 182,
-      "end_line": 182,
+      "start_line": 185,
+      "end_line": 185,
       "raw": "LAN clients require server-issued account pairing proofs. Both LAN and relay select the host and container in the authenticated account `societyContainerDrive`; missing registration or another host grants no synchronization. The registered replacement host adopts a fresh mirror while retaining previous files in recovery.\n"
     },
     {
       "id": "b000076",
       "kind": "blank",
-      "start_line": 183,
-      "end_line": 183,
+      "start_line": 186,
+      "end_line": 186,
       "raw": "\n"
     },
     {
       "id": "b000077",
       "kind": "paragraph",
-      "start_line": 184,
-      "end_line": 184,
+      "start_line": 187,
+      "end_line": 187,
       "raw": "Apple keychain reads, writes and duplicate-item checks execute on worker threads. Completion returns to the session store thread and is cancelled when its QObject is destroyed. Keychain access prompts therefore cannot block the Society or consumer application event loop; existing access controls and encrypted state are preserved.\n"
     },
     {
       "id": "b100001",
       "kind": "blank",
-      "start_line": 185,
-      "end_line": 185,
+      "start_line": 188,
+      "end_line": 188,
       "raw": "\n"
     },
     {
       "id": "b100002",
       "kind": "paragraph",
-      "start_line": 186,
-      "end_line": 189,
+      "start_line": 189,
+      "end_line": 192,
       "raw": "`GroupSessionStore::recordRevision(key)`는 선택된 컨테이너의 해당 암호화 세션\n레코드와 철회 세대를 읽어 자격 증명을 노출하지 않는 지문을 반환한다. 값이 없거나\n저장소 선택이 바뀌고 레코드가 훼손·변경되면 빈 값 또는 새 지문을 반환한다.\n이는 명시적 조회이며 복호화·키체인 접근이나 전체 디렉터리 순회를 수행하지 않는다.\n"
     }
   ],

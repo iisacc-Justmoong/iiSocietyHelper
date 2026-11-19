@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "docs/CanvasProfiles.md",
-    "sha256": "5ff920703bb865f11160c38efbe1f7fd1fd7b15278eeeb807f28168833df1a92",
-    "bytes": 1315,
+    "sha256": "cc298e2df4a39d0080ff8e9f621e1f2686b294aea30dc799c15a25e6914e4a96",
+    "bytes": 1372,
     "line_count": 19,
     "encoding": "utf-8",
     "language": "ko"
@@ -43,7 +43,7 @@
       "kind": "paragraph",
       "start_line": 3,
       "end_line": 6,
-      "raw": "Helper Core와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 새 빌드의\n기본 버전은 `0.35.39 EXACT`이다. 기존 빌드에서 기본값으로 전환하려면 CMake에\n`-U IISOCIETYHELPER_CANVAS_VERSION`을 전달하고 `iiSharedCanvas_DIR`을 0.35.39 패키지로 지정한다.\n별도 프로필의 버전은 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.\n"
+      "raw": "Helper Core와 소비 앱은 하나의 iiSharedCanvas 패키지를 선택한다. 새 빌드의 기본 최저 버전은\n`0.35.39`이며 `SameMinorVersion` 정책은 같은 메이저·마이너의 이후 패치를 허용한다.\n캐시된 값을 기본값으로 되돌리려면 CMake에 `-U IISOCIETYHELPER_CANVAS_VERSION`을 전달한다.\n별도 프로필은 최저 버전 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.\n"
     },
     {
       "id": "b000004",
@@ -57,7 +57,7 @@
       "kind": "paragraph",
       "start_line": 8,
       "end_line": 11,
-      "raw": "설치한 CMake 패키지는 실제 빌드에서 선택한 버전을 `EXACT` 의존성으로 기록한다.\n기존 소비자의 SDK를 덮어쓰지 않아야 할 때는 별도 설치 prefix를 지정한다.\n이 선택은 전송 SDK를 iiWebServer로 맞추면서 Society의 기존 Canvas ABI와\n관리형 파일 저장 설정을 유지하기 위해 추가되었다.\n"
+      "raw": "설치한 Helper는 빌드 때 선택한 Canvas 버전을 소비자 쪽 최저 버전으로 내보낸다.\nHelper를 `0.35.41`로 빌드하면 소비자는 해당 패치부터 사용할 수 있다. Core 타깃을\n이미 가져온 경우에는 같은 설치 경로에서 이 요구를 충족해야 한다. 별도 프로필을 검증할\n때는 서로 다른 설치 prefix를 지정한다.\n"
     },
     {
       "id": "b000006",
@@ -102,15 +102,22 @@
     "directive_candidates": [
       {
         "block_id": "b000003",
-        "line": 3,
-        "text": "Helper Core와 소비 앱은 같은 iiSharedCanvas ABI를 링크해야 한다. 새 빌드의",
+        "line": 6,
+        "text": "별도 프로필은 최저 버전 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
-        "block_id": "b000003",
-        "line": 6,
-        "text": "별도 프로필의 버전은 `IISOCIETYHELPER_CANVAS_VERSION`과 `iiSharedCanvas_DIR`을 함께 지정한다.",
+        "block_id": "b000005",
+        "line": 10,
+        "text": "이미 가져온 경우에는 같은 설치 경로에서 이 요구를 충족해야 한다. 별도 프로필을 검증할",
+        "basis": "lexical_match",
+        "context": "paragraph"
+      },
+      {
+        "block_id": "b000005",
+        "line": 11,
+        "text": "때는 서로 다른 설치 prefix를 지정한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       }

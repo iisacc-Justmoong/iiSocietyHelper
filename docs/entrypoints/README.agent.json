@@ -10,8 +10,8 @@
   },
   "source": {
     "path": "README.md",
-    "sha256": "6d969e55a136bcdea4f25930b043c1a735bc9d53d5cb285be9d56db61b3be813",
-    "bytes": 59939,
+    "sha256": "7f468b5a6f189e616e17c47f4e75d44737d911d1c0edb3afc7096e3a0821d223",
+    "bytes": 59963,
     "line_count": 642,
     "encoding": "utf-8",
     "language": "ko"
@@ -155,7 +155,7 @@
       "kind": "paragraph",
       "start_line": 44,
       "end_line": 50,
-      "raw": "Package version **0.12.0** defaults to iiSharedCanvas 0.35.39 EXACT (Core)\nso exported package discovery and the compiled storage adapter use the same\nnative contract. Prepared storage, detached image reads and stateless export\nretain their existing interfaces.\n Earlier versioned feature and verification notes\nbelow describe their original releases. Current package ownership and build\ncomponents are defined in [Consolidation.md](docs/Consolidation.md).\n"
+      "raw": "Package version **0.12.0** builds with iiSharedCanvas Core **0.35.39** or a later\n0.35 patch. The installed Helper records the actual build version as its minimum\nfor consumers. Prepared storage, detached image reads and stateless export retain\ntheir existing interfaces.\n Earlier versioned feature and verification notes\nbelow describe their original releases. Current package ownership and build\ncomponents are defined in [Consolidation.md](docs/Consolidation.md).\n"
     },
     {
       "id": "b000020",
@@ -1616,7 +1616,7 @@
       "kind": "paragraph",
       "start_line": 501,
       "end_line": 505,
-      "raw": "Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,\niiAccountManager **0.2.8** or later, iiSharedCanvas **0.35.39 EXACT** (Core) for the default profile,\niiWebServer **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,\nQt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.\nBLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.\n"
+      "raw": "Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,\niiAccountManager **0.2.8** or later, iiSharedCanvas Core **0.35.39** or a later 0.35 patch for the default profile,\niiWebServer **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,\nQt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.\nBLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.\n"
     },
     {
       "id": "b000204",

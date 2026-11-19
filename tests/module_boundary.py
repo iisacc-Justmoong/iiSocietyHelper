@@ -8,18 +8,21 @@ LEGACY = ("iiSocietyGeneration", "iiSocietyMonitor", "iiSocietySync")
 
 
 class UnifiedPackageTests(unittest.TestCase):
-    def test_canvas_core_profile_defaults_to_the_exact_sdk_version(self):
+    def test_canvas_core_profile_uses_a_minimum_and_exports_the_resolved_version(self):
         source = (ROOT / "CMakeLists.txt").read_text()
         self.assertRegex(source, r'set\(IISOCIETYHELPER_CANVAS_VERSION\s+"0\.35\.39"\s+CACHE\s+STRING\b')
         self.assertRegex(
             source,
-            r"find_package\(iiSharedCanvas\s+\$\{IISOCIETYHELPER_CANVAS_VERSION\}\s+EXACT\s+CONFIG\s+REQUIRED\s+COMPONENTS\s+Core\b",
+            r"find_package\(iiSharedCanvas\s+\$\{IISOCIETYHELPER_CANVAS_VERSION\}\s+CONFIG\s+REQUIRED\s+COMPONENTS\s+Core\b",
         )
+        self.assertIn('set(IISOCIETYHELPER_BUILT_CANVAS_VERSION "${iiSharedCanvas_VERSION}")', source)
         package = (ROOT / "cmake/iiSocietyHelperConfig.cmake.in").read_text()
+        self.assertIn('set(iiSocietyHelper_CANVAS_VERSION "@IISOCIETYHELPER_BUILT_CANVAS_VERSION@")', package)
         self.assertRegex(
             package,
-            r"find_dependency\(iiSharedCanvas\s+@IISOCIETYHELPER_CANVAS_VERSION@\s+EXACT\s+CONFIG\s+COMPONENTS\s+Core\)",
+            r"find_dependency\(iiSharedCanvas\s+\$\{iiSocietyHelper_CANVAS_VERSION\}\s+CONFIG\s+COMPONENTS\s+Core\s+\$\{_helper_canvas_search\}\)",
         )
+        self.assertIn('list(APPEND _helper_canvas_search PATHS "${iiSharedCanvas_DIR}" NO_DEFAULT_PATH)', package)
 
     def test_no_legacy_package_or_target_dependency(self):
         files = [ROOT / "CMakeLists.txt", *sorted((ROOT / "cmake").glob("*.cmake*"))]

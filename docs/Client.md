@@ -172,12 +172,15 @@ Qt-free C++23 applications can instead link
 `iiSocietyHelperNative::ResidentClient` from the separate
 `iiSocietyHelperNative` CMake package. `ResidentNative` exposes explicit connect,
 subscribe, generate, cancel and framed JSON send/receive operations without an
-SDK or GUI dependency. Receive blocks until a daemon message arrives and is
-intended for a caller-owned asynchronous task; it starts no polling thread.
-The host application parses responses and owns its conversation history. A
-closed connection cancels its accepted daemon requests, not the resident model.
-On Unix, close interrupts a blocked receive; the caller joins outstanding calls
-before reconnecting or destroying the client.
+SDK or GUI dependency. Applications include `<iiSocietyHelper>`. The 0.12.1
+transport adds `ResidentWait` to connect, send and receive. One absolute
+steady-clock deadline covers a whole exchange, including a partially delivered
+frame. The optional cancellation predicate is checked on the caller's worker.
+A canceled or timed-out transfer closes that connection. The existing blocking
+operations remain available. The client accepts replies up to 1 MiB and sends
+requests up to 512 KiB. Callers own typed reply handling and run exchanges on a
+worker. Close interrupts outstanding read operations, and callers join those
+operations before reconnecting or destroying the client.
 
 LAN clients require server-issued account pairing proofs. Both LAN and relay select the host and container in the authenticated account `societyContainerDrive`; missing registration or another host grants no synchronization. The registered replacement host adopts a fresh mirror while retaining previous files in recovery.
 

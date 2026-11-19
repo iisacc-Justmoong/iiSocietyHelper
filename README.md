@@ -41,10 +41,10 @@ use the remote generation API without linking the desktop inference host.
 
 [Windows build and execution](docs/WindowsBuildAndRun.md)
 
-Package version **0.12.0** defaults to iiSharedCanvas 0.35.39 EXACT (Core)
-so exported package discovery and the compiled storage adapter use the same
-native contract. Prepared storage, detached image reads and stateless export
-retain their existing interfaces.
+Package version **0.12.0** builds with iiSharedCanvas Core **0.35.39** or a later
+0.35 patch. The installed Helper records the actual build version as its minimum
+for consumers. Prepared storage, detached image reads and stateless export retain
+their existing interfaces.
  Earlier versioned feature and verification notes
 below describe their original releases. Current package ownership and build
 components are defined in [Consolidation.md](docs/Consolidation.md).
@@ -499,7 +499,7 @@ References: [Qt shared storage locations](https://doc.qt.io/qt-6.8/qstandardpath
 ## Build·Verify·Install
 
 Requires CMake 3.24 or later, C++23, iiSocietyContainer **0.16.1** or later,
-iiAccountManager **0.2.8** or later, iiSharedCanvas **0.35.39 EXACT** (Core) for the default profile,
+iiAccountManager **0.2.8** or later, iiSharedCanvas Core **0.35.39** or a later 0.35 patch for the default profile,
 iiWebServer **0.6.0** or later, iiFileProvider and its Temporary/CoreIO packages,
 Qt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.
 BLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
