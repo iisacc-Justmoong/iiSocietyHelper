@@ -15,7 +15,7 @@ spec.loader.exec_module(runner)
 
 class WorkspaceRunnerTest(unittest.TestCase):
     def test_symlink_resource_root_is_rejected(self):
-        state = ROOT / "resources/.t"
+        state = ROOT / "resources/t"
         provider.mkdir(state, parents=True, exist_ok=True)
         owner = state / runner.uuid.uuid4().hex
         provider.mkdir(owner, exist_ok=False)
@@ -35,7 +35,7 @@ class WorkspaceRunnerTest(unittest.TestCase):
         seen = []
         def execute(args, **kwargs):
             path = Path(kwargs["cwd"])
-            self.assertTrue(path.is_relative_to(ROOT / "resources/.t"))
+            self.assertTrue(path.is_relative_to(ROOT / "resources/t"))
             self.assertEqual(args[-1], str(path / "input"))
             self.assertEqual(kwargs["env"]["TMPDIR"], str(path))
             self.assertEqual(kwargs["env"]["PYTHONDONTWRITEBYTECODE"], "1")
@@ -65,7 +65,7 @@ class WorkspaceRunnerTest(unittest.TestCase):
         self.assertFalse(seen[0].exists())
 
     def test_collision_preserves_the_existing_workspace(self):
-        state = ROOT / "resources/.t"
+        state = ROOT / "resources/t"
         provider.mkdir(state, parents=True, exist_ok=True)
         token = runner.uuid.uuid4().hex[:4]
         while token in runner._issued or (state / token).exists():

@@ -77,7 +77,7 @@ MediaExportResult exportMedia(const QUrl &source, const QUrl &destination, bool 
 
     try {
         std::unique_ptr<detail::ManagedFileOperation> operation;
-        if (destination.isLocalFile()) operation = std::make_unique<detail::ManagedFileOperation>(target, "Export media");
+        if (destination.isLocalFile()) operation = std::make_unique<detail::ManagedFileOperation>(target, "Export media",QFileInfo::exists(target));
         if(QFileInfo(source.toLocalFile()).suffix().compare("iisc",Qt::CaseInsensitive)==0) {
             if(video)return fail(FileSystem::tr("Choose a video file to save this result."));
             exportNativePng(source.toLocalFile(),destination,target);

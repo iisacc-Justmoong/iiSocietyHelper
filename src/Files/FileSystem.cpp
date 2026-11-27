@@ -743,7 +743,18 @@ QString FileSystem::publishFile(const QString &source, const QString &sectionKey
 bool FileSystem::removeFile(const QString &sectionKey, const QString &relativePath) {
     const auto selected = alias(sectionKey, relativePath);
     if (!selected.value("available").toBool()) return false;
-    try { detail::ManagedFileOperation operation(selected["path"].toString(), "Remove file"); const bool removed = iiFileProvider::File::remove(selected["path"].toString()); if (removed) operation.removed(); synchronize(); return removed; }
+    try {
+        const auto path=selected.value("path").toString();
+        const auto drive=iiSocietyContainer::FileOperations::containingDrive(path);
+        if (!drive) {
+            const bool removed=iiFileProvider::File::remove(path); if (removed) synchronize(); return removed;
+        }
+        const auto action=sectionKey=="deleted" ? iiSocietyContainer::FileOperations::Action::Remove
+                                                  : iiSocietyContainer::FileOperations::Action::Trash;
+        const auto result=iiSocietyContainer::FileOperations(*drive).perform(action,path);
+        if (!result) {setError(result.error);return false;}
+        synchronize();setError({});return true;
+    }
     catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return false; }
 }
 QVariantMap FileSystem::saveFile(const QString &destination, const QByteArray &bytes, bool overwrite) {
@@ -759,7 +770,7 @@ QVariantMap FileSystem::saveFile(const QString &destination, const QByteArray &b
             }
             if (!accepted) { setError("Choose a file in a Society section."); return {}; }
         }
-        detail::ManagedFileOperation operation(selected, "Save file");
+        detail::ManagedFileOperation operation(selected, "Save file",overwrite && QFileInfo::exists(selected));
         if (overwrite) iiFileProvider::File::write(selected, bytes); else iiFileProvider::File::create(selected, bytes);
         operation.published();
         synchronize(); setError({}); return aliasForPath(selected);
@@ -775,7 +786,15 @@ bool FileSystem::removeGenerationInputs(const QString &directory) {
     if (!info.isDir() || info.isSymLink() || info.isJunction() || info.canonicalFilePath() != directory) {
         setError("The input directory was redirected and has been preserved."); return false;
     }
-    if (!QDir(directory).removeRecursively()) { setError("Cannot remove generation input files."); return false; }
-    synchronize(); return true;
+    try {
+        const auto drive=iiSocietyContainer::FileOperations::containingDrive(directory);
+        if (!drive || drive->identifier()!=containerId()) {
+            setError("The generation inputs belong to an unavailable Society container."); return false;
+        }
+        const auto result=iiSocietyContainer::FileOperations(*drive).perform(
+            iiSocietyContainer::FileOperations::Action::Trash,directory);
+        if (!result) { setError(result.error); return false; }
+        synchronize(); setError({}); return true;
+    } catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return false; }
 }
 }

@@ -131,14 +131,12 @@ C++23/Qt SDK synchronizes Society container data running on different devices. I
 
 ## Responsibilities and dependency direction
 
-|Components|Tasks performed|Dependency boundaries|
-| --- | --- | --- |
-| Helper Core | Same-device IPC, account/client access, storage and synchronization | Uses Container, Account, ServerHost and native Monitoring. |
-| `iiSocietyHelper::Sync` | Container replication and authenticated host file access | Implementation within Helper Core; no separate SDK package. |
-| iiSocietyContainer |Container UUID, 9 areas, and local shared OS provider|Does not know the synchronization protocol.|
-| iiWebServer |Authenticated general request/response, LAN TLS legacy relay, limited file service|Society  does not know change history and conflict policy.|
-| `iiSocietyHelper::Client` | Account discovery, pairing and host access | Uses Core Sync and Account; never references Product sources. |
-|Society  app|First login/host selection, app lifecycle/screen|Connects Client's shared authentication configuration and Sync and manages host roles.|
+- Components: Helper Core; Tasks performed: Same-device IPC, account/client access, storage and synchronization; Dependency boundaries: Uses Container, Account, ServerHost and native Monitoring.
+- Components: `iiSocietyHelper::Sync`; Tasks performed: Container replication and authenticated host file access; Dependency boundaries: Implementation within Helper Core; no separate SDK package.
+- Components: iiSocietyContainer; Tasks performed: Container UUID, 9 areas, and local shared OS provider; Dependency boundaries: Does not know the synchronization protocol.
+- Components: iiWebServer; Tasks performed: Authenticated general request/response, LAN TLS legacy relay, limited file service; Dependency boundaries: Society  does not know change history and conflict policy.
+- Components: `iiSocietyHelper::Client`; Tasks performed: Account discovery, pairing and host access; Dependency boundaries: Uses Core Sync and Account; never references Product sources.
+- Components: Society  app; Tasks performed: First login/host selection, app lifecycle/screen; Dependency boundaries: Connects Client's shared authentication configuration and Sync and manages host roles.
 
 Reuses the existing Qt 6.8.3 Core/Gui/Network/Sql, SQLite, and TLS from iiWebServer 0.6.0. No new external library, server, or paid service is added. Hashing uses Qt's [QCryptographicHash](https://doc.qt.io/qt-6.8/qcryptographichash.html), inter-process work exclusion uses [QLockFile](https://doc.qt.io/qt-6.8/qlockfile.html), and the persistent journal uses [SQLite WAL](https://sqlite.org/wal.html). Maintenance and licensing follow the terms of the existing Qt/SQLite/SDK configuration. Only the version and conflict policies specific to Society are implemented in this SDK.
 

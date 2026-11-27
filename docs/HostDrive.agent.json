@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/HostDrive.md",
-    "sha256": "e66021da2bd9c6e04536dcdd51ba1098b2b33712ecf1db194b848a8c610b0fae",
-    "bytes": 9876,
-    "line_count": 158,
+    "sha256": "1e091a1074bdedaf2f8653441df705bea7214f6e9bcbd57f8a30b52c52e3bc0e",
+    "bytes": 9915,
+    "line_count": 156,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -184,63 +184,64 @@
     },
     {
       "id": "b000023",
-      "kind": "table",
       "start_line": 56,
-      "end_line": 62,
-      "raw": "| Method | Contract |\n| --- | --- |\n| `listHostDirectory(path, cursor, version)` | Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails. |\n| `statHostEntry(path)` | Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries. |\n| `readHostFile(path, offset, version)` | At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks. |\n| `writeHostFile(path, bytes)` | Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path. |\n| `createHostDirectory(path)` | Creates one immediate child in an existing directory, preserving existing entries and section roots. |\n",
-      "columns": [
-        "Method",
-        "Contract"
-      ],
-      "rows": [
-        [
-          "`listHostDirectory(path, cursor, version)`",
-          "Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails."
-        ],
-        [
-          "`statHostEntry(path)`",
-          "Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries."
-        ],
-        [
-          "`readHostFile(path, offset, version)`",
-          "At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks."
-        ],
-        [
-          "`writeHostFile(path, bytes)`",
-          "Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path."
-        ],
-        [
-          "`createHostDirectory(path)`",
-          "Creates one immediate child in an existing directory, preserving existing entries and section roots."
-        ]
+      "end_line": 60,
+      "raw": "- Method: `listHostDirectory(path, cursor, version)`; Contract: Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails.\n- Method: `statHostEntry(path)`; Contract: Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries.\n- Method: `readHostFile(path, offset, version)`; Contract: At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks.\n- Method: `writeHostFile(path, bytes)`; Contract: Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path.\n- Method: `createHostDirectory(path)`; Contract: Creates one immediate child in an existing directory, preserving existing entries and section roots.\n",
+      "kind": "list",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Method: `listHostDirectory(path, cursor, version)`; Contract: Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Method: `statHostEntry(path)`; Contract: Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Method: `readHostFile(path, offset, version)`; Contract: At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Method: `writeHostFile(path, bytes)`; Contract: Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Method: `createHostDirectory(path)`; Contract: Creates one immediate child in an existing directory, preserving existing entries and section roots.",
+          "checked": null
+        }
       ]
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 63,
-      "end_line": 63,
+      "start_line": 61,
+      "end_line": 61,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "paragraph",
-      "start_line": 64,
-      "end_line": 70,
+      "start_line": 62,
+      "end_line": 68,
       "raw": "Paths are logical section keys such as `files/Documents/note.txt`,\n`models/model.safetensors`, `photos/image.jpg` and `generation-history/output.png`.\nPreserve returned native Unicode spelling. Access is confined to the selected\ncontainer's nine public sections, including its configured Files volume.\nAbsolute paths, traversal, backslashes, private state, lease sentinels and\nsymlink/junction escapes are rejected. Host OS paths and credentials are never\nreturned as usable file paths.\n"
     },
     {
       "id": "b000026",
       "kind": "blank",
-      "start_line": 71,
-      "end_line": 71,
+      "start_line": 69,
+      "end_line": 69,
       "raw": "\n"
     },
     {
       "id": "b000027",
       "kind": "fenced_code",
-      "start_line": 72,
-      "end_line": 89,
+      "start_line": 70,
+      "end_line": 87,
       "raw": "```cpp\n#include <iiSocietyHelper/Client.h>\niiSocietyHelper::Client client(account, discovery); // Existing signed-in account.\nQObject::connect(&client, &iiSocietyHelper::Client::hostDriveResponse,\n                 &app, [](const QString &id, const QJsonObject &reply) {\n    if (!reply.value(\"ok\").toBool()) return; // Surface reply[\"error\"].\n    if (reply.contains(\"data\")) {\n        const auto bytes = QByteArray::fromBase64(reply.value(\"data\").toString().toLatin1());\n        // Continue at offset + bytes.size(), pinning reply[\"version\"].\n    }\n});\nQString request;\nQObject::connect(&client, &iiSocietyHelper::Client::changed, &app, [&] {\n    if (client.connected() && request.isEmpty())\n        request = client.readHostFile(\"models/model.safetensors\", 0);\n});\nclient.connectHost();\n```\n",
       "language": "cpp",
       "code": "#include <iiSocietyHelper/Client.h>\niiSocietyHelper::Client client(account, discovery); // Existing signed-in account.\nQObject::connect(&client, &iiSocietyHelper::Client::hostDriveResponse,\n                 &app, [](const QString &id, const QJsonObject &reply) {\n    if (!reply.value(\"ok\").toBool()) return; // Surface reply[\"error\"].\n    if (reply.contains(\"data\")) {\n        const auto bytes = QByteArray::fromBase64(reply.value(\"data\").toString().toLatin1());\n        // Continue at offset + bytes.size(), pinning reply[\"version\"].\n    }\n});\nQString request;\nQObject::connect(&client, &iiSocietyHelper::Client::changed, &app, [&] {\n    if (client.connected() && request.isEmpty())\n        request = client.readHostFile(\"models/model.safetensors\", 0);\n});\nclient.connectHost();\n",
@@ -249,15 +250,15 @@
     {
       "id": "b000028",
       "kind": "blank",
-      "start_line": 90,
-      "end_line": 90,
+      "start_line": 88,
+      "end_line": 88,
       "raw": "\n"
     },
     {
       "id": "b000029",
       "kind": "heading",
-      "start_line": 91,
-      "end_line": 91,
+      "start_line": 89,
+      "end_line": 89,
       "raw": "## Authorization, lifecycle and verification\n",
       "level": 2,
       "title": "Authorization, lifecycle and verification"
@@ -265,22 +266,22 @@
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 92,
-      "end_line": 92,
+      "start_line": 90,
+      "end_line": 90,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 93,
-      "end_line": 93,
+      "start_line": 91,
+      "end_line": 91,
       "raw": "The `drive.*` messages travel inside `society.sync` protocol 2 / namespace version\n"
     },
     {
       "id": "b000032",
       "kind": "list",
-      "start_line": 94,
-      "end_line": 94,
+      "start_line": 92,
+      "end_line": 92,
       "raw": "1. Controller verifies authorized peer, account scope, container UUID and exact\n",
       "items": [
         {
@@ -293,92 +294,92 @@
     {
       "id": "b000033",
       "kind": "paragraph",
-      "start_line": 95,
-      "end_line": 98,
+      "start_line": 93,
+      "end_line": 96,
       "raw": "request token, then performs I/O on its replica worker. A mirror cannot be the\nprimary host. Existing Society dispatch through `Controller::handle()` works when\nthe host links the updated Helper Core; there is no additional listener or weaker\npairing mode. Pending polls reuse the exact envelope/token.\n"
     },
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 99,
-      "end_line": 99,
+      "start_line": 97,
+      "end_line": 97,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 100,
-      "end_line": 103,
+      "start_line": 98,
+      "end_line": 101,
       "raw": "Explicit `sync_store_busy` and `sync_endpoint_busy` rejections occur before\nfilesystem execution. Client retries only these rejections with a fresh token,\nretaining the public request ID and original deadline. A cached accepted or\npending operation is never given a new token or replayed after transport failure.\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 104,
-      "end_line": 104,
+      "start_line": 102,
+      "end_line": 102,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 105,
-      "end_line": 109,
+      "start_line": 103,
+      "end_line": 107,
       "raw": "Each request has a 30-second client deadline and is not automatically replayed\nafter failure. If a timeout/disconnect follows a host commit, a create operation's\noutcome can be uncertain: reconnect and stat before retrying. Stop, logout,\naccount/host/container changes and connection loss invalidate the mirror and\ncomplete pending public calls with `host_disconnected`.\n"
     },
     {
       "id": "b000038",
       "kind": "blank",
-      "start_line": 110,
-      "end_line": 110,
+      "start_line": 108,
+      "end_line": 108,
       "raw": "\n"
     },
     {
       "id": "b000039",
       "kind": "paragraph",
-      "start_line": 111,
-      "end_line": 115,
+      "start_line": 109,
+      "end_line": 113,
       "raw": "Tests cover native loopback LAN TLS and account relay without a Society app\nprocess or client replica, multi-chunk reads, creation, metadata refresh,\ncancellation, confinement, paging, changed versions, unauthorized peers/scopes\nand exact-token retries. These tests do not establish production-host, physical\nmobile-device or non-macOS execution.\n"
     },
     {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 116,
-      "end_line": 116,
+      "start_line": 114,
+      "end_line": 114,
       "raw": "\n"
     },
     {
       "id": "b000041",
       "kind": "paragraph",
-      "start_line": 117,
-      "end_line": 120,
+      "start_line": 115,
+      "end_line": 118,
       "raw": "Direct writes use the existing leased `.society-write-*` staging convention.\nContainer Maintenance can remove staging abandoned by an interrupted process;\nactive writes and successfully published files remain protected. The host-drive\ntests cover orphan reclamation and preservation of the published file.\n"
     },
     {
       "id": "b000042",
       "kind": "blank",
-      "start_line": 121,
-      "end_line": 121,
+      "start_line": 119,
+      "end_line": 119,
       "raw": "\n"
     },
     {
       "id": "b000043",
       "kind": "paragraph",
-      "start_line": 122,
-      "end_line": 124,
+      "start_line": 120,
+      "end_line": 122,
       "raw": "The combined client integration suite allows 120 seconds for direct and replica\nsessions over both LAN and relay. This aggregate runner limit does not extend\nthe 30-second SDK request deadline or individual transfer/test assertions.\n"
     },
     {
       "id": "b000044",
       "kind": "blank",
-      "start_line": 125,
-      "end_line": 126,
+      "start_line": 123,
+      "end_line": 124,
       "raw": "\n\n"
     },
     {
       "id": "b000045",
       "kind": "heading",
-      "start_line": 127,
-      "end_line": 127,
+      "start_line": 125,
+      "end_line": 125,
       "raw": "## Read-only canvas images and stateless export (0.10.1)\n",
       "level": 2,
       "title": "Read-only canvas images and stateless export (0.10.1)"
@@ -386,57 +387,57 @@
     {
       "id": "b000046",
       "kind": "blank",
-      "start_line": 128,
-      "end_line": 128,
+      "start_line": 126,
+      "end_line": 126,
       "raw": "\n"
     },
     {
       "id": "b000047",
       "kind": "paragraph",
-      "start_line": 129,
-      "end_line": 133,
+      "start_line": 127,
+      "end_line": 131,
       "raw": "`FileSystem::readCanvas` reads native legacy snapshots and SQLite working files\nthrough iiSharedCanvas 0.31.3 `DocumentFile::readSnapshot`. It returns detached\nnative document data without keeping an authoring binding or configuring the\noriginal journal. Open authoring owners and read-only files remain usable;\ncommitted WAL reads are part of the frozen lower SDK snapshot contract.\n"
     },
     {
       "id": "b000048",
       "kind": "blank",
-      "start_line": 134,
-      "end_line": 134,
+      "start_line": 132,
+      "end_line": 132,
       "raw": "\n"
     },
     {
       "id": "b000049",
       "kind": "paragraph",
-      "start_line": 135,
-      "end_line": 143,
+      "start_line": 133,
+      "end_line": 141,
       "raw": "The free `exportMedia` GUI adapter accepts native IISC as an image source. It\nexports frame zero at the complete `documentViewRegion` extent as PNG, preserving\nalpha and nonempty available PNG text: original generation parameters, ComfyUI\nprompt/workflow/extensions and imported text entries. Other file formats retain\ntheir original byte-copy path. A PNG image is flattened; the native input and all\nof its editable data remain unchanged. Native image export requires a PNG local\ndestination (Android system document URIs use the PNG picker contract); `.iisc`\ndestinations still require native canvas saving. Video export does not accept a\ncanvas image. Media limits reject oversized input/output rather than rescaling.\n"
     },
     {
       "id": "b000050",
       "kind": "blank",
-      "start_line": 144,
-      "end_line": 144,
+      "start_line": 142,
+      "end_line": 142,
       "raw": "\n"
     },
     {
       "id": "b000051",
       "kind": "paragraph",
-      "start_line": 145,
-      "end_line": 152,
+      "start_line": 143,
+      "end_line": 150,
       "raw": "The caller schedules the synchronous operation. The adapter never constructs a\nFileSystem, selects a drive, starts its observer or refreshes a mirror. Local\nencoding borrows the one rendered tile and writes directly into the provider's\natomic stream, avoiding another complete pixel copy or encoded byte buffer. An\nAndroid picker URI uses a private provider-owned PNG until its URI copy ends.\nMalformed native input, unsupported destinations and codec failures preserve an\nexisting output. The existing FileSystem-owned export method deliberately keeps\nits explicit owning synchronization behavior.\n"
     },
     {
       "id": "b000052",
       "kind": "blank",
-      "start_line": 153,
-      "end_line": 153,
+      "start_line": 151,
+      "end_line": 151,
       "raw": "\n"
     },
     {
       "id": "b000053",
       "kind": "paragraph",
-      "start_line": 154,
-      "end_line": 158,
+      "start_line": 152,
+      "end_line": 156,
       "raw": "Native export tests include 5,001-pixel legacy/current snapshots, working,\nread-only and live-authoring sources, frame-zero composition, alpha, PNG text,\nunchanged source bytes/time/revision, rejected native/video/unsupported output,\nand a selected-drive manifest unaffected by stateless export. The complete\ninstalled filesystem consumer runs the same cases against the installed SDK.\n"
     }
   ],
@@ -471,7 +472,7 @@
       "level": 2,
       "title": "Authorization, lifecycle and verification",
       "anchor": "authorization-lifecycle-and-verification",
-      "start_line": 91
+      "start_line": 89
     },
     {
       "block_id": "b000045",
@@ -479,7 +480,7 @@
       "level": 2,
       "title": "Read-only canvas images and stateless export (0.10.1)",
       "anchor": "read-only-canvas-images-and-stateless-export-0101",
-      "start_line": 127
+      "start_line": 125
     }
   ],
   "indexes": {
@@ -500,28 +501,28 @@
       },
       {
         "block_id": "b000025",
-        "line": 69,
+        "line": 67,
         "text": "symlink/junction escapes are rejected. Host OS paths and credentials are never",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000035",
-        "line": 103,
+        "line": 101,
         "text": "pending operation is never given a new token or replayed after transport failure.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000039",
-        "line": 114,
+        "line": 112,
         "text": "and exact-token retries. These tests do not establish production-host, physical",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000051",
-        "line": 145,
+        "line": 143,
         "text": "The caller schedules the synchronous operation. The adapter never constructs a",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -529,37 +530,7 @@
     ],
     "commands": [],
     "links": [],
-    "tables": [
-      {
-        "block_id": "b000023",
-        "columns": [
-          "Method",
-          "Contract"
-        ],
-        "rows": [
-          [
-            "`listHostDirectory(path, cursor, version)`",
-            "Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails."
-          ],
-          [
-            "`statHostEntry(path)`",
-            "Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries."
-          ],
-          [
-            "`readHostFile(path, offset, version)`",
-            "At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks."
-          ],
-          [
-            "`writeHostFile(path, bytes)`",
-            "Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path."
-          ],
-          [
-            "`createHostDirectory(path)`",
-            "Creates one immediate child in an existing directory, preserving existing entries and section roots."
-          ]
-        ]
-      }
-    ]
+    "tables": []
   },
   "provenance": {
     "generator": "workspace-docs",

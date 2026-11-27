@@ -40,11 +40,9 @@ Society Namespace (컨테이너 UUID)
 
 `ObjectProvider`는 바이트 저장/읽기의 교체 가능한 인터페이스이다. Namespace·저널·권한 정책은 포함하지 않는다. 모든 공급자는 `(namespace UUID, SHA-256, 크기)`로 식별한 객체를 `objects/<namespace>/<hash-prefix>/<hash>`에 저장한다.
 
-| 객체 | 저장 대상 | 동작 |
-| --- | --- | --- |
-| 기본 local 투영 | Society 호스트의 로컬 디렉터리 | 네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용 |
-| `DirectoryObjectProvider` | 별도 Mac 디렉터리 또는 마운트한 NAS | 스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요 |
-| `RemoteObjectProvider` | 명시적으로 설정한 NAS/S3 rclone remote | iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사 |
+- 객체: 기본 local 투영; 저장 대상: Society 호스트의 로컬 디렉터리; 동작: 네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용
+- 객체: `DirectoryObjectProvider`; 저장 대상: 별도 Mac 디렉터리 또는 마운트한 NAS; 동작: 스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요
+- 객체: `RemoteObjectProvider`; 저장 대상: 명시적으로 설정한 NAS/S3 rclone remote; 동작: iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사
 
 `Replica::placeObject(path, provider)`는 파일을 저장·검증한 다음 해당 **버전**에 공급자 위치를 기록한다. 공급자 추가나 장애는 namespace UUID와 리비전을 변경하지 않는다. 원격 I/O 동안 journal lock을 잡지 않는다. `restoreObject`는 아직 삭제 커밋이 되지 않은 누락된 로컬 투영을 복구하며, 수정된 파일과 대기 중 편집을 덮지 않는다. 이미 삭제를 확정한 파일은 보관한 ObjectIdentity로 provider `get`을 사용해 복구한 뒤 새 편집으로 확정할 수 있다.
 

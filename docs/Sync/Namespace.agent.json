@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/Sync/Namespace.md",
-    "sha256": "9cc7695a27b9452932488ef1c384bcdb26439aec0d43548d08b53c5c4c35c268",
-    "bytes": 10348,
-    "line_count": 81,
+    "sha256": "366d07d9981c937fdbf63665a2fd7b9f9231a607331326bdcbbdfc6237b47110",
+    "bytes": 10373,
+    "line_count": 79,
     "encoding": "utf-8",
     "language": "ko"
   },
@@ -233,87 +233,82 @@
     },
     {
       "id": "b000025",
-      "kind": "table",
       "start_line": 43,
-      "end_line": 47,
-      "raw": "| 객체 | 저장 대상 | 동작 |\n| --- | --- | --- |\n| 기본 local 투영 | Society 호스트의 로컬 디렉터리 | 네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용 |\n| `DirectoryObjectProvider` | 별도 Mac 디렉터리 또는 마운트한 NAS | 스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요 |\n| `RemoteObjectProvider` | 명시적으로 설정한 NAS/S3 rclone remote | iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사 |\n",
-      "columns": [
-        "객체",
-        "저장 대상",
-        "동작"
-      ],
-      "rows": [
-        [
-          "기본 local 투영",
-          "Society 호스트의 로컬 디렉터리",
-          "네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용"
-        ],
-        [
-          "`DirectoryObjectProvider`",
-          "별도 Mac 디렉터리 또는 마운트한 NAS",
-          "스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요"
-        ],
-        [
-          "`RemoteObjectProvider`",
-          "명시적으로 설정한 NAS/S3 rclone remote",
-          "iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사"
-        ]
+      "end_line": 45,
+      "raw": "- 객체: 기본 local 투영; 저장 대상: Society 호스트의 로컬 디렉터리; 동작: 네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용\n- 객체: `DirectoryObjectProvider`; 저장 대상: 별도 Mac 디렉터리 또는 마운트한 NAS; 동작: 스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요\n- 객체: `RemoteObjectProvider`; 저장 대상: 명시적으로 설정한 NAS/S3 rclone remote; 동작: iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사\n",
+      "kind": "list",
+      "items": [
+        {
+          "marker": "-",
+          "text": "객체: 기본 local 투영; 저장 대상: Society 호스트의 로컬 디렉터리; 동작: 네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "객체: `DirectoryObjectProvider`; 저장 대상: 별도 Mac 디렉터리 또는 마운트한 NAS; 동작: 스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "객체: `RemoteObjectProvider`; 저장 대상: 명시적으로 설정한 NAS/S3 rclone remote; 동작: iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사",
+          "checked": null
+        }
       ]
     },
     {
       "id": "b000026",
+      "kind": "blank",
+      "start_line": 46,
+      "end_line": 46,
+      "raw": "\n"
+    },
+    {
+      "id": "b000027",
+      "kind": "paragraph",
+      "start_line": 47,
+      "end_line": 47,
+      "raw": "`Replica::placeObject(path, provider)`는 파일을 저장·검증한 다음 해당 **버전**에 공급자 위치를 기록한다. 공급자 추가나 장애는 namespace UUID와 리비전을 변경하지 않는다. 원격 I/O 동안 journal lock을 잡지 않는다. `restoreObject`는 아직 삭제 커밋이 되지 않은 누락된 로컬 투영을 복구하며, 수정된 파일과 대기 중 편집을 덮지 않는다. 이미 삭제를 확정한 파일은 보관한 ObjectIdentity로 provider `get`을 사용해 복구한 뒤 새 편집으로 확정할 수 있다.\n"
+    },
+    {
+      "id": "b000028",
       "kind": "blank",
       "start_line": 48,
       "end_line": 48,
       "raw": "\n"
     },
     {
-      "id": "b000027",
+      "id": "b000029",
       "kind": "paragraph",
       "start_line": 49,
       "end_line": 49,
-      "raw": "`Replica::placeObject(path, provider)`는 파일을 저장·검증한 다음 해당 **버전**에 공급자 위치를 기록한다. 공급자 추가나 장애는 namespace UUID와 리비전을 변경하지 않는다. 원격 I/O 동안 journal lock을 잡지 않는다. `restoreObject`는 아직 삭제 커밋이 되지 않은 누락된 로컬 투영을 복구하며, 수정된 파일과 대기 중 편집을 덮지 않는다. 이미 삭제를 확정한 파일은 보관한 ObjectIdentity로 provider `get`을 사용해 복구한 뒤 새 편집으로 확정할 수 있다.\n"
+      "raw": "`restoreObject`의 `.society-sync/transfers/provider-<UUID>.part`는 파일 생성 전부터 설치·삭제가 끝날 때까지 `iiFileProvider::TemporaryLease::Mode::Shared`로 보호한다. 이 임시 파일 lease는 원격 I/O 동안 journal lock을 해제해도 유지된다. 주기적 `StorageMaintenance`는 같은 부모의 `TryExclusive` lease를 얻을 수 없으면 정리를 건너뛴다. 네트워크 파일 수신도 `begin`부터 요청 사이의 대기·`chunk`·`commit`까지 lease를 유지하며 완료와 `Replica::close()`에서 해제한다. 닫힌 미완료 전송은 즉시 정리 대상이므로, 이후 재연결은 남은 바이트가 없으면 offset 0부터 다시 시작한다. 복구 디렉터리와 journal SQLite/WAL/SHM은 삭제 대상이 아니다.\n"
     },
     {
-      "id": "b000028",
+      "id": "b000030",
       "kind": "blank",
       "start_line": 50,
       "end_line": 50,
       "raw": "\n"
     },
     {
-      "id": "b000029",
+      "id": "b000031",
       "kind": "paragraph",
       "start_line": 51,
       "end_line": 51,
-      "raw": "`restoreObject`의 `.society-sync/transfers/provider-<UUID>.part`는 파일 생성 전부터 설치·삭제가 끝날 때까지 `iiFileProvider::TemporaryLease::Mode::Shared`로 보호한다. 이 임시 파일 lease는 원격 I/O 동안 journal lock을 해제해도 유지된다. 주기적 `StorageMaintenance`는 같은 부모의 `TryExclusive` lease를 얻을 수 없으면 정리를 건너뛴다. 네트워크 파일 수신도 `begin`부터 요청 사이의 대기·`chunk`·`commit`까지 lease를 유지하며 완료와 `Replica::close()`에서 해제한다. 닫힌 미완료 전송은 즉시 정리 대상이므로, 이후 재연결은 남은 바이트가 없으면 offset 0부터 다시 시작한다. 복구 디렉터리와 journal SQLite/WAL/SHM은 삭제 대상이 아니다.\n"
+      "raw": "Controller는 공급자 작업을 최대 2개의 별도 작업 스레드와 SQLite 연결로 실행한다. NAS/S3의 응답 지연 중에도 원래 호스트 작업 스레드는 로컬 확정·기기 복제를 계속한다. 계정·컨테이너 변경은 공급자 작업도 취소하고 오래된 완료 통지를 폐기하며, 데스크톱 `closeAndWait`는 공급자 작업까지 종료한 뒤 반환한다.\n"
     },
     {
-      "id": "b000030",
+      "id": "b000032",
       "kind": "blank",
       "start_line": 52,
       "end_line": 52,
       "raw": "\n"
     },
     {
-      "id": "b000031",
-      "kind": "paragraph",
-      "start_line": 53,
-      "end_line": 53,
-      "raw": "Controller는 공급자 작업을 최대 2개의 별도 작업 스레드와 SQLite 연결로 실행한다. NAS/S3의 응답 지연 중에도 원래 호스트 작업 스레드는 로컬 확정·기기 복제를 계속한다. 계정·컨테이너 변경은 공급자 작업도 취소하고 오래된 완료 통지를 폐기하며, 데스크톱 `closeAndWait`는 공급자 작업까지 종료한 뒤 반환한다.\n"
-    },
-    {
-      "id": "b000032",
-      "kind": "blank",
-      "start_line": 54,
-      "end_line": 54,
-      "raw": "\n"
-    },
-    {
       "id": "b000033",
       "kind": "fenced_code",
-      "start_line": 55,
-      "end_line": 69,
+      "start_line": 53,
+      "end_line": 67,
       "raw": "```cpp\n// 호출 앱은 이미 사용 중인 Controller와 공급자의 수명을 관리한다.\nauto nas = std::make_shared<iiSocietyHelper::Sync::DirectoryObjectProvider>(\n    \"nas-archive\", mountedDedicatedDirectory, true);\nsync.placeObject(\"models/model.safetensors\", nas);\n// providerFinished(path, id, restored, success, error)로 완료 확인\n\niiWebServer::StorageBridgeOptions backend;\nbackend.executable = trustedRcloneExecutable;\nbackend.configFile = ownerOnlyRcloneConfig;\nbackend.runtimeDirectory = ownerOnlyLocalRuntime;\nauto s3 = std::make_shared<iiSocietyHelper::Sync::RemoteObjectProvider>(\n    \"s3-archive\", \"s3\", \"configured-s3:bucket/society\", backend);\nsync.placeObject(\"models/model.safetensors\", s3);\n```\n",
       "language": "cpp",
       "code": "// 호출 앱은 이미 사용 중인 Controller와 공급자의 수명을 관리한다.\nauto nas = std::make_shared<iiSocietyHelper::Sync::DirectoryObjectProvider>(\n    \"nas-archive\", mountedDedicatedDirectory, true);\nsync.placeObject(\"models/model.safetensors\", nas);\n// providerFinished(path, id, restored, success, error)로 완료 확인\n\niiWebServer::StorageBridgeOptions backend;\nbackend.executable = trustedRcloneExecutable;\nbackend.configFile = ownerOnlyRcloneConfig;\nbackend.runtimeDirectory = ownerOnlyLocalRuntime;\nauto s3 = std::make_shared<iiSocietyHelper::Sync::RemoteObjectProvider>(\n    \"s3-archive\", \"s3\", \"configured-s3:bucket/society\", backend);\nsync.placeObject(\"models/model.safetensors\", s3);\n",
@@ -322,43 +317,43 @@
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 70,
-      "end_line": 70,
+      "start_line": 68,
+      "end_line": 68,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 71,
-      "end_line": 71,
+      "start_line": 69,
+      "end_line": 69,
       "raw": "공급자 API는 명시적으로 지정한 파일을 배치하는 방식이다. 전체 NAS/S3 자동 미러링 정책이나 로컬 파일을 비우는 공간 최적화 UI는 제공하지 않는다. 외부 공급자를 사용해도 소비 앱용 로컬 투영을 유지하므로 Mac Storage만으로 오프라인 사용이 가능하다. 원격 backend 실행이 없는 모바일 빌드에서는 원격 공급자가 사용 불가 오류를 반환하며 모바일은 호스트 복제 클라이언트로 동작한다.\n"
     },
     {
       "id": "b000036",
+      "kind": "blank",
+      "start_line": 70,
+      "end_line": 70,
+      "raw": "\n"
+    },
+    {
+      "id": "b000037",
+      "kind": "paragraph",
+      "start_line": 71,
+      "end_line": 71,
+      "raw": "자격 증명, endpoint와 물리 루트는 호스트의 명시적인 backend 설정에만 둔다. 복제 저널에는 넣지 않는다. 실제 NAS 마운트나 S3 계정을 자동으로 생성·설정하지 않는다. 서버 S3의 PUT/GET 일관성은 [AWS 공식 계약](https://aws.amazon.com/s3/consistency/)을 참고하되, Society 커밋 순서는 공급자와 독립적인 호스트 저널이 결정한다. 원격 복사 동작은 [rclone copyto](https://rclone.org/commands/rclone_copyto/) 계약을 사용한다.\n"
+    },
+    {
+      "id": "b000038",
       "kind": "blank",
       "start_line": 72,
       "end_line": 72,
       "raw": "\n"
     },
     {
-      "id": "b000037",
-      "kind": "paragraph",
-      "start_line": 73,
-      "end_line": 73,
-      "raw": "자격 증명, endpoint와 물리 루트는 호스트의 명시적인 backend 설정에만 둔다. 복제 저널에는 넣지 않는다. 실제 NAS 마운트나 S3 계정을 자동으로 생성·설정하지 않는다. 서버 S3의 PUT/GET 일관성은 [AWS 공식 계약](https://aws.amazon.com/s3/consistency/)을 참고하되, Society 커밋 순서는 공급자와 독립적인 호스트 저널이 결정한다. 원격 복사 동작은 [rclone copyto](https://rclone.org/commands/rclone_copyto/) 계약을 사용한다.\n"
-    },
-    {
-      "id": "b000038",
-      "kind": "blank",
-      "start_line": 74,
-      "end_line": 74,
-      "raw": "\n"
-    },
-    {
       "id": "b000039",
       "kind": "heading",
-      "start_line": 75,
-      "end_line": 75,
+      "start_line": 73,
+      "end_line": 73,
       "raw": "## 이전·내구성·검증\n",
       "level": 2,
       "title": "이전·내구성·검증"
@@ -366,43 +361,43 @@
     {
       "id": "b000040",
       "kind": "blank",
-      "start_line": 76,
-      "end_line": 76,
+      "start_line": 74,
+      "end_line": 74,
       "raw": "\n"
     },
     {
       "id": "b000041",
       "kind": "paragraph",
-      "start_line": 77,
-      "end_line": 77,
+      "start_line": 75,
+      "end_line": 75,
       "raw": "SQLite schema 2에서 3으로 이전할 때 기존 호스트의 최신 레코드를 시작 리비전으로 가져온다. 과거에 저장하지 않았던 이력은 만들어내지 않는다. 기존 미러는 확정 저널을 처음부터 받고, 작업 파일과 오프라인 편집은 보존한다. SQLite WAL과 authority metadata는 기기 로컬 디스크에 둔다. NAS/S3에는 객체 바이트만 저장한다. 리비전 이력은 자동 GC하지 않는다.\n"
     },
     {
       "id": "b000042",
+      "kind": "blank",
+      "start_line": 76,
+      "end_line": 76,
+      "raw": "\n"
+    },
+    {
+      "id": "b000043",
+      "kind": "paragraph",
+      "start_line": 77,
+      "end_line": 77,
+      "raw": "리비전 그래프는 메타데이터 이력이다. 기본 로컬 투영이 모든 과거 파일 바이트를 보관하는 것은 아니다. 특정 버전을 provider에 배치하면 그 해시의 바이트를 별도로 보관한다. 여러 파일이나 열려 있는 앱 DB 전체를 하나의 스냅샷으로 묶지는 않는다.\n"
+    },
+    {
+      "id": "b000044",
       "kind": "blank",
       "start_line": 78,
       "end_line": 78,
       "raw": "\n"
     },
     {
-      "id": "b000043",
+      "id": "b000045",
       "kind": "paragraph",
       "start_line": 79,
       "end_line": 79,
-      "raw": "리비전 그래프는 메타데이터 이력이다. 기본 로컬 투영이 모든 과거 파일 바이트를 보관하는 것은 아니다. 특정 버전을 provider에 배치하면 그 해시의 바이트를 별도로 보관한다. 여러 파일이나 열려 있는 앱 DB 전체를 하나의 스냅샷으로 묶지는 않는다.\n"
-    },
-    {
-      "id": "b000044",
-      "kind": "blank",
-      "start_line": 80,
-      "end_line": 80,
-      "raw": "\n"
-    },
-    {
-      "id": "b000045",
-      "kind": "paragraph",
-      "start_line": 81,
-      "end_line": 81,
       "raw": "`iiSocietyHelper::Sync.Namespace`는 오프라인 확정, 3개 노드의 호스트 결정 수렴, 메타데이터/작업 상태 분리, 이력·상한 스냅샷, 위조·재전송 롤백, schema 이전, 공급자 장애·손상·복구를 검사한다. `IIWEBSERVER_TEST_RCLONE`을 설정하면 로컬의 인증된 S3 호환 서버로 실제 저장·읽기·SHA-256 왕복을 실행한다. 이는 AWS 실계정이나 실제 NAS·모바일 무선 전송 검증과 구분한다.\n"
     }
   ],
@@ -437,7 +432,7 @@
       "level": 2,
       "title": "이전·내구성·검증",
       "anchor": "이전내구성검증",
-      "start_line": 75
+      "start_line": 73
     }
   ],
   "indexes": {
@@ -465,28 +460,28 @@
       },
       {
         "block_id": "b000027",
-        "line": 49,
+        "line": 47,
         "text": "`Replica::placeObject(path, provider)`는 파일을 저장·검증한 다음 해당 **버전**에 공급자 위치를 기록한다. 공급자 추가나 장애는 namespace UUID와 리비전을 변경하지 않는다. 원격 I/O 동안 journal lock을 잡지 않는다. `restoreObject`는 아직 삭제 커밋이 되지 않은 누락된 로컬 투영을 복구하며, 수정된 파일과 대기 중 편집을 덮지 않는다. 이미 삭제를 확정한 파일은 보관한 ObjectIdentity로 provider `get`을 사용해 복구한 뒤 새 편집으로 확정할 수 있다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000035",
-        "line": 71,
+        "line": 69,
         "text": "공급자 API는 명시적으로 지정한 파일을 배치하는 방식이다. 전체 NAS/S3 자동 미러링 정책이나 로컬 파일을 비우는 공간 최적화 UI는 제공하지 않는다. 외부 공급자를 사용해도 소비 앱용 로컬 투영을 유지하므로 Mac Storage만으로 오프라인 사용이 가능하다. 원격 backend 실행이 없는 모바일 빌드에서는 원격 공급자가 사용 불가 오류를 반환하며 모바일은 호스트 복제 클라이언트로 동작한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000037",
-        "line": 73,
+        "line": 71,
         "text": "자격 증명, endpoint와 물리 루트는 호스트의 명시적인 backend 설정에만 둔다. 복제 저널에는 넣지 않는다. 실제 NAS 마운트나 S3 계정을 자동으로 생성·설정하지 않는다. 서버 S3의 PUT/GET 일관성은 [AWS 공식 계약](https://aws.amazon.com/s3/consistency/)을 참고하되, Society 커밋 순서는 공급자와 독립적인 호스트 저널이 결정한다. 원격 복사 동작은 [rclone copyto](https://rclone.org/commands/rclone_copyto/) 계약을 사용한다.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000041",
-        "line": 77,
+        "line": 75,
         "text": "SQLite schema 2에서 3으로 이전할 때 기존 호스트의 최신 레코드를 시작 리비전으로 가져온다. 과거에 저장하지 않았던 이력은 만들어내지 않는다. 기존 미러는 확정 저널을 처음부터 받고, 작업 파일과 오프라인 편집은 보존한다. SQLite WAL과 authority metadata는 기기 로컬 디스크에 둔다. NAS/S3에는 객체 바이트만 저장한다. 리비전 이력은 자동 GC하지 않는다.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -499,43 +494,17 @@
         "label": "AWS 공식 계약",
         "target": "https://aws.amazon.com/s3/consistency/",
         "kind": "external",
-        "line": 73
+        "line": 71
       },
       {
         "block_id": "b000037",
         "label": "rclone copyto",
         "target": "https://rclone.org/commands/rclone_copyto/",
         "kind": "external",
-        "line": 73
+        "line": 71
       }
     ],
-    "tables": [
-      {
-        "block_id": "b000025",
-        "columns": [
-          "객체",
-          "저장 대상",
-          "동작"
-        ],
-        "rows": [
-          [
-            "기본 local 투영",
-            "Society 호스트의 로컬 디렉터리",
-            "네트워크 없이 변경을 확정하고 모든 복제의 원본으로 사용"
-          ],
-          [
-            "`DirectoryObjectProvider`",
-            "별도 Mac 디렉터리 또는 마운트한 NAS",
-            "스트리밍 해시·크기 검사 후 원자적 저장, hard link 불필요"
-          ],
-          [
-            "`RemoteObjectProvider`",
-            "명시적으로 설정한 NAS/S3 rclone remote",
-            "iiWebServer StorageBridge 사용, S3 multipart 지원은 선택한 rclone에 위임, 저장 후 다시 읽어 해시 검사"
-          ]
-        ]
-      }
-    ]
+    "tables": []
   },
   "provenance": {
     "generator": "workspace-docs",

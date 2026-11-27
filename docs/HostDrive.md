@@ -53,13 +53,11 @@ disconnection, invalid input or the limit of 16 pending requests. Accepted calls
 finish asynchronously with `hostDriveResponse(id, reply)`. Always check `ok` and
 `error`. Callers cannot select another host, URL or credential.
 
-| Method | Contract |
-| --- | --- |
-| `listHostDirectory(path, cursor, version)` | Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails. |
-| `statHostEntry(path)` | Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries. |
-| `readHostFile(path, offset, version)` | At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks. |
-| `writeHostFile(path, bytes)` | Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path. |
-| `createHostDirectory(path)` | Creates one immediate child in an existing directory, preserving existing entries and section roots. |
+- Method: `listHostDirectory(path, cursor, version)`; Contract: Empty path lists nine sections. Other directories return at most 128 entries and 240 KiB of metadata, `nextCursor` and `version`. Pass both cursor and version to continue; a changed directory fails.
+- Method: `statHostEntry(path)`; Contract: Live `path`, `kind`, decimal-string `size` and native `version`, for section directories or entries.
+- Method: `readHostFile(path, offset, version)`; Contract: At most 256 KiB, base64 `data`, decimal-string `offset`/`size`, `version` and `eof`. First read may omit version; pin the returned version for subsequent chunks.
+- Method: `writeHostFile(path, bytes)`; Contract: Atomic create-only publication of at most 256 KiB in an existing directory. Existing targets are preserved. Larger uploads use the existing replica submission path.
+- Method: `createHostDirectory(path)`; Contract: Creates one immediate child in an existing directory, preserving existing entries and section roots.
 
 Paths are logical section keys such as `files/Documents/note.txt`,
 `models/model.safetensors`, `photos/image.jpg` and `generation-history/output.png`.

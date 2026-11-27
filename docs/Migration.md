@@ -26,12 +26,10 @@ and libraries must not be linked alongside the consolidated library.
 
 The SDK keeps two storage responsibilities explicit:
 
-| API | Responsibility |
-| --- | --- |
-| `Helper` / `DeliveryStore` | Same-device presence and durable local IPC. |
-| `Helper::fileSystem()` / `FileSystem` | Selected native drive, Alias snapshots, canvas persistence, model access and media publication. |
-| `Client` | Authenticated host access, read-only container metadata and replica sessions. |
-| `AccountSession` | Account restoration, scoped pairing credentials and host reconnection state. |
+- API: `Helper` / `DeliveryStore`; Responsibility: Same-device presence and durable local IPC.
+- API: `Helper::fileSystem()` / `FileSystem`; Responsibility: Selected native drive, Alias snapshots, canvas persistence, model access and media publication.
+- API: `Client`; Responsibility: Authenticated host access, read-only container metadata and replica sessions.
+- API: `AccountSession`; Responsibility: Account restoration, scoped pairing credentials and host reconnection state.
 
 Create the objects on the application event-loop thread. A local Helper can
 reference the same account manager as the host client:

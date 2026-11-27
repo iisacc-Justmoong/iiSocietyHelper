@@ -6,11 +6,9 @@ belong to this repository. Applications no longer discover or link those three
 separate packages. Local IPC, account/client APIs, file/canvas/media operations,
 remote generation, synchronization and native monitoring share one owner.
 
-| Capability | CMake component / target | Public C++ API |
-| --- | --- | --- |
-| Accounts, client, storage, local IPC, sync, remote generation | Core / `iiSocietyHelper::iiSocietyHelper` | Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote` |
-| Native container monitoring and daemon | Monitoring / `iiSocietyHelper::Monitoring` | `iiSocietyHelper::Monitoring` |
-| Desktop inference host | GenerationHost / `iiSocietyHelper::GenerationHost` | `iiSocietyHelper::Generation::Host` |
+- Capability: Accounts, client, storage, local IPC, sync, remote generation; CMake component / target: Core / `iiSocietyHelper::iiSocietyHelper`; Public C++ API: Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote`
+- Capability: Native container monitoring and daemon; CMake component / target: Monitoring / `iiSocietyHelper::Monitoring`; Public C++ API: `iiSocietyHelper::Monitoring`
+- Capability: Desktop inference host; CMake component / target: GenerationHost / `iiSocietyHelper::GenerationHost`; Public C++ API: `iiSocietyHelper::Generation::Host`
 
 These are components of one SDK package, not independently versioned modules.
 Monitoring remains a C++23 native library with no Qt header or binary dependency.

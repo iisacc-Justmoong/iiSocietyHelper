@@ -10,7 +10,8 @@ Society and Dreamscapes package references use a guarded `build/quit-fix-stage`
 link to the retained package in `resources/dependencies/quit-fix-stage`.
 Configuration refuses to replace unrelated data or a conflicting link.
 
-Native tests obtain a unique `resources/.t` workspace, and fixture creation,
+Native tests obtain a unique, visible `resources/t` workspace, allowing asynchronous
+presentation intake to apply its normal visibility rules. Fixture creation,
 Qt test output and temporary process data use that workspace. Normal return and
 test failure remove the owned workspace. Cross-target tests retain the
 `IISOCIETYHELPER_SYNC_TEST_DIRECTORY` device-path override and CTest's target

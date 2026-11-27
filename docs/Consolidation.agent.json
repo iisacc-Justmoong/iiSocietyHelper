@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/Consolidation.md",
-    "sha256": "ab3dab6198fea685da0d3d8b8ad717995f741e22ab3dc8b914a5cfef4368ae17",
-    "bytes": 6212,
-    "line_count": 112,
+    "sha256": "9476785937a619b94ce550d220e7723b5b56e15e832492a888ce5c2c0e3b8f57",
+    "bytes": 6283,
+    "line_count": 110,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -54,59 +54,54 @@
     },
     {
       "id": "b000005",
-      "kind": "table",
       "start_line": 9,
-      "end_line": 13,
-      "raw": "| Capability | CMake component / target | Public C++ API |\n| --- | --- | --- |\n| Accounts, client, storage, local IPC, sync, remote generation | Core / `iiSocietyHelper::iiSocietyHelper` | Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote` |\n| Native container monitoring and daemon | Monitoring / `iiSocietyHelper::Monitoring` | `iiSocietyHelper::Monitoring` |\n| Desktop inference host | GenerationHost / `iiSocietyHelper::GenerationHost` | `iiSocietyHelper::Generation::Host` |\n",
-      "columns": [
-        "Capability",
-        "CMake component / target",
-        "Public C++ API"
-      ],
-      "rows": [
-        [
-          "Accounts, client, storage, local IPC, sync, remote generation",
-          "Core / `iiSocietyHelper::iiSocietyHelper`",
-          "Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote`"
-        ],
-        [
-          "Native container monitoring and daemon",
-          "Monitoring / `iiSocietyHelper::Monitoring`",
-          "`iiSocietyHelper::Monitoring`"
-        ],
-        [
-          "Desktop inference host",
-          "GenerationHost / `iiSocietyHelper::GenerationHost`",
-          "`iiSocietyHelper::Generation::Host`"
-        ]
+      "end_line": 11,
+      "raw": "- Capability: Accounts, client, storage, local IPC, sync, remote generation; CMake component / target: Core / `iiSocietyHelper::iiSocietyHelper`; Public C++ API: Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote`\n- Capability: Native container monitoring and daemon; CMake component / target: Monitoring / `iiSocietyHelper::Monitoring`; Public C++ API: `iiSocietyHelper::Monitoring`\n- Capability: Desktop inference host; CMake component / target: GenerationHost / `iiSocietyHelper::GenerationHost`; Public C++ API: `iiSocietyHelper::Generation::Host`\n",
+      "kind": "list",
+      "items": [
+        {
+          "marker": "-",
+          "text": "Capability: Accounts, client, storage, local IPC, sync, remote generation; CMake component / target: Core / `iiSocietyHelper::iiSocietyHelper`; Public C++ API: Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote`",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Capability: Native container monitoring and daemon; CMake component / target: Monitoring / `iiSocietyHelper::Monitoring`; Public C++ API: `iiSocietyHelper::Monitoring`",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "Capability: Desktop inference host; CMake component / target: GenerationHost / `iiSocietyHelper::GenerationHost`; Public C++ API: `iiSocietyHelper::Generation::Host`",
+          "checked": null
+        }
       ]
     },
     {
       "id": "b000006",
       "kind": "blank",
-      "start_line": 14,
-      "end_line": 14,
+      "start_line": 12,
+      "end_line": 12,
       "raw": "\n"
     },
     {
       "id": "b000007",
       "kind": "paragraph",
-      "start_line": 15,
-      "end_line": 19,
+      "start_line": 13,
+      "end_line": 17,
       "raw": "These are components of one SDK package, not independently versioned modules.\nMonitoring remains a C++23 native library with no Qt header or binary dependency.\nCore uses the existing Qt adapters. Remote generation belongs to Core and works\non supported mobile clients. The desktop host is optional, so mobile and native\nmonitor consumers do not import the diffusion inference backend.\n"
     },
     {
       "id": "b000008",
       "kind": "blank",
-      "start_line": 20,
-      "end_line": 20,
+      "start_line": 18,
+      "end_line": 18,
       "raw": "\n"
     },
     {
       "id": "b000009",
       "kind": "fenced_code",
-      "start_line": 21,
-      "end_line": 28,
+      "start_line": 19,
+      "end_line": 26,
       "raw": "```cmake\nfind_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED)\ntarget_link_libraries(application PRIVATE iiSocietyHelper::iiSocietyHelper)\n\n# Desktop hosts explicitly select the inference component.\nfind_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED COMPONENTS GenerationHost)\ntarget_link_libraries(host PRIVATE iiSocietyHelper::GenerationHost)\n```\n",
       "language": "cmake",
       "code": "find_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED)\ntarget_link_libraries(application PRIVATE iiSocietyHelper::iiSocietyHelper)\n\n# Desktop hosts explicitly select the inference component.\nfind_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED COMPONENTS GenerationHost)\ntarget_link_libraries(host PRIVATE iiSocietyHelper::GenerationHost)\n",
@@ -115,15 +110,15 @@
     {
       "id": "b000010",
       "kind": "blank",
-      "start_line": 29,
-      "end_line": 29,
+      "start_line": 27,
+      "end_line": 27,
       "raw": "\n"
     },
     {
       "id": "b000011",
       "kind": "fenced_code",
-      "start_line": 30,
-      "end_line": 36,
+      "start_line": 28,
+      "end_line": 34,
       "raw": "```cpp\n#include <iiSocietyHelper.h>\n#include <iiSocietyHelper/Sync/Replica.h>\n#include <iiSocietyHelper/Generation/Remote.h>\n// Only desktop hosts include this header and link GenerationHost:\n#include <iiSocietyHelper/Generation/Host.h>\n```\n",
       "language": "cpp",
       "code": "#include <iiSocietyHelper.h>\n#include <iiSocietyHelper/Sync/Replica.h>\n#include <iiSocietyHelper/Generation/Remote.h>\n// Only desktop hosts include this header and link GenerationHost:\n#include <iiSocietyHelper/Generation/Host.h>\n",
@@ -132,29 +127,29 @@
     {
       "id": "b000012",
       "kind": "blank",
-      "start_line": 37,
-      "end_line": 37,
+      "start_line": 35,
+      "end_line": 35,
       "raw": "\n"
     },
     {
       "id": "b000013",
       "kind": "paragraph",
-      "start_line": 38,
-      "end_line": 38,
+      "start_line": 36,
+      "end_line": 36,
       "raw": "Native monitoring consumers can disable Qt discovery entirely:\n"
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 39,
-      "end_line": 39,
+      "start_line": 37,
+      "end_line": 37,
       "raw": "\n"
     },
     {
       "id": "b000015",
       "kind": "fenced_code",
-      "start_line": 40,
-      "end_line": 43,
+      "start_line": 38,
+      "end_line": 41,
       "raw": "```cmake\nfind_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED COMPONENTS Monitoring)\ntarget_link_libraries(monitor PRIVATE iiSocietyHelper::Monitoring)\n```\n",
       "language": "cmake",
       "code": "find_package(iiSocietyHelper 0.10.0 CONFIG REQUIRED COMPONENTS Monitoring)\ntarget_link_libraries(monitor PRIVATE iiSocietyHelper::Monitoring)\n",
@@ -163,15 +158,15 @@
     {
       "id": "b000016",
       "kind": "blank",
-      "start_line": 44,
-      "end_line": 44,
+      "start_line": 42,
+      "end_line": 42,
       "raw": "\n"
     },
     {
       "id": "b000017",
       "kind": "fenced_code",
-      "start_line": 45,
-      "end_line": 48,
+      "start_line": 43,
+      "end_line": 46,
       "raw": "```cpp\n#include <iiSocietyHelper/Monitoring/Monitor.h>\niiSocietyHelper::Monitoring::Publisher publisher;\n```\n",
       "language": "cpp",
       "code": "#include <iiSocietyHelper/Monitoring/Monitor.h>\niiSocietyHelper::Monitoring::Publisher publisher;\n",
@@ -180,29 +175,29 @@
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 49,
-      "end_line": 49,
+      "start_line": 47,
+      "end_line": 47,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "paragraph",
-      "start_line": 50,
-      "end_line": 56,
+      "start_line": 48,
+      "end_line": 54,
       "raw": "The source project also supports `IISOCIETYHELPER_BUILD_CORE=OFF` for a native\nmonitoring-only installation. Full desktop builds default\n`IISOCIETYHELPER_BUILD_GENERATION_HOST` to ON; mobile/WebAssembly builds default\nit to OFF. `IISOCIETYHELPER_WITH_BLE` controls the existing BLE discovery backend.\nAll targets require C++23. GenerationHost requires Core; Core consumes Monitoring.\nMonitoring never references Core. Export sets and package dependency discovery\nfollow that direction, including repeated component discovery by a consumer.\n"
     },
     {
       "id": "b000020",
       "kind": "blank",
-      "start_line": 57,
-      "end_line": 57,
+      "start_line": 55,
+      "end_line": 55,
       "raw": "\n"
     },
     {
       "id": "b000021",
       "kind": "heading",
-      "start_line": 58,
-      "end_line": 58,
+      "start_line": 56,
+      "end_line": 56,
       "raw": "## Preserved data and process contracts\n",
       "level": 2,
       "title": "Preserved data and process contracts"
@@ -210,43 +205,43 @@
     {
       "id": "b000022",
       "kind": "blank",
-      "start_line": 59,
-      "end_line": 59,
+      "start_line": 57,
+      "end_line": 57,
       "raw": "\n"
     },
     {
       "id": "b000023",
       "kind": "paragraph",
-      "start_line": 60,
-      "end_line": 66,
+      "start_line": 58,
+      "end_line": 64,
       "raw": "The consolidation does not migrate live containers or restart running apps.\nContainer IDs, authentication/account proofs, journal revisions, wire formats,\nchunk hashes, recovery plans, cancellation and object/file presentation contracts\nremain intact. Generation's existing `.society-runtime/iiSocietyGeneration`\ndirectory is retained as a persistent data path so outputs retain their existing location. The in-memory job queue still has\nthe existing process lifetime; a host restart does not recover accepted jobs. Its name does not imply a dependency on a\nretired SDK package.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 67,
-      "end_line": 67,
+      "start_line": 65,
+      "end_line": 65,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "paragraph",
-      "start_line": 68,
-      "end_line": 71,
+      "start_line": 66,
+      "end_line": 69,
       "raw": "`SocietyContainerDaemon` is now installed by Helper's Monitoring component.\n`ii-society-helper` remains the Core observation/diagnostic executable. Both are\nplain native executables. The native daemon does not pull in the Core facade or\nQt Quick. Products resolve the daemon from the selected Helper installation.\n"
     },
     {
       "id": "b000026",
       "kind": "blank",
-      "start_line": 72,
-      "end_line": 72,
+      "start_line": 70,
+      "end_line": 70,
       "raw": "\n"
     },
     {
       "id": "b000027",
       "kind": "heading",
-      "start_line": 73,
-      "end_line": 73,
+      "start_line": 71,
+      "end_line": 71,
       "raw": "## Migration and verification\n",
       "level": 2,
       "title": "Migration and verification"
@@ -254,85 +249,85 @@
     {
       "id": "b000028",
       "kind": "blank",
-      "start_line": 74,
-      "end_line": 74,
+      "start_line": 72,
+      "end_line": 72,
       "raw": "\n"
     },
     {
       "id": "b000029",
       "kind": "paragraph",
-      "start_line": 75,
-      "end_line": 79,
+      "start_line": 73,
+      "end_line": 77,
       "raw": "Replace includes with `iiSocietyHelper/Sync/...`,\n`iiSocietyHelper/Monitoring/Monitor.h` and `iiSocietyHelper/Generation/...`.\nThe corresponding namespaces are `iiSocietyHelper::Sync`,\n`iiSocietyHelper::Monitoring` and `iiSocietyHelper::Generation`. No compatibility\npackage or old target alias is installed. Existing Helper APIs remain available.\n"
     },
     {
       "id": "b000030",
       "kind": "blank",
-      "start_line": 80,
-      "end_line": 80,
+      "start_line": 78,
+      "end_line": 78,
       "raw": "\n"
     },
     {
       "id": "b000031",
       "kind": "paragraph",
-      "start_line": 81,
-      "end_line": 87,
+      "start_line": 79,
+      "end_line": 85,
       "raw": "The original protocol, monitor, process, synchronization, recovery, filesystem,\naccount and client tests are retained under Helper. Installed Core/Monitoring/\nGenerationHost consumers verify the new exports. Native-only configuration and\nlinkage checks independently protect the no-Qt monitoring contract. Workspace\nconsumers cover migrated Society and Dreamscapes headers, host generation and\nphoto synchronization. Platform build plans and the Windows dependency graph\nuse the single package.\n"
     },
     {
       "id": "b000032",
       "kind": "blank",
-      "start_line": 88,
-      "end_line": 88,
+      "start_line": 86,
+      "end_line": 86,
       "raw": "\n"
     },
     {
       "id": "b000033",
       "kind": "paragraph",
-      "start_line": 89,
-      "end_line": 92,
+      "start_line": 87,
+      "end_line": 90,
       "raw": "Source and repository history of the retired modules are preserved outside the\nactive SDK tree under the consolidation evidence's `retired/` directory. This\narchive includes existing uncommitted work; no repository reset or remote\nrepository deletion is part of the consolidation.\n"
     },
     {
       "id": "b000034",
       "kind": "blank",
-      "start_line": 93,
-      "end_line": 93,
+      "start_line": 91,
+      "end_line": 91,
       "raw": "\n"
     },
     {
       "id": "b000035",
       "kind": "paragraph",
-      "start_line": 94,
-      "end_line": 104,
+      "start_line": 92,
+      "end_line": 102,
       "raw": "The repository's `install.sh` discovers installed SDK peers under\n`~/.local/SDK`, preserves explicit `CMAKE_PREFIX_PATH` priority, builds and tests\nCore and selected components, installs, then builds/tests a separate installed\nconsumer in `build/consumer/build`. It clears inherited header and loader\nsearch overrides for these child commands, without editing shell profiles. The installer recreates only its consumer\nverification cache to avoid stale compiler implicit-header paths. Build parallelism\nis controlled by `CMAKE_BUILD_PARALLEL_LEVEL` (four by default); CTest accepts\n`CTEST_PARALLEL_LEVEL`.\nThe workspace installer also discovers dependency declarations from the\ncomponent CMake files, so lower-level packages precede Helper. Workspace tests\ncheck registry removal, this ordering, Windows edges and Product package usage.\n"
     },
     {
       "id": "b000036",
       "kind": "blank",
-      "start_line": 105,
-      "end_line": 105,
+      "start_line": 103,
+      "end_line": 103,
       "raw": "\n"
     },
     {
       "id": "b000037",
       "kind": "paragraph",
-      "start_line": 106,
-      "end_line": 110,
+      "start_line": 104,
+      "end_line": 108,
       "raw": "The consolidated source and installed-consumer CTest suites share a storage\nresource lock. Their strict transfer and cancellation deadlines are unchanged.\nThis prevents parallel CTest jobs from competing for the fixture volume;\nconcurrent clients, processes and worker threads inside each scenario remain\npart of the tests. It does not serialize application instances or runtime APIs.\n"
     },
     {
       "id": "b000038",
       "kind": "blank",
-      "start_line": 111,
-      "end_line": 111,
+      "start_line": 109,
+      "end_line": 109,
       "raw": "\n"
     },
     {
       "id": "b000039",
       "kind": "paragraph",
-      "start_line": 112,
-      "end_line": 112,
+      "start_line": 110,
+      "end_line": 110,
       "raw": "Recorded validation and preservation evidence: [ConsolidationVerification.md](ConsolidationVerification.md).\n"
     }
   ],
@@ -351,7 +346,7 @@
       "level": 2,
       "title": "Preserved data and process contracts",
       "anchor": "preserved-data-and-process-contracts",
-      "start_line": 58
+      "start_line": 56
     },
     {
       "block_id": "b000027",
@@ -359,21 +354,21 @@
       "level": 2,
       "title": "Migration and verification",
       "anchor": "migration-and-verification",
-      "start_line": 73
+      "start_line": 71
     }
   ],
   "indexes": {
     "directive_candidates": [
       {
         "block_id": "b000007",
-        "line": 19,
+        "line": 17,
         "text": "monitor consumers do not import the diffusion inference backend.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000019",
-        "line": 55,
+        "line": 53,
         "text": "Monitoring never references Core. Export sets and package dependency discovery",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -386,36 +381,10 @@
         "label": "ConsolidationVerification.md",
         "target": "ConsolidationVerification.md",
         "kind": "relative",
-        "line": 112
+        "line": 110
       }
     ],
-    "tables": [
-      {
-        "block_id": "b000005",
-        "columns": [
-          "Capability",
-          "CMake component / target",
-          "Public C++ API"
-        ],
-        "rows": [
-          [
-            "Accounts, client, storage, local IPC, sync, remote generation",
-            "Core / `iiSocietyHelper::iiSocietyHelper`",
-            "Existing Helper APIs, `iiSocietyHelper::Sync`, `iiSocietyHelper::Generation::Remote`"
-          ],
-          [
-            "Native container monitoring and daemon",
-            "Monitoring / `iiSocietyHelper::Monitoring`",
-            "`iiSocietyHelper::Monitoring`"
-          ],
-          [
-            "Desktop inference host",
-            "GenerationHost / `iiSocietyHelper::GenerationHost`",
-            "`iiSocietyHelper::Generation::Host`"
-          ]
-        ]
-      }
-    ]
+    "tables": []
   },
   "provenance": {
     "generator": "workspace-docs",

@@ -15,8 +15,9 @@ def run(resources, command, *, execute=subprocess.run):
     if resources.is_symlink():
         raise ValueError("Resource root cannot be a symlink")
     resources = resources.resolve(strict=True)
-    # Short, isolated names avoid collisions with concurrently running tests.
-    state = resources / ".t"
+    # Keep ancestors visible so asynchronous presentation intake exercises the
+    # same eligibility rules as files in a normal Society container.
+    state = resources / "t"
     if state.is_symlink():
         raise ValueError("Test state cannot be a symlink")
     provider.mkdir(state, parents=True, exist_ok=True)

@@ -10,9 +10,9 @@
   },
   "source": {
     "path": "docs/Migration.md",
-    "sha256": "6edc49c24187466cec0d863c015bcc282fdd656f5bc5f556c2eeab0aca0674ea",
-    "bytes": 4468,
-    "line_count": 81,
+    "sha256": "e93df44b8cf0420a5dd485d6613aadc09f664859041c6732173aca97860dcb6c",
+    "bytes": 4501,
+    "line_count": 79,
     "encoding": "utf-8",
     "language": "en"
   },
@@ -113,59 +113,59 @@
     },
     {
       "id": "b000013",
-      "kind": "table",
       "start_line": 29,
-      "end_line": 34,
-      "raw": "| API | Responsibility |\n| --- | --- |\n| `Helper` / `DeliveryStore` | Same-device presence and durable local IPC. |\n| `Helper::fileSystem()` / `FileSystem` | Selected native drive, Alias snapshots, canvas persistence, model access and media publication. |\n| `Client` | Authenticated host access, read-only container metadata and replica sessions. |\n| `AccountSession` | Account restoration, scoped pairing credentials and host reconnection state. |\n",
-      "columns": [
-        "API",
-        "Responsibility"
-      ],
-      "rows": [
-        [
-          "`Helper` / `DeliveryStore`",
-          "Same-device presence and durable local IPC."
-        ],
-        [
-          "`Helper::fileSystem()` / `FileSystem`",
-          "Selected native drive, Alias snapshots, canvas persistence, model access and media publication."
-        ],
-        [
-          "`Client`",
-          "Authenticated host access, read-only container metadata and replica sessions."
-        ],
-        [
-          "`AccountSession`",
-          "Account restoration, scoped pairing credentials and host reconnection state."
-        ]
+      "end_line": 32,
+      "raw": "- API: `Helper` / `DeliveryStore`; Responsibility: Same-device presence and durable local IPC.\n- API: `Helper::fileSystem()` / `FileSystem`; Responsibility: Selected native drive, Alias snapshots, canvas persistence, model access and media publication.\n- API: `Client`; Responsibility: Authenticated host access, read-only container metadata and replica sessions.\n- API: `AccountSession`; Responsibility: Account restoration, scoped pairing credentials and host reconnection state.\n",
+      "kind": "list",
+      "items": [
+        {
+          "marker": "-",
+          "text": "API: `Helper` / `DeliveryStore`; Responsibility: Same-device presence and durable local IPC.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "API: `Helper::fileSystem()` / `FileSystem`; Responsibility: Selected native drive, Alias snapshots, canvas persistence, model access and media publication.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "API: `Client`; Responsibility: Authenticated host access, read-only container metadata and replica sessions.",
+          "checked": null
+        },
+        {
+          "marker": "-",
+          "text": "API: `AccountSession`; Responsibility: Account restoration, scoped pairing credentials and host reconnection state.",
+          "checked": null
+        }
       ]
     },
     {
       "id": "b000014",
       "kind": "blank",
-      "start_line": 35,
-      "end_line": 35,
+      "start_line": 33,
+      "end_line": 33,
       "raw": "\n"
     },
     {
       "id": "b000015",
       "kind": "paragraph",
-      "start_line": 36,
-      "end_line": 37,
+      "start_line": 34,
+      "end_line": 35,
       "raw": "Create the objects on the application event-loop thread. A local Helper can\nreference the same account manager as the host client:\n"
     },
     {
       "id": "b000016",
       "kind": "blank",
-      "start_line": 38,
-      "end_line": 38,
+      "start_line": 36,
+      "end_line": 36,
       "raw": "\n"
     },
     {
       "id": "b000017",
       "kind": "fenced_code",
-      "start_line": 39,
-      "end_line": 49,
+      "start_line": 37,
+      "end_line": 47,
       "raw": "```cpp\n#include <iiSocietyHelper.h>\n\nAccountSession account;\niiSocietyHelper::Helper helper;\nhelper.setAccountManager(account.manager());\niiSocietyHelper::Client host(&account, nullptr);\n// After account authentication and registered host selection:\nhost.connectHost();\n// Consume host.hostDriveResponse and host.container() as described in HostDrive.md.\n```\n",
       "language": "cpp",
       "code": "#include <iiSocietyHelper.h>\n\nAccountSession account;\niiSocietyHelper::Helper helper;\nhelper.setAccountManager(account.manager());\niiSocietyHelper::Client host(&account, nullptr);\n// After account authentication and registered host selection:\nhost.connectHost();\n// Consume host.hostDriveResponse and host.container() as described in HostDrive.md.\n",
@@ -174,57 +174,57 @@
     {
       "id": "b000018",
       "kind": "blank",
-      "start_line": 50,
-      "end_line": 50,
+      "start_line": 48,
+      "end_line": 48,
       "raw": "\n"
     },
     {
       "id": "b000019",
       "kind": "paragraph",
-      "start_line": 51,
-      "end_line": 57,
+      "start_line": 49,
+      "end_line": 55,
       "raw": "`Helper::stop()` ends local presence; `Client::stop()` ends host access and\nclears its remote mirror. Neither operation signs out the borrowed account.\nThe two container objects have independent ownership: local FileSystem aliases\nremain native-path snapshots, while Client aliases describe the authenticated\nhost. Network credentials and filesystem-private state never enter local IPC.\nThe selected container's encrypted state locations and keychain services do not\nchange during this source consolidation.\n"
     },
     {
       "id": "b000020",
       "kind": "blank",
-      "start_line": 58,
-      "end_line": 58,
+      "start_line": 56,
+      "end_line": 56,
       "raw": "\n"
     },
     {
       "id": "b000021",
       "kind": "paragraph",
-      "start_line": 59,
-      "end_line": 64,
+      "start_line": 57,
+      "end_line": 62,
       "raw": "Dependency direction is `Helper Core -> Container/ServerHost/AccountManager/SharedCanvas`\nand `Helper Core -> Monitoring -> FileTree/Core/CoreIO`. Sync and Remote are\nimplementations in Core. GenerationHost depends on Core and iiLocalDiffusion.\nContainer, account and Monitoring never depend on the Helper Core facade.\nLocal presence and delivery remain usable without starting network discovery\nor signing in. No separate Sync, Generation or Monitor package is discovered.\n"
     },
     {
       "id": "b000022",
       "kind": "blank",
-      "start_line": 65,
-      "end_line": 65,
+      "start_line": 63,
+      "end_line": 63,
       "raw": "\n"
     },
     {
       "id": "b000023",
       "kind": "paragraph",
-      "start_line": 66,
-      "end_line": 70,
+      "start_line": 64,
+      "end_line": 68,
       "raw": "Desktop builds keep the existing shared Helper library; iOS keeps a native\nstatic library and its private CryptoKit bridge. Android retains its native\ndiscovery adapter and existing OpenSSL runtime setting. These are native C++ and\nplatform implementations with the existing Qt dependency. Consolidation does\nnot introduce a VM, interpreter, new transport or credential format.\n"
     },
     {
       "id": "b000024",
       "kind": "blank",
-      "start_line": 71,
-      "end_line": 71,
+      "start_line": 69,
+      "end_line": 69,
       "raw": "\n"
     },
     {
       "id": "b000025",
       "kind": "paragraph",
-      "start_line": 72,
-      "end_line": 81,
+      "start_line": 70,
+      "end_line": 79,
       "raw": "`tests/merged_api.cpp` checks both public surfaces through one target.\nThe original local delivery, object, filesystem, observation and account tests\nrun alongside the imported account, state, discovery and host-drive session\ntests. `tests/consumer` rebuilds against the installed package and checks that\nno retired Client/Sync/Generation/Monitor package is imported. A native Monitoring\nconsumer independently rejects Qt, Core and inference targets.\n`SDK/tests/SocietyHelperConsumers` also compiles Society's real account wrapper\nand encrypted-state tests and Dreamscapes' real generation controller against\nthe installed SDK, without creating app bundles or changing product build caches.\nPlatform runtime verification is recorded separately from source support.\n"
     }
   ],
@@ -249,21 +249,21 @@
       },
       {
         "block_id": "b000019",
-        "line": 55,
+        "line": 53,
         "text": "host. Network credentials and filesystem-private state never enter local IPC.",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000019",
-        "line": 56,
+        "line": 54,
         "text": "The selected container's encrypted state locations and keychain services do not",
         "basis": "lexical_match",
         "context": "paragraph"
       },
       {
         "block_id": "b000021",
-        "line": 62,
+        "line": 60,
         "text": "Container, account and Monitoring never depend on the Helper Core facade.",
         "basis": "lexical_match",
         "context": "paragraph"
@@ -279,33 +279,7 @@
         "line": 4
       }
     ],
-    "tables": [
-      {
-        "block_id": "b000013",
-        "columns": [
-          "API",
-          "Responsibility"
-        ],
-        "rows": [
-          [
-            "`Helper` / `DeliveryStore`",
-            "Same-device presence and durable local IPC."
-          ],
-          [
-            "`Helper::fileSystem()` / `FileSystem`",
-            "Selected native drive, Alias snapshots, canvas persistence, model access and media publication."
-          ],
-          [
-            "`Client`",
-            "Authenticated host access, read-only container metadata and replica sessions."
-          ],
-          [
-            "`AccountSession`",
-            "Account restoration, scoped pairing credentials and host reconnection state."
-          ]
-        ]
-      }
-    ]
+    "tables": []
   },
   "provenance": {
     "generator": "workspace-docs",

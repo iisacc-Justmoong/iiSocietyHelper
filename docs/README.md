@@ -5,44 +5,42 @@
 
 Markdown is the maintained human source. Agent JSON is a structured, source-traceable projection.
 
-| Document | Agent JSON |
-| --- | --- |
-| [`AGENT.md`](../AGENT.md) | [JSON](entrypoints/AGENT.agent.json) |
-| [`README.md`](../README.md) | [JSON](entrypoints/README.agent.json) |
-| [`docs/ApplicationStorage.md`](ApplicationStorage.md) | [JSON](ApplicationStorage.agent.json) |
-| [`docs/BuildComponents.md`](BuildComponents.md) | [JSON](BuildComponents.agent.json) |
-| [`docs/BuildLayout.md`](BuildLayout.md) | [JSON](BuildLayout.agent.json) |
-| [`docs/CanvasProfiles.md`](CanvasProfiles.md) | [JSON](CanvasProfiles.agent.json) |
-| [`docs/Client.md`](Client.md) | [JSON](Client.agent.json) |
-| [`docs/Consolidation.md`](Consolidation.md) | [JSON](Consolidation.agent.json) |
-| [`docs/ConsolidationVerification.md`](ConsolidationVerification.md) | [JSON](ConsolidationVerification.agent.json) |
-| [`docs/DynamicLinking.md`](DynamicLinking.md) | [JSON](DynamicLinking.agent.json) |
-| [`docs/FILESYSTEM_SHUTDOWN.md`](FILESYSTEM_SHUTDOWN.md) | [JSON](FILESYSTEM_SHUTDOWN.agent.json) |
-| [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md) | [JSON](FILE_PROVIDER.agent.json) |
-| [`docs/FilePresentation.md`](FilePresentation.md) | [JSON](FilePresentation.agent.json) |
-| [`docs/Generation/FILE_PROVIDER.md`](Generation/FILE_PROVIDER.md) | [JSON](Generation/FILE_PROVIDER.agent.json) |
-| [`docs/Generation/README.md`](Generation/README.md) | [JSON](Generation/README.agent.json) |
-| [`docs/Generation/WindowsBuildAndRun.md`](Generation/WindowsBuildAndRun.md) | [JSON](Generation/WindowsBuildAndRun.agent.json) |
-| [`docs/HostDrive.md`](HostDrive.md) | [JSON](HostDrive.agent.json) |
-| [`docs/ManagedFiles.md`](ManagedFiles.md) | [JSON](ManagedFiles.agent.json) |
-| [`docs/Migration.md`](Migration.md) | [JSON](Migration.agent.json) |
-| [`docs/Monitoring/FILE_PROVIDER.md`](Monitoring/FILE_PROVIDER.md) | [JSON](Monitoring/FILE_PROVIDER.agent.json) |
-| [`docs/Monitoring/Protocol.md`](Monitoring/Protocol.md) | [JSON](Monitoring/Protocol.agent.json) |
-| [`docs/Monitoring/README.md`](Monitoring/README.md) | [JSON](Monitoring/README.agent.json) |
-| [`docs/Monitoring/WindowsBuildAndRun.md`](Monitoring/WindowsBuildAndRun.md) | [JSON](Monitoring/WindowsBuildAndRun.agent.json) |
-| [`docs/SourceLayout.md`](SourceLayout.md) | [JSON](SourceLayout.agent.json) |
-| [`docs/Sync/FILE_PROVIDER.md`](Sync/FILE_PROVIDER.md) | [JSON](Sync/FILE_PROVIDER.agent.json) |
-| [`docs/Sync/Namespace.md`](Sync/Namespace.md) | [JSON](Sync/Namespace.agent.json) |
-| [`docs/Sync/NearbySync.md`](Sync/NearbySync.md) | [JSON](Sync/NearbySync.agent.json) |
-| [`docs/Sync/PERFORMANCE.md`](Sync/PERFORMANCE.md) | [JSON](Sync/PERFORMANCE.agent.json) |
-| [`docs/Sync/README.md`](Sync/README.md) | [JSON](Sync/README.agent.json) |
-| [`docs/Sync/Snapshots.md`](Sync/Snapshots.md) | [JSON](Sync/Snapshots.agent.json) |
-| [`docs/Sync/WindowsBuildAndRun.md`](Sync/WindowsBuildAndRun.md) | [JSON](Sync/WindowsBuildAndRun.agent.json) |
-| [`docs/Sync/WindowsValidation.md`](Sync/WindowsValidation.md) | [JSON](Sync/WindowsValidation.agent.json) |
-| [`docs/SyncStartup.md`](SyncStartup.md) | [JSON](SyncStartup.agent.json) |
-| [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md) | [JSON](WindowsBuildAndRun.agent.json) |
-| [`docs/WindowsCanvasDashboard.md`](WindowsCanvasDashboard.md) | [JSON](WindowsCanvasDashboard.agent.json) |
-| [`docs/WindowsPresencePublication.md`](WindowsPresencePublication.md) | [JSON](WindowsPresencePublication.agent.json) |
-| [`docs/WindowsValidation.md`](WindowsValidation.md) | [JSON](WindowsValidation.agent.json) |
-| [`docs/documentation-structure.md`](documentation-structure.md) | [JSON](documentation-structure.agent.json) |
+- Document: [`AGENT.md`](../AGENT.md); Agent JSON: [JSON](Entrypoints/AGENT.agent.json)
+- Document: [`README.md`](../README.md); Agent JSON: [JSON](Entrypoints/README.agent.json)
+- Document: [`docs/ApplicationStorage.md`](ApplicationStorage.md); Agent JSON: [JSON](ApplicationStorage.agent.json)
+- Document: [`docs/BuildComponents.md`](BuildComponents.md); Agent JSON: [JSON](BuildComponents.agent.json)
+- Document: [`docs/BuildLayout.md`](BuildLayout.md); Agent JSON: [JSON](BuildLayout.agent.json)
+- Document: [`docs/CanvasProfiles.md`](CanvasProfiles.md); Agent JSON: [JSON](CanvasProfiles.agent.json)
+- Document: [`docs/Client.md`](Client.md); Agent JSON: [JSON](Client.agent.json)
+- Document: [`docs/Consolidation.md`](Consolidation.md); Agent JSON: [JSON](Consolidation.agent.json)
+- Document: [`docs/ConsolidationVerification.md`](ConsolidationVerification.md); Agent JSON: [JSON](ConsolidationVerification.agent.json)
+- Document: [`docs/DynamicLinking.md`](DynamicLinking.md); Agent JSON: [JSON](DynamicLinking.agent.json)
+- Document: [`docs/FILESYSTEM_SHUTDOWN.md`](FILESYSTEM_SHUTDOWN.md); Agent JSON: [JSON](FILESYSTEM_SHUTDOWN.agent.json)
+- Document: [`docs/FILE_PROVIDER.md`](FILE_PROVIDER.md); Agent JSON: [JSON](FILE_PROVIDER.agent.json)
+- Document: [`docs/FilePresentation.md`](FilePresentation.md); Agent JSON: [JSON](FilePresentation.agent.json)
+- Document: [`docs/Generation/FILE_PROVIDER.md`](Generation/FILE_PROVIDER.md); Agent JSON: [JSON](Generation/FILE_PROVIDER.agent.json)
+- Document: [`docs/Generation/README.md`](Generation/README.md); Agent JSON: [JSON](Generation/README.agent.json)
+- Document: [`docs/Generation/WindowsBuildAndRun.md`](Generation/WindowsBuildAndRun.md); Agent JSON: [JSON](Generation/WindowsBuildAndRun.agent.json)
+- Document: [`docs/HostDrive.md`](HostDrive.md); Agent JSON: [JSON](HostDrive.agent.json)
+- Document: [`docs/ManagedFiles.md`](ManagedFiles.md); Agent JSON: [JSON](ManagedFiles.agent.json)
+- Document: [`docs/Migration.md`](Migration.md); Agent JSON: [JSON](Migration.agent.json)
+- Document: [`docs/Monitoring/FILE_PROVIDER.md`](Monitoring/FILE_PROVIDER.md); Agent JSON: [JSON](Monitoring/FILE_PROVIDER.agent.json)
+- Document: [`docs/Monitoring/Protocol.md`](Monitoring/Protocol.md); Agent JSON: [JSON](Monitoring/Protocol.agent.json)
+- Document: [`docs/Monitoring/README.md`](Monitoring/README.md); Agent JSON: [JSON](Monitoring/README.agent.json)
+- Document: [`docs/Monitoring/WindowsBuildAndRun.md`](Monitoring/WindowsBuildAndRun.md); Agent JSON: [JSON](Monitoring/WindowsBuildAndRun.agent.json)
+- Document: [`docs/SourceLayout.md`](SourceLayout.md); Agent JSON: [JSON](SourceLayout.agent.json)
+- Document: [`docs/Sync/FILE_PROVIDER.md`](Sync/FILE_PROVIDER.md); Agent JSON: [JSON](Sync/FILE_PROVIDER.agent.json)
+- Document: [`docs/Sync/Namespace.md`](Sync/Namespace.md); Agent JSON: [JSON](Sync/Namespace.agent.json)
+- Document: [`docs/Sync/NearbySync.md`](Sync/NearbySync.md); Agent JSON: [JSON](Sync/NearbySync.agent.json)
+- Document: [`docs/Sync/PERFORMANCE.md`](Sync/PERFORMANCE.md); Agent JSON: [JSON](Sync/PERFORMANCE.agent.json)
+- Document: [`docs/Sync/README.md`](Sync/README.md); Agent JSON: [JSON](Sync/README.agent.json)
+- Document: [`docs/Sync/Snapshots.md`](Sync/Snapshots.md); Agent JSON: [JSON](Sync/Snapshots.agent.json)
+- Document: [`docs/Sync/WindowsBuildAndRun.md`](Sync/WindowsBuildAndRun.md); Agent JSON: [JSON](Sync/WindowsBuildAndRun.agent.json)
+- Document: [`docs/Sync/WindowsValidation.md`](Sync/WindowsValidation.md); Agent JSON: [JSON](Sync/WindowsValidation.agent.json)
+- Document: [`docs/SyncStartup.md`](SyncStartup.md); Agent JSON: [JSON](SyncStartup.agent.json)
+- Document: [`docs/WindowsBuildAndRun.md`](WindowsBuildAndRun.md); Agent JSON: [JSON](WindowsBuildAndRun.agent.json)
+- Document: [`docs/WindowsCanvasDashboard.md`](WindowsCanvasDashboard.md); Agent JSON: [JSON](WindowsCanvasDashboard.agent.json)
+- Document: [`docs/WindowsPresencePublication.md`](WindowsPresencePublication.md); Agent JSON: [JSON](WindowsPresencePublication.agent.json)
+- Document: [`docs/WindowsValidation.md`](WindowsValidation.md); Agent JSON: [JSON](WindowsValidation.agent.json)
+- Document: [`docs/documentation-structure.md`](documentation-structure.md); Agent JSON: [JSON](documentation-structure.agent.json)
 <!-- workspace-docs:document-map:end -->

@@ -254,13 +254,11 @@ accounts.loginWithPassword(email, password);
 // Call accounts.verifyEmailCode(code) after accounts.verificationRequired().
 ```
 
-|API / Qt property|Contract|
-| --- | --- |
-| `setAccountManager(AccountManager*)` |Connects the manager in the same thread. `nullptr` is disconnect. It can also be called from QML.|
-| `accountManager()` / `accountManager` |Is the manager object itself that was connected. After being disconnected or destroyed, it is `nullptr`.|
-| `account()` / `account` |Is the manager's fixed `Account` object itself. If not connected, it is `nullptr`; if connected but before login, it is `present == false`.|
-| `accountManagerChanged()` |Notifies of connect, replace, disconnect, and manager destruction.|
-| `accountChanged()` |Notifies of reference replacement and account and nested author data changes. It sends after the entire changed value is reflected.|
+- API / Qt property: `setAccountManager(AccountManager*)`; Contract: Connects the manager in the same thread. `nullptr` is disconnect. It can also be called from QML.
+- API / Qt property: `accountManager()` / `accountManager`; Contract: Is the manager object itself that was connected. After being disconnected or destroyed, it is `nullptr`.
+- API / Qt property: `account()` / `account`; Contract: Is the manager's fixed `Account` object itself. If not connected, it is `nullptr`; if connected but before login, it is `present == false`.
+- API / Qt property: `accountManagerChanged()`; Contract: Notifies of connect, replace, disconnect, and manager destruction.
+- API / Qt property: `accountChanged()`; Contract: Notifies of reference replacement and account and nested author data changes. It sends after the entire changed value is reflected.
 
 Reads 11 fields of `Account`'s identity, profile, membership, consent, and container drive information, and 20 fields of `AuthorDetails`, and the type-specified links and identifier collection as is. In QML, `societyHelper.account.userId`, `societyHelper.account.authorDetails.organization`, and `societyHelper.accountManager.state` can be used. When there is no connection, it checks `societyHelper.account` first. The account change notification is distinguished from the login request status change, and the login status uses the manager's `state` and `stateChanged`.
 
@@ -366,12 +364,10 @@ This is confirmation of the existence of cooperating apps. It does not include s
 
 `Helper::sendObject(topic, object)` synchronously serializes the current value of the object and puts it into the existing persistent delivery queue. On success, it returns message UUID, and on failure, it returns an empty string and `errorString()`. `dataQueued(id)` occurs after the actual queue insertion succeeds and one time. Modifying the original value, QObject deletion, or terminating the sending app after successful transmission does not change the value stored in the queue. First, configure the sending app and observer directory with `start()`. During the call, if the getter or serialization operator stops or restarts the Helper, the object is not put into another sending instance name but fails, and even if the Helper is destroyed, it does not perform the remaining object transmission.
 
-|Transfer target|Transmit API|Restoration result|
-| --- | --- | --- |
-| `QObject*` / `const QObject*` / `const QObject&` | `sendObject(topic, object)` | `ObjectSnapshot { QString className; QVariantMap properties; }` |
-|Qt value·registered C++ struct/class| `sendObject(topic, value)` |Original Qt metatype preserved `QVariant`, `value<T>()` to C++ value restoration|
-|Already held `QVariant`| `sendObject(topic, variant)` |Type and content of the held value|
-|Existing JSON value bundle| `sendData(topic, map)` |Existing `QVariantMap` contract|
+- Transfer target: `QObject*` / `const QObject*` / `const QObject&`; Transmit API: `sendObject(topic, object)`; Restoration result: `ObjectSnapshot { QString className; QVariantMap properties; }`
+- Transfer target: Qt value·registered C++ struct/class; Transmit API: `sendObject(topic, value)`; Restoration result: Original Qt metatype preserved `QVariant`, `value<T>()` to C++ value restoration
+- Transfer target: Already held `QVariant`; Transmit API: `sendObject(topic, variant)`; Restoration result: Type and content of the held value
+- Transfer target: Existing JSON value bundle; Transmit API: `sendData(topic, map)`; Restoration result: Existing `QVariantMap` contract
 
 QObject uses the explicit storage contract if `Q_INVOKABLE QVariantMap toVariantMap() const` is present. Otherwise, it reads readable `STORED` Q_PROPERTY including inherited user properties. QObject default `objectName`, dynamic properties, and `STORED false` properties are not automatically collected. Nested QObject properties become nested `ObjectSnapshot` and null references become null values. Circular references are rejected. Objects must be read from their own thread, and getters must return valid value·references. The original QObject and execution method·ownership·memory address are not transmitted. If an instance of the original QObject class is needed, the receiving app uses the snapshot and that class's create·update API.
 
@@ -505,7 +501,7 @@ Qt **6.8.3** Core/Gui/Sql/Network, and the QSQLITE driver.
 BLE uses Qt Bluetooth. Desktop GenerationHost additionally requires iiLocalDiffusion. Building the account SDK itself requires CMake 3.31 or later. Tests require Qt Test/Qml of the same version; Apple builds require Foundation and an Objective-C++ compiler. All artifacts are placed in `build/`.
 
 ```sh
-CMAKE_PREFIX_PATH="/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install" \
+CMAKE_PREFIX_PATH="/Volumes/Workspace/SDK/iiSocietyContainer/build/install;/Volumes/Workspace/SDK/iiAccountManager/build/install" \
   INSTALL_PREFIX="$PWD/build/install" ./install.sh
 ```
 
@@ -514,8 +510,8 @@ This script verifies the actual observation of an independent consumer that uses
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH=/Volumes/Storage/Qt/6.8.3/macos \
-  -DiiSocietyContainer_DIR=/Volumes/Storage/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \
-  -DiiAccountManager_DIR=/Volumes/Storage/Workspace/SDK/iiAccountManager/build/install/lib/cmake/iiAccountManager \
+  -DiiSocietyContainer_DIR=/Volumes/Workspace/SDK/iiSocietyContainer/build/install/lib/cmake/iiSocietyContainer \
+  -DiiAccountManager_DIR=/Volumes/Workspace/SDK/iiAccountManager/build/install/lib/cmake/iiAccountManager \
   -DCMAKE_INSTALL_PREFIX="$PWD/build/install" -DBUILD_TESTING=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure

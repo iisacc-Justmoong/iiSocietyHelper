@@ -157,7 +157,7 @@ QVariantMap FileSystem::saveCanvas(const QByteArray &encoded, const QString &des
         if (!decoded.ok()) throw std::runtime_error(decoded.error.message);
         iiFileProvider::LockFile lock(lockPath(selected));
         if (!lock.tryLock()) throw std::runtime_error("The canvas is being written by another operation.");
-        detail::ManagedFileOperation operation(selected, "Save canvas");
+        detail::ManagedFileOperation operation(selected, "Save canvas",!expectedVersion.isEmpty());
         DocumentFile file;
         if (expectedVersion.isEmpty()) {
             const auto created = file.create(selected.toStdString(), decoded.document, limits());

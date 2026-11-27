@@ -1,7 +1,11 @@
 #include "iiSocietyHelper.h"
 #include <SharedStorage.h>
+#include <DirectoryMetadataIndex.h>
+#include <FileCatalog.h>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QFileInfo>
 #include <array>
 #include <algorithm>
 #include <stdexcept>
@@ -65,11 +69,56 @@ bool FileSystem::setFileMetadata(const QString &sectionKey, const QString &relat
         constexpr std::array<const char *, 8> colors{"none","red","orange","yellow","green","blue","purple","gray"};
         const auto color = input.value("color", "none").toString().toStdString(); const auto it = std::ranges::find(colors, color);
         if (it == colors.end()) throw std::runtime_error("Unknown color label."); metadata.color = static_cast<ColorLabel>(it - colors.begin());
-        iiSocietyContainer::FileRepositoryContext context; context.description = "Edit file metadata"; context.work.document = (sectionKey + '/' + relative).toStdString();
         std::optional<iiSocietyContainer::StoreSection> section;
         for (const auto value : storage->drive().sections()) if (iiSocietyContainer::storeSectionKey(value) == sectionKey) section = value;
         if (!section) throw std::runtime_error("Unknown Society section.");
-        storage->fileRepository(std::move(context))->observe(storage->managedFilePath(*section, relative), metadata);
+        QString error;
+        if (!storage->recordFile(*section,relative,&error)) throw std::runtime_error(error.toStdString());
+        const auto container=std::filesystem::path(storage->drive().rootPath().toStdU16String());
+        const auto logical=storage->managedFilePath(*section,relative);
+        const auto slash=logical.find('/');if (slash==std::string::npos) throw std::runtime_error("The Society file path is invalid.");
+        const auto sectionRoot=std::filesystem::path(storage->drive().sectionPath(*section).toStdU16String());
+        const auto native=sectionRoot/std::filesystem::path(std::u8string(logical.begin()+slash+1,logical.end()));
+        const auto raw=native.lexically_relative(container).generic_u8string();
+        const std::string address(reinterpret_cast<const char *>(raw.data()),raw.size());
+        const auto database=container/".iisacc-file-provider/metadata-paths.sqlite3";
+        bool updated=false;
+        if (std::filesystem::exists(database)) {
+            DirectoryMetadataIndex index(container,DirectoryMetadataIndex::Access::ReadWrite);
+            if (index.contains(address)) {
+                const auto previous=index.read(address);if (!previous) throw std::runtime_error("The metadata owner is unavailable.");
+                auto document=QJsonDocument::fromJson(QByteArray::fromStdString(*previous)).object();
+                QJsonArray keywords,collections;QJsonObject fields;
+                for (const auto &word:metadata.keywords) keywords.append(QString::fromStdString(word));
+                for (const auto &key:metadata.collections) collections.append(QString::fromStdString(key));
+                for (const auto &[key,value]:metadata.fields) fields.insert(QString::fromStdString(key),QString::fromStdString(value));
+                document.insert("metadata",QJsonObject{{"title",QString::fromStdString(metadata.title)},
+                    {"description",QString::fromStdString(metadata.description)},{"keywords",keywords},
+                    {"rating",int(metadata.rating)},{"color",QString::fromStdString(color)},
+                    {"fields",fields},{"collections",collections}});
+                document.insert("collections",collections);
+                document.insert("revision",document.value("revision").toInteger()+1);
+                index.put(address,QJsonDocument(document).toJson(QJsonDocument::Compact).toStdString(),*previous);
+                updated=true;
+            }
+        }
+        if (!updated) {
+            const auto package=iiSocietyContainer::FileRepository::packagePath(container);
+            if (std::filesystem::exists(package/"objects.sqlite3")) {
+                auto repository=storage->fileRepository();
+                if (repository->lookup(logical)) { (void)repository->observe(logical,metadata);updated=true; }
+            }
+            if (!updated) {
+                auto privateDocument=iiSocietyContainer::FileRepository::classificationDirectory(container,sectionKey.toStdString())/
+                    native.lexically_relative(sectionRoot);privateDocument += ".iisacc.json";
+                FileCatalog catalog(sectionRoot,FileCatalog::Access::ReadWrite,
+                    std::filesystem::exists(privateDocument)?iiSocietyContainer::FileRepository::classificationDirectory(container,sectionKey.toStdString()):std::filesystem::path{});
+                const auto record=catalog.lookupPath(logical.substr(logical.find('/')+1));
+                if (!record || !catalog.matchesIdentity(record->key,record->path)) throw std::runtime_error("Legacy classification owner is unavailable.");
+                const auto result=catalog.updateMetadata(record->key,record->revision,metadata);
+                if (!result.metadataWritten) throw std::runtime_error(result.metadataError);
+            }
+        }
         synchronize(); setError({}); return true;
     } catch (const std::exception &e) { setError(QString::fromUtf8(e.what())); return false; }
 }
